@@ -221,10 +221,39 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
     elif section_type == 'chart':
         st.markdown("### 📊 Data & Visualization")
         chart = unit.get('chart', {})
-        chart_b64 = chart.get('b64')
         
-        if chart_b64:
-            st.image(f"data:image/png;base64,{chart_b64}", use_container_width=True)
+        if chart and isinstance(chart, dict):
+            # Check if this is a Plotly chart or matplotlib chart
+            chart_type = chart.get('chart_type', 'matplotlib')
+            
+            if chart_type == 'plotly' and chart.get('plotly_config'):
+                # Display interactive Plotly chart
+                try:
+                    import plotly.graph_objects as go
+                    fig = go.Figure(chart['plotly_config'])
+                    st.plotly_chart(fig, use_container_width=True)
+                except ImportError:
+                    # Fallback to matplotlib if plotly not available
+                    chart_b64 = chart.get('b64')
+                    if chart_b64:
+                        st.image(f"data:image/png;base64,{chart_b64}", use_container_width=True)
+                    else:
+                        st.warning("Plotly is not installed and no fallback image available.")
+                except Exception as e:
+                    st.error(f"Error displaying chart: {e}")
+                    # Fallback to matplotlib if available
+                    chart_b64 = chart.get('b64')
+                    if chart_b64:
+                        st.image(f"data:image/png;base64,{chart_b64}", use_container_width=True)
+            else:
+                # Display matplotlib chart (legacy or fallback)
+                chart_b64 = chart.get('b64')
+                if chart_b64:
+                    st.image(f"data:image/png;base64,{chart_b64}", use_container_width=True)
+                else:
+                    st.info("No chart available for this section.")
+            
+            # Display chart description if available
             chart_desc = chart.get('description', '')
             if chart_desc:
                 st.markdown(chart_desc)

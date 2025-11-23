@@ -1434,20 +1434,41 @@ with tab2:
                 # --- Display Chart ---
                 st.markdown("##### Chart")
                 chart_dict = unit.get("chart")
-                if chart_dict and isinstance(chart_dict, dict) and chart_dict.get("b64"):
+                if chart_dict and isinstance(chart_dict, dict):
                     suggestion = unit.get("chart_suggestion")
-                    if suggestion and isinstance(suggestion, dict):
-                        # Show only the title for the chart, not the suggestion text with chart type
-                        chart_title = suggestion.get("title", "Chart")
-                        # Display chart image using st.image
+                    chart_title = suggestion.get("title", "Chart") if suggestion else "Chart"
+                    
+                    # Check if this is a Plotly chart or matplotlib chart
+                    chart_type = chart_dict.get("chart_type", "matplotlib")
+                    
+                    if chart_type == "plotly" and chart_dict.get("plotly_config"):
+                        # Display interactive Plotly chart
+                        try:
+                            import plotly.graph_objects as go
+                            # Recreate figure from config dict
+                            fig = go.Figure(chart_dict["plotly_config"])
+                            st.plotly_chart(fig, use_container_width=True)
+                        except ImportError:
+                            st.warning("Plotly is not installed. Showing static image fallback if available.")
+                            # Fallback to matplotlib if plotly not available but b64 exists
+                            if chart_dict.get("b64"):
+                                st.image(f"data:image/png;base64,{chart_dict['b64']}", caption=chart_title, width=320)
+                        except Exception as e:
+                            st.error(f"Error displaying Plotly chart: {e}")
+                            # Fallback to matplotlib if available
+                            if chart_dict.get("b64"):
+                                st.image(f"data:image/png;base64,{chart_dict['b64']}", caption=chart_title, width=320)
+                    
+                    elif chart_dict.get("b64"):
+                        # Display matplotlib chart (legacy or fallback)
                         st.image(f"data:image/png;base64,{chart_dict['b64']}", caption=chart_title, width=320)
                     else:
-                        # Fallback if no proper suggestion is available
-                        st.image(f"data:image/png;base64,{chart_dict['b64']}", caption="Chart", width=320)
+                        # No valid chart data
+                        if media_richness >= 3:
+                            st.markdown("_No chart was generated for this unit._")
                 else:
                     if media_richness >= 3:
                         st.markdown("_No chart was generated for this unit._")
-                    # Don't show any message if charts aren't expected based on media richness
 
                 # --- Audio Narration (TTS) ---
                 if config.get("tts", {}).get("enabled", True):

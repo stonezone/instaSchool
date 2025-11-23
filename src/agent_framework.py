@@ -441,20 +441,21 @@ class ChartAgent(BaseAgent):
             print(f"Chart suggestion error: {e}")
             return None
     
-    def create_chart(self, chart_info: Optional[Dict[str, Any]]) -> Optional[Dict[str, Optional[str]]]:
-        """Creates a chart using Matplotlib based on the suggestion."""
+    def create_chart(self, chart_info: Optional[Dict[str, Any]], use_plotly: bool = True) -> Optional[Dict[str, Any]]:
+        """Creates a chart using Plotly (preferred) or Matplotlib (fallback).
+        
+        Args:
+            chart_info: Chart configuration dict with chart_type, title, data, labels, etc.
+            use_plotly: If True, generate Plotly JSON. If False or on error, use matplotlib.
+            
+        Returns:
+            Dict with either:
+                - Plotly: {"plotly_config": {...}, "title": str, "chart_type": "plotly"}
+                - Matplotlib: {"b64": str, "title": str, "chart_type": "matplotlib"}
+                - None on total failure
+        """
         if not chart_info:
             return None
-
-        # Check if matplotlib is available
-        if not MATPLOTLIB_AVAILABLE:
-            print("Cannot create chart: matplotlib is not installed.")
-            try:
-                import streamlit as st
-                st.warning("Chart generation requires matplotlib which is not installed.")
-            except ImportError:
-                pass  # Can't import streamlit, skip UI notification
-            return {"title": chart_info.get("title", "Chart"), "b64": None, "error": "matplotlib not installed"}
 
         # Safely extract data with defaults
         chart_type = chart_info.get("chart_type", "Bar").capitalize()
@@ -476,70 +477,192 @@ class ChartAgent(BaseAgent):
                 pass
             return None
 
+        # Convert values to numeric
         try:
-            # Attempt to convert values to numeric, handle potential errors
             numeric_values = []
             for v in values:
                 try:
-                    # Handle negative values properly
                     numeric_values.append(float(v))
                 except (ValueError, TypeError):
-                    # Use a small positive value as fallback for non-numeric data
                     numeric_values.append(0.1)
                     print(f"Warning: Non-numeric value '{v}' in chart data, using placeholder.")
         except Exception as e:
             error_msg = f"Cannot create chart '{title}': Values contain non-numeric data ({values}). Error: {e}"
             print(error_msg)
-            try:
-                import streamlit as st
-                st.warning(f"Chart generation issue: {error_msg}")
-            except ImportError:
-                pass
             return None
 
-        # Plotting (only if matplotlib is available)
+        # Try Plotly first if requested
+        if use_plotly:
+            try:
+                plotly_config = self._create_plotly_chart(
+                    chart_type, title, labels, numeric_values, x_label, y_label
+                )
+                if plotly_config:
+                    return {
+                        "plotly_config": plotly_config,
+                        "title": title,
+                        "chart_type": "plotly"
+                    }
+            except Exception as e:
+                print(f"Plotly chart generation failed, falling back to matplotlib: {e}")
+                # Continue to matplotlib fallback
+
+        # Matplotlib fallback
+        return self._create_matplotlib_chart(
+            chart_type, title, labels, numeric_values, x_label, y_label
+        )
+    
+    def _create_plotly_chart(self, chart_type: str, title: str, labels: List, 
+                            values: List[float], x_label: str, y_label: str) -> Optional[Dict]:
+        """Generate Plotly chart configuration.
+        
+        Returns:
+            Dict compatible with plotly.graph_objects or None on failure
+        """
+        try:
+            # Import plotly here to make it optional
+            import plotly.graph_objects as go
+            
+            # Adjust values for pie charts (must be positive)
+            if chart_type == "Pie":
+                values = [max(0.1, abs(v)) for v in values]
+                if all(v == 0 for v in values):
+                    values = [1] * len(values)
+            
+            # Create the appropriate trace based on chart type
+            if chart_type == "Bar":
+                trace = go.Bar(
+                    x=labels,
+                    y=values,
+                    text=[str(v) for v in values],
+                    textposition='outside',
+                    marker=dict(color='rgb(55, 128, 191)')
+                )
+                layout = go.Layout(
+                    title=title,
+                    xaxis=dict(title=x_label),
+                    yaxis=dict(title=y_label),
+                    hovermode='closest'
+                )
+                
+            elif chart_type == "Line":
+                trace = go.Scatter(
+                    x=labels,
+                    y=values,
+                    mode='lines+markers+text',
+                    text=[str(v) for v in values],
+                    textposition='top center',
+                    marker=dict(size=10, color='rgb(34, 139, 34)'),
+                    line=dict(width=2)
+                )
+                layout = go.Layout(
+                    title=title,
+                    xaxis=dict(title=x_label),
+                    yaxis=dict(title=y_label),
+                    hovermode='closest'
+                )
+                
+            elif chart_type == "Pie":
+                trace = go.Pie(
+                    labels=labels,
+                    values=values,
+                    textposition='inside',
+                    textinfo='label+percent',
+                    hoverinfo='label+value+percent',
+                    marker=dict(line=dict(color='white', width=2))
+                )
+                layout = go.Layout(
+                    title=title
+                )
+                
+            else:
+                # Default to bar chart for unknown types
+                trace = go.Bar(
+                    x=labels,
+                    y=values,
+                    text=[str(v) for v in values],
+                    textposition='outside',
+                    marker=dict(color='rgb(55, 128, 191)')
+                )
+                layout = go.Layout(
+                    title=title,
+                    xaxis=dict(title=x_label),
+                    yaxis=dict(title=y_label),
+                    hovermode='closest'
+                )
+            
+            # Create figure
+            fig = go.Figure(data=[trace], layout=layout)
+            
+            # Return the figure as a dict that can be used with st.plotly_chart()
+            return fig.to_dict()
+            
+        except ImportError:
+            print("Plotly not available, falling back to matplotlib")
+            return None
+        except Exception as e:
+            print(f"Error creating Plotly chart: {e}")
+            return None
+    
+    def _create_matplotlib_chart(self, chart_type: str, title: str, labels: List,
+                                 values: List[float], x_label: str, y_label: str) -> Optional[Dict]:
+        """Generate matplotlib chart as base64 PNG (fallback method).
+        
+        Returns:
+            Dict with {"b64": str, "title": str, "chart_type": "matplotlib"} or None
+        """
+        # Check if matplotlib is available
+        if not MATPLOTLIB_AVAILABLE:
+            print("Cannot create chart: matplotlib is not installed.")
+            try:
+                import streamlit as st
+                st.warning("Chart generation requires matplotlib which is not installed.")
+            except ImportError:
+                pass
+            return {"title": title, "b64": None, "error": "matplotlib not installed", "chart_type": "matplotlib"}
+
         fig = None
         try:
             fig, ax = plt.subplots(figsize=(6, 4))
 
             # For pie charts, ensure all values are positive
             if chart_type == "Pie":
-                # Convert any negative values to positive for pie charts
-                numeric_values = [max(0.1, abs(v)) for v in numeric_values]
+                values = [max(0.1, abs(v)) for v in values]
 
             if chart_type == "Bar":
-                ax.bar(labels, numeric_values, color='skyblue')
+                ax.bar(labels, values, color='skyblue')
                 ax.set_xlabel(x_label)
                 ax.set_ylabel(y_label)
                 # Add value labels on top of bars
-                for i, v in enumerate(numeric_values):
+                for i, v in enumerate(values):
                     ax.text(i, v, str(v), ha='center', va='bottom')
+                    
             elif chart_type == "Line":
-                ax.plot(labels, numeric_values, marker='o', linestyle='-', color='green')
+                ax.plot(labels, values, marker='o', linestyle='-', color='green')
                 ax.set_xlabel(x_label)
                 ax.set_ylabel(y_label)
                 # Add data point labels
-                for i, v in enumerate(numeric_values):
+                for i, v in enumerate(values):
                     ax.text(i, v, str(v), ha='center', va='bottom')
+                    
             elif chart_type == "Pie":
                 try:
                     # Handle case where all values are 0
-                    if all(v == 0 for v in numeric_values):
-                        numeric_values = [1] * len(numeric_values)
+                    if all(v == 0 for v in values):
+                        values = [1] * len(values)
                     
-                    ax.pie(numeric_values, labels=labels, autopct='%1.1f%%', 
+                    ax.pie(values, labels=labels, autopct='%1.1f%%', 
                            shadow=True, startangle=90)
-                    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+                    ax.axis('equal')
                 except Exception as pie_error:
                     print(f"Error with pie chart, falling back to bar: {pie_error}")
-                    # Fall back to bar chart if pie chart fails
                     ax.clear()
-                    ax.bar(labels, numeric_values, color='skyblue')
+                    ax.bar(labels, values, color='skyblue')
                     ax.set_xlabel(x_label)
                     ax.set_ylabel(y_label)
             else:
                 # Default to bar chart if unrecognized type
-                ax.bar(labels, numeric_values, color='skyblue')
+                ax.bar(labels, values, color='skyblue')
                 ax.set_xlabel(x_label)
                 ax.set_ylabel(y_label)
 
@@ -550,18 +673,18 @@ class ChartAgent(BaseAgent):
             buffer = BytesIO()
             plt.savefig(buffer, format='png', dpi=100)
             buffer.seek(0)
-            plt.close(fig)  # Close figure to avoid memory leaks
+            plt.close(fig)
 
             # Convert to base64
             image_b64 = base64.b64encode(buffer.read()).decode('utf-8')
             
-            return {"b64": image_b64, "title": title}
+            return {"b64": image_b64, "title": title, "chart_type": "matplotlib"}
 
         except Exception as e:
-            error_msg = f"Error creating chart: {e}"
+            error_msg = f"Error creating matplotlib chart: {e}"
             print(error_msg)
             if fig:
-                plt.close(fig)  # Close figure to avoid memory leaks
+                plt.close(fig)
             
             try:
                 import streamlit as st
