@@ -243,22 +243,22 @@ defaults:
   language: "English"
 
   # Default AI models to use.
-  # gpt-4.1 is the orchestrator model for planning and coordination
-  text_model: "gpt-4.1-nano"  # Changed to nano for testing/development
+  # GPT-4o is the primary model for orchestration
+  text_model: "gpt-4o-mini"  # Default to mini for cost efficiency
   # Text model for worker agents (most economical option)
-  worker_model: "gpt-4.1-nano"  # Changed to nano for testing/development
+  worker_model: "gpt-4o-mini"  # Mini model for content generation
   # Default image model
-  image_model: "gpt-image-1"
-  # Available image models
+  image_model: "dall-e-3"
+  # Available image models (fallback if API detection fails)
   image_models:
-    - "gpt-image-1"
     - "dall-e-3"
     - "dall-e-2"
-  # Available text models
+  # Available text models (fallback if API detection fails)
   text_models:
-    - "gpt-4.1"
-    - "gpt-4.1-mini"
-    - "gpt-4.1-nano"
+    - "gpt-4o"
+    - "gpt-4o-mini"
+    - "gpt-4-turbo"
+    - "gpt-3.5-turbo"
 
   # Default states for the feature toggles.
   include_quizzes: true

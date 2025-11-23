@@ -75,6 +75,9 @@ from services.session_service import SessionManager, QuizManager, InputValidator
 # Import modern UI components
 from src.ui_components import ModernUI, ThemeManager, LayoutHelpers
 
+# Import model detector for dynamic model detection
+from src.model_detector import get_available_models, get_fallback_models, get_recommended_models
+
 # Setup page config for wider layout
 st.set_page_config(page_title="Curriculum Generator", page_icon=":books:", layout="wide")
 
@@ -178,8 +181,31 @@ except ImportError as e:
         st.stop()
 except Exception as e:
     st.error(f"Error initializing OpenAI client: {e}")
-    sys.stderr.write(traceback.format_exc() + "\n")
+    sys.stderr.write(traceback.format_exc() + "\\n")
     st.stop()
+
+# ========== Detect Available Models ==========
+# Initialize available models in session state
+if "available_models" not in st.session_state:
+    try:
+        # Try to detect models from OpenAI API
+        sys.stderr.write("Detecting available OpenAI models...\\n")
+        available_models = get_available_models(client)
+        
+        if 'error' in available_models:
+            # Fallback to config if detection fails
+            sys.stderr.write(f"Model detection failed: {available_models['error']}\\n")
+            sys.stderr.write("Using fallback models from config...\\n")
+            st.session_state.available_models = None
+            st.session_state.model_detection_error = available_models['error']
+        else:
+            st.session_state.available_models = available_models
+            st.session_state.model_detection_error = None
+            sys.stderr.write(f"Detected {len(available_models['text_models'])} text models and {len(available_models['image_models'])} image models\\n")
+    except Exception as e:
+        sys.stderr.write(f"Exception during model detection: {e}\\n")
+        st.session_state.available_models = None
+        st.session_state.model_detection_error = str(e)
 
 # ========== Initialize session state and services ==========
 # Initialize session manager
@@ -623,20 +649,51 @@ with st.sidebar.expander("📚 **Basic Settings**", expanded=True):
 
 # Advanced Settings Section  
 with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
+    # Get available models from detection or fallback to config
+    if st.session_state.available_models:
+        available_text_models = st.session_state.available_models.get('text_models', [])
+        available_image_models = st.session_state.available_models.get('image_models', [])
+    else:
+        # Fallback to config
+        fallback_models = get_fallback_models(config)
+        available_text_models = fallback_models['text_models']
+        available_image_models = fallback_models['image_models']
+    
+    # Show detection status if there was an error
+    if st.session_state.model_detection_error:
+        st.warning(f"⚠️ Using fallback models (API detection failed)")
+        with st.expander("Detection Error Details"):
+            st.code(st.session_state.model_detection_error)
+    
     # Main model selection (for orchestration)
+    # Get default or first available
+    default_text_model = config["defaults"].get("text_model", "gpt-4o")
+    if default_text_model not in available_text_models and available_text_models:
+        default_text_model = available_text_models[0]
+    
+    text_model_index = available_text_models.index(default_text_model) if default_text_model in available_text_models else 0
+    
     text_model = st.selectbox(
         "Main AI Model (Orchestrator)", 
-        options=config["defaults"].get("text_models", ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]), 
-        index=config["defaults"].get("text_models", ["gpt-4.1"]).index(config["defaults"]["text_model"]) if config["defaults"]["text_model"] in config["defaults"].get("text_models", ["gpt-4.1"]) else 0, 
-        help="gpt-4.1: Best but expensive (orchestration), gpt-4.1-mini: Medium (deeper analysis), gpt-4.1-nano: Most affordable (dev/testing)"
+        options=available_text_models,
+        index=text_model_index, 
+        help="Select the primary model for planning and coordination. GPT-4 variants recommended for best quality."
     )
     
     # Worker model selection (for content generation)
+    default_worker_model = config["defaults"].get("worker_model", "gpt-4o-mini")
+    if default_worker_model not in available_text_models and available_text_models:
+        # Try to find a mini model
+        mini_models = [m for m in available_text_models if 'mini' in m.lower()]
+        default_worker_model = mini_models[0] if mini_models else available_text_models[0]
+    
+    worker_model_index = available_text_models.index(default_worker_model) if default_worker_model in available_text_models else 0
+    
     worker_model = st.selectbox(
         "Worker AI Model (Content)", 
-        options=config["defaults"].get("text_models", ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]), 
-        index=config["defaults"].get("text_models", ["gpt-4.1"]).index(config["defaults"]["worker_model"]) if config["defaults"]["worker_model"] in config["defaults"].get("text_models", ["gpt-4.1"]) else 0, 
-        help="Model for content generation. Use gpt-4.1-nano for development/testing to save costs."
+        options=available_text_models,
+        index=worker_model_index, 
+        help="Model for content generation. Use mini models for cost efficiency."
     )
     
     # Show cost estimation (using defaults for now, will update after user selections)
@@ -662,18 +719,25 @@ with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
         st.success(f"💸 Saving {cost_estimate['savings_vs_full']['percent']:.0f}% vs full model!")
     
     # Get available image models from config
-    available_image_models = config["defaults"].get("image_models", ["gpt-imagegen-1", "dall-e-3", "dall-e-2"])
+    # Image models were already fetched in the available_image_models variable above
+    # No need to get from config again - they're already set
     
+    # Get default or first available image model
+    default_image_model = config["defaults"].get("image_model", "dall-e-3")
+    if default_image_model not in available_image_models and available_image_models:
+        default_image_model = available_image_models[0]
+
+    image_model_index = available_image_models.index(default_image_model) if default_image_model in available_image_models else 0
+
     # Debug - log available models to stderr
-    sys.stderr.write(f"Available image models in config: {available_image_models}\n")
-    
+    sys.stderr.write(f"Available image models: {available_image_models}\n")
+
     # Image model selection with explicit options
     image_model = st.selectbox(
-        "Image Model", 
+        "Image Model",
         options=available_image_models,
-        index=available_image_models.index(config["defaults"].get("image_model", "gpt-image-1")) 
-              if config["defaults"].get("image_model", "gpt-image-1") in available_image_models else 0,
-        help="Select the model for generating images: gpt-image-1 (your primary model), dall-e-3 (creative), or dall-e-2 (basic)"
+        index=image_model_index,
+        help="Select the model for generating images. DALL-E 3 recommended for best quality."
     )
     
     # Add image size selection based on the chosen model
