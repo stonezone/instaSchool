@@ -1,0 +1,317 @@
+# Production-Ready Configuration for Streamlit Curriculum Generator (main.py)
+# Version: 2.2
+# Last Updated: 2025-05-02
+
+# --- Prompts for AI Agents ---
+# These prompts guide the different AI agents in generating curriculum components.
+# Placeholders like {subject}, {grade}, {topic}, {style}, {language}, {extra},
+# {min_topics}, {max_topics}, {include_keypoints_instruction} will be replaced by the script.
+prompts:
+  # Generates the list of topics for the curriculum outline.
+  outline: |
+    You are an expert curriculum planner with extensive experience in designing {subject} curricula for {grade} students.
+    Your task is to generate an educational, engaging, and developmentally appropriate curriculum outline.
+
+    Subject: {subject}
+    Grade Level: {grade}
+    Curriculum Style: {style}
+    Language: {language}
+    Specific Guidelines: {extra}
+
+    Instructions:
+    - Create a carefully sequenced list of {min_topics} to {max_topics} topic titles that build progressively in complexity.
+    - Ensure each topic connects to and builds upon previous topics, creating a coherent learning journey.
+    - Align topics with educational standards for {grade} level {subject} while making them engaging and accessible.
+    - Balance breadth and depth of content appropriate for {grade} level cognitive development.
+    - Name topics in a way that sparks curiosity while clearly communicating the content focus.
+    - Output **only** a valid JSON object containing a single key "topics", where the value is a JSON list of strings (the topic titles).
+    
+    Example JSON Output: {{"topics": ["Topic Title 1", "Topic Title 2", "Topic Title 3"]}}
+
+    Generate the JSON object now:
+
+  # Generates the main lesson content for a specific topic, written for the student.
+  content: |
+    You are an exceptional educator creating engaging, age-appropriate {subject} content for {grade} level students.
+    Topic: {topic}
+    Style: {style}
+    Language: {language}
+    Guidelines: {extra}
+
+    Your task is to write compelling, educational content directly for the student to read or listen to.
+
+    Content requirements:
+    - Begin with a captivating introduction that connects the topic to students' lives or prior knowledge.
+    - Write in a conversational, encouraging tone that directly addresses the student (use "you" not "students").
+    - Adapt language complexity precisely to {grade} level reading ability.
+    - Include concrete examples, analogies, and visual descriptions that make abstract concepts tangible.
+    - Incorporate 2-3 meaningful opportunities for active thinking (questions, predictions, connections).
+    - Structure content with clear progression: introduction → core concepts → application → reflection.
+    - Use Markdown formatting effectively: headings (##, ###), bullet points (*), bold for key terms (**term**), etc.
+    - Break complex ideas into manageable chunks with appropriate subheadings.
+    - **STRICTLY AVOID**: Teacher instructions (e.g., "Have students discuss..."), classroom activities, or addressing anyone other than the student directly.
+    - {include_keypoints_instruction}
+
+    Generate the lesson content below in Markdown format:
+
+  # Generates prompts for the image generation model.
+  image: |
+    Create an educational, visually compelling illustration for grade {grade} students learning about "{topic}" in {subject}.
+
+    Essential image characteristics:
+    - Designed specifically for grade {grade} cognitive and visual processing abilities
+    - Clear focal point that directly illustrates the core concept of "{topic}"
+    - Age-appropriate visual complexity (simpler for younger grades, more detailed for older)
+    - Engaging composition with vibrant, harmonious colors suitable for educational contexts
+    - Characters (if included) should be diverse and represent a variety of backgrounds
+    - Visual elements proportioned and arranged to enhance conceptual understanding
+    - Teaching style: {style} approach with {language} cultural context where relevant
+    - Clean, uncluttered design with thoughtful use of visual hierarchy
+    - No text within the image unless absolutely essential for concept demonstration
+    - Appropriate scientific/factual accuracy balanced with visual appeal
+    - Safe, positive imagery suitable for classroom educational use
+
+    The illustration must effectively support learning objectives related to "{topic}" for grade {grade} students.
+
+  # Suggests data and parameters for generating a chart/graph.
+  chart: |
+    You are a data visualization specialist creating educational charts for {grade} level students.
+    
+    Topic: {topic}
+    Subject: {subject}
+    Grade Level: {grade}
+    Style: {style}
+    Language: {language}
+
+    Create a data visualization that:
+    - Enhances understanding of a key concept from the topic "{topic}"
+    - Uses data appropriate for {grade} level numeracy skills
+    - Demonstrates a relevant relationship, comparison, or trend
+    - Is visually clear with an immediate takeaway for young learners
+
+    Instructions:
+    - Select the most appropriate chart type: "Bar" (for comparisons), "Line" (for trends/changes), or "Pie" (for parts of a whole).
+    - Create a concise, descriptive title that communicates the main insight.
+    - Generate realistic, educational sample data with 2-5 data points (must be age-appropriate).
+    - Provide clear, simple axis labels (x_label/y_label) using vocabulary familiar to {grade} level students.
+    - Output **only** a valid JSON object containing: "chart_type", "title", "data" (with "labels" and "values" arrays of equal length), "x_label", "y_label".
+
+    Example JSON Output: {{"chart_type": "Bar", "title": "Animal Heights", "data": {{"labels": ["Cat", "Dog", "Horse", "Elephant"], "values": [0.3, 0.6, 1.5, 3]}}, "x_label": "Animal", "y_label": "Height (meters)"}}
+
+    Generate the JSON object now:
+
+  # Generates quiz questions for a specific topic.
+  quiz: |
+    You are an assessment specialist creating educational quiz questions for {grade} level students.
+    
+    Topic: {topic}
+    Subject: {subject}
+    Grade Level: {grade}
+    Style: {style}
+    Language: {language}
+
+    Design quiz questions that:
+    - Assess understanding of key concepts from "{topic}" appropriate for {grade} level
+    - Include a variety of cognitive levels (recall, application, analysis)
+    - Use clear, concise language students will understand
+    - Provide appropriate challenge while ensuring student success
+
+    Instructions:
+    - Create 3-5 developmentally appropriate questions that directly assess understanding of "{topic}"
+    - Include a balanced mix of:
+      * Multiple Choice ("MCQ"): Include 3-4 plausible options with one clear correct answer
+      * True/False ("TF"): Use precise statements that are clearly true or false
+      * Fill-in-the-Blank ("FILL"): Use for key terminology or simple numerical answers
+    - For MCQ, provide options logically related to the question with no obvious wrong answers
+    - Ensure answer format exactly matches requirements (MCQ: option must match exactly; TF: "True"/"False"; FILL: clear, unambiguous answer)
+    - Output **only** a valid JSON object with key "quiz" containing an array of question objects with: "question", "type", "options" (array, empty for non-MCQ), "answer"
+
+    Example JSON Output: {{"quiz": [{{"question": "What is the capital of France?", "type": "FILL", "options": [], "answer": "Paris"}}, {{"question": "Earth is the third planet from the Sun.", "type": "TF", "options": [], "answer": "True"}}, {{"question": "Which of these is a mammal?", "type": "MCQ", "options": ["Fish", "Bird", "Dolphin", "Snake"], "answer": "Dolphin"}}]}}
+
+    Generate the JSON object now:
+
+  # Generates a brief summary/recap of the lesson content.
+  summary: |
+    You are an educational content specialist creating a concise lesson summary for {grade} level students.
+    
+    Topic: {topic}
+    Subject: {subject}
+    Grade Level: {grade}
+    Language: {language}
+
+    Create a summary that:
+    - Reinforces 2-3 key learning points from the "{topic}" lesson
+    - Provides cognitive closure and supports memory retention
+    - Uses clear language matched precisely to {grade} reading level
+    - Speaks directly to the student in an encouraging, affirming tone
+
+    Instructions:
+    - Write a 2-4 sentence recap beginning with "In this lesson, you learned about..."
+    - Focus on the most important concepts, not minor details
+    - Use vocabulary appropriate for {grade} level comprehension
+    - Include a brief closing thought that connects learning to real-life application
+    - Format in clear Markdown with appropriate emphasis on key terms
+    
+    Generate the summary now:
+
+  # Generates suggestions for further resources or activities.
+  resources: |
+    You are an educational enrichment specialist recommending extension activities for {grade} level students.
+    
+    Topic: {topic}
+    Subject: {subject}
+    Grade Level: {grade}
+    Language: {language}
+
+    Create extension suggestions that:
+    - Deepen understanding of "{topic}" through varied learning modalities
+    - Encourage authentic application of concepts
+    - Are feasible for the cognitive and physical abilities of {grade} level students
+    - Can be completed independently or with minimal adult assistance
+    - Support different learning preferences (visual, auditory, kinesthetic)
+
+    Instructions:
+    - Suggest 2-3 highly specific, engaging further learning opportunities
+    - Include at least one hands-on activity that uses common household materials
+    - If suggesting digital resources, recommend reputable educational platforms (e.g., NASA Kids, National Geographic Kids) rather than specific URLs
+    - If suggesting books, provide categories or general descriptions rather than specific titles
+    - Format as a clear Markdown bulleted list with brief descriptions
+    - Ensure all suggestions are age-appropriate and safe for {grade} level students
+
+    Generate the resource suggestions now:
+
+
+# --- Default Settings ---
+# These values are used if not overridden by user selections in the Streamlit app sidebar.
+defaults:
+  # List of available subjects for the dropdown.
+  subjects:
+    - "Science"
+    - "Mathematics"
+    - "Language Arts"
+    - "Social Studies"
+    - "History"
+    - "Art"
+    - "Music"
+    - "Health"
+    - "Technology"
+    - "Environmental Studies"
+    - "Computer Science"
+    - "Physical Education"
+  # Default subject selected on app start.
+  subject: "Science"
+
+  # List of available grade levels.
+  grades: ["Preschool", "Kindergarten", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "University"]
+  # Default grade level selected on app start.
+  grade: "3"
+
+  # List of available output styles/teaching approaches.
+  styles:
+    - "Standard"
+    - "Inquiry-based"
+    - "Project-based"
+    - "Story-based"
+    - "Detailed"
+    - "Concise"
+    - "Playful"
+    - "Visual"
+    - "Hands-on"
+    - "Discussion-based"
+  # Default style selected on app start.
+  style: "Standard"
+
+  # Default value for the optional 'extra guidelines' text area.
+  extra: ""
+
+  # Default media richness level.
+  # 0: Text only
+  # 1: Text, maybe an image attempt
+  # 2: Text + 1 Image (guaranteed placeholder if fail)
+  # 3: Text + 1 Image + Maybe Chart
+  # 4: Text + 1 Image + 1 Chart (guaranteed placeholders if fail)
+  # 5: Text + Multiple Images (e.g., 3) + 1 Chart
+  media_richness: 3
+
+  # List of available languages.
+  languages: ["English", "Spanish", "French", "German", "Chinese", "Japanese", "Arabic", "Portuguese"]
+  # Default language selected on app start.
+  language: "English"
+
+  # Default AI models to use.
+  # gpt-4.1 is the orchestrator model for planning and coordination
+  text_model: "gpt-4.1-nano"  # Changed to nano for testing/development
+  # Text model for worker agents (most economical option)
+  worker_model: "gpt-4.1-nano"  # Changed to nano for testing/development
+  # Default image model
+  image_model: "gpt-image-1"
+  # Available image models
+  image_models:
+    - "gpt-image-1"
+    - "dall-e-3"
+    - "dall-e-2"
+  # Available text models
+  text_models:
+    - "gpt-4.1"
+    - "gpt-4.1-mini"
+    - "gpt-4.1-nano"
+
+  # Default states for the feature toggles.
+  include_quizzes: true
+  include_summary: true
+  include_resources: true
+  include_keypoints: true # Controls inclusion of key points section in generated content
+
+  # Default number of topics the outline agent aims for.
+  min_topics: 3
+  max_topics: 5 # Balanced for cognitive processing and attention span
+
+  # Default number of days (informational in the UI).
+  days: 3
+
+
+# --- Informational Texts ---
+# Text snippets displayed in the application UI.
+info_texts:
+  # Tips displayed in the sidebar.
+  tips: |
+    **How to Use InstaSchool:**
+    1. **Configure** settings in the sidebar to match your educational needs
+    2. **Generate** your curriculum by clicking the button in the Generate tab
+    3. **Review & Edit** components in the View & Edit tab as needed
+    4. **Export** your curriculum as HTML, Markdown, or PDF for use in your teaching
+
+    **Pro Tips:**
+    - For younger grades, try the "Story-based" or "Playful" styles
+    - For older grades, "Inquiry-based" or "Project-based" styles work well
+    - Add specific learning objectives in "Guidelines" for more targeted content
+    - gpt-image-1 produces the highest quality educational illustrations
+    - The "View & Edit" tab allows you to regenerate any component individually
+    - For mobile users, the interface automatically adapts to your screen size
+
+  # Agentic framework information
+  agentic_info: |
+    **InstaSchool's AI Framework:**
+
+    Your curriculum is created by a team of specialized AI agents working together:
+
+    - **Orchestrator**: The coordinator that plans the overall learning journey
+    - **Content Specialist**: Creates engaging, age-appropriate lesson content
+    - **Media Designer**: Produces educational illustrations tailored to the topic
+    - **Data Visualizer**: Creates charts and graphs that enhance understanding
+    - **Assessment Expert**: Designs effective quiz questions to check comprehension
+    - **Summary Specialist**: Crafts concise lesson summaries for reinforcement
+    - **Resource Curator**: Suggests extension activities for deeper learning
+
+    **AI Model Selection:**
+    - **gpt-4.1**: Highest quality, most capable model (recommended for complex subjects)
+    - **gpt-4.1-mini**: Good balance of quality and efficiency
+    - **gpt-4.1-nano**: Fastest, most economical option for simpler content
+    - **gpt-4o/gpt-4**: Legacy models for backward compatibility
+
+    **Image Models:**
+    - **gpt-image-1**: Highest quality educational illustrations (recommended)
+    - **dall-e-3**: High quality with creative elements
+    - **dall-e-2**: Basic illustrations, faster generation
+
+    This collaborative approach ensures each component is optimized for educational quality while maintaining a cohesive learning experience.

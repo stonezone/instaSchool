@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "id": "math_problem_solving",
+    "name": "Mathematical Problem Solving",
+    "description": "Step-by-step mathematics curriculum emphasizing problem-solving strategies",
+    "subjects": [
+      "Mathematics"
+    ],
+    "grades": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8"
+    ],
+    "style": "Project-based",
+    "language": "English",
+    "author": "InstaSchool",
+    "created_at": "2025-05-30T00:00:56.642347",
+    "updated_at": "2025-05-30T00:00:56.642348",
+    "usage_count": 0,
+    "tags": [
+      "mathematics",
+      "problem-solving",
+      "step-by-step"
+    ],
+    "is_public": true
+  },
+  "structure": {
+    "topic_count": 4,
+    "media_richness": 3,
+    "include_quizzes": true,
+    "include_summary": true,
+    "include_resources": true,
+    "include_keypoints": true,
+    "topic_templates": [
+      {
+        "title_pattern": "Understanding {concept}",
+        "focus": "conceptual foundation"
+      },
+      {
+        "title_pattern": "Strategies for {concept}",
+        "focus": "problem-solving methods"
+      },
+      {
+        "title_pattern": "Practice with {concept}",
+        "focus": "guided practice"
+      },
+      {
+        "title_pattern": "Real-World {concept}",
+        "focus": "applications"
+      }
+    ],
+    "custom_prompts": {
+      "content": "Present multiple solution strategies. Include visual representations and real-world problems. Emphasize the thinking process, not just the answer."
+    }
+  }
+}

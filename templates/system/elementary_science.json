@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "id": "elementary_science",
+    "name": "Elementary Science Explorer",
+    "description": "Interactive science curriculum for elementary students with hands-on activities",
+    "subjects": [
+      "Science"
+    ],
+    "grades": [
+      "K",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "style": "Hands-on",
+    "language": "English",
+    "author": "InstaSchool",
+    "created_at": "2025-05-30T00:00:56.642326",
+    "updated_at": "2025-05-30T00:00:56.642333",
+    "usage_count": 0,
+    "tags": [
+      "science",
+      "elementary",
+      "interactive",
+      "hands-on"
+    ],
+    "is_public": true
+  },
+  "structure": {
+    "topic_count": 4,
+    "media_richness": 4,
+    "include_quizzes": true,
+    "include_summary": true,
+    "include_resources": true,
+    "include_keypoints": true,
+    "topic_templates": [
+      {
+        "title_pattern": "Introduction to {concept}",
+        "focus": "foundational understanding"
+      },
+      {
+        "title_pattern": "Exploring {concept}",
+        "focus": "hands-on discovery"
+      },
+      {
+        "title_pattern": "{concept} in Action",
+        "focus": "real-world applications"
+      },
+      {
+        "title_pattern": "Mastering {concept}",
+        "focus": "synthesis and review"
+      }
+    ],
+    "custom_prompts": {
+      "content": "Create engaging, age-appropriate content with simple experiments and observations that students can do safely. Include plenty of 'What would happen if...' questions."
+    }
+  }
+}
