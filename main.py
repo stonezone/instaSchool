@@ -1221,6 +1221,72 @@ with tab2:
             with st.expander(f"Unit {i+1}: {unit_title}", expanded=(i==0)): # Expand first unit by default
                 st.markdown(f"#### Unit {i+1}: {unit_title}")
 
+                # --- Display Regeneration Status Messages ---
+                # Check for regeneration in progress (show spinner)
+                if StateManager.get_state(f'regenerating_content_{i}', False):
+                    st.spinner(f"Regenerating content for Unit {i+1}...")
+                if StateManager.get_state(f'regenerating_images_{i}', False):
+                    st.spinner(f"Regenerating images for Unit {i+1}...")
+                if StateManager.get_state(f'regenerating_chart_{i}', False):
+                    st.spinner(f"Regenerating chart for Unit {i+1}...")
+                if StateManager.get_state(f'regenerating_quiz_{i}', False):
+                    st.spinner(f"Regenerating quiz for Unit {i+1}...")
+                if StateManager.get_state(f'regenerating_summary_{i}', False):
+                    st.spinner(f"Regenerating summary for Unit {i+1}...")
+                
+                # Check for success messages
+                if StateManager.get_state(f'content_regenerated_{i}', False):
+                    st.success(f"✅ Content regenerated successfully for Unit {i+1}!")
+                    StateManager.set_state(f'content_regenerated_{i}', False)
+                
+                if StateManager.get_state(f'images_regenerated_{i}', False):
+                    st.success(f"✅ Images regenerated successfully for Unit {i+1}!")
+                    StateManager.set_state(f'images_regenerated_{i}', False)
+                
+                if StateManager.get_state(f'chart_regenerated_{i}', False):
+                    st.success(f"✅ Chart regenerated successfully for Unit {i+1}!")
+                    StateManager.set_state(f'chart_regenerated_{i}', False)
+                
+                if StateManager.get_state(f'quiz_regenerated_{i}', False):
+                    st.success(f"✅ Quiz regenerated successfully for Unit {i+1}!")
+                    StateManager.set_state(f'quiz_regenerated_{i}', False)
+                
+                if StateManager.get_state(f'summary_regenerated_{i}', False):
+                    st.success(f"✅ Summary regenerated successfully for Unit {i+1}!")
+                    StateManager.set_state(f'summary_regenerated_{i}', False)
+                
+                # Check for error messages
+                content_error = StateManager.get_state(f'content_regen_error_{i}', None)
+                if content_error:
+                    st.error(f"Failed to regenerate content: {content_error}")
+                    StateManager.set_state(f'content_regen_error_{i}', None)
+                
+                images_error = StateManager.get_state(f'images_regen_error_{i}', None)
+                if images_error:
+                    st.error(f"Failed to regenerate images: {images_error}")
+                    StateManager.set_state(f'images_regen_error_{i}', None)
+                
+                chart_error = StateManager.get_state(f'chart_regen_error_{i}', None)
+                if chart_error:
+                    st.error(f"Failed to regenerate chart: {chart_error}")
+                    StateManager.set_state(f'chart_regen_error_{i}', None)
+                
+                quiz_error = StateManager.get_state(f'quiz_regen_error_{i}', None)
+                if quiz_error:
+                    st.error(f"Failed to regenerate quiz: {quiz_error}")
+                    StateManager.set_state(f'quiz_regen_error_{i}', None)
+                
+                summary_error = StateManager.get_state(f'summary_regen_error_{i}', None)
+                if summary_error:
+                    st.error(f"Failed to regenerate summary: {summary_error}")
+                    StateManager.set_state(f'summary_regen_error_{i}', None)
+                
+                # Check for warnings
+                chart_warning = StateManager.get_state(f'chart_regen_warning_{i}', None)
+                if chart_warning:
+                    st.warning(chart_warning)
+                    StateManager.set_state(f'chart_regen_warning_{i}', None)
+
                 # --- Display/Edit Title ---
                 if edit_mode:
                     # Use on_change callback for immediate update without rerun
