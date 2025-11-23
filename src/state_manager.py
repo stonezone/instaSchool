@@ -91,3 +91,8 @@ class StateManager:
     def has_state(cls, key: str) -> bool:
         """Check if state key exists"""
         return key in st.session_state
+    
+    @classmethod
+    def set_state(cls, key: str, value: Any):
+        """Safely set state value (alias for update_state for consistency)"""
+        cls.update_state(key, value)

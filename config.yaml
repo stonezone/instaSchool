@@ -212,6 +212,10 @@ defaults:
     - "Inquiry-based"
     - "Project-based"
     - "Story-based"
+    - "Socratic (Question-based)"
+    - "Storyteller (Narrative)"
+    - "Comedian (Fun/Engaging)"
+    - "5-Year-Old (ELI5)"
     - "Detailed"
     - "Concise"
     - "Playful"
@@ -315,3 +319,51 @@ info_texts:
     - **dall-e-2**: Basic illustrations, faster generation
 
     This collaborative approach ensures each component is optimized for educational quality while maintaining a cohesive learning experience.
+
+    This collaborative approach ensures each component is optimized for educational quality while maintaining a cohesive learning experience.
+
+# --- Text-to-Speech (TTS) Configuration ---
+tts:
+  # Enable or disable TTS functionality
+  enabled: true
+  
+  # Default voice for TTS
+  default_voice: "alloy"
+  
+  # Available voices for TTS
+  available_voices:
+    - "alloy"
+    - "echo"
+    - "fable"
+    - "onyx"
+    - "nova"
+    - "shimmer"
+  
+  # TTS model to use
+  model: "tts-1"
+  
+  # Maximum characters per TTS request (OpenAI limit is 4096)
+  max_chars: 4096
+
+# --- Student Mode Configuration ---
+student_mode:
+  # XP awarded for completing a section
+  xp_per_section: 10
+  
+  # XP awarded for completing a quiz
+  xp_per_quiz: 50
+  
+  # Bonus XP for perfect quiz score
+  xp_perfect_bonus: 25
+  
+  # XP needed per level
+  xp_per_level: 100
+  
+  # Enable celebration effects
+  celebrations_enabled: true
+  
+  # Enable tutor chatbot
+  tutor_enabled: true
+  
+  # Maximum conversation history for tutor
+  tutor_max_history: 5

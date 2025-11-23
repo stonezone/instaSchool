@@ -1,6 +1,11 @@
-import streamlit as st
 import os
 import sys
+
+# CRITICAL: Set matplotlib backend BEFORE any other imports that might use it
+import matplotlib
+matplotlib.use('Agg')  # Use Agg backend for matplotlib
+
+import streamlit as st
 import json
 import time
 import uuid
@@ -19,8 +24,6 @@ from typing import Dict, Any, List, Optional, Tuple
 import yaml
 import requests
 from PIL import Image, ImageDraw, ImageFont
-import matplotlib
-matplotlib.use('Agg') # Use Agg backend for matplotlib
 
 # Import new components
 from src.state_manager import StateManager

@@ -323,33 +323,15 @@ class OrchestratorAgent(BaseAgent):
             except Exception as e:
                 print(f"Error generating custom image prompt: {e}")
                 
-            # Use MediaAgent or ImageGenerator depending on what's available
+            # Generate images using MediaAgent
             try:
-                # First try to use the create_images method with the custom prompt
                 unit["images"] = media_agent.create_images(
                     topic_title, subject, grade, style, language, 
                     n=num_images, custom_prompt=custom_prompt
                 )
-            except AttributeError:
-                # If that fails, try the create_image method
-                if hasattr(media_agent, 'create_image'):
-                    # Use custom prompt if available, otherwise format the template
-                    if custom_prompt:
-                        prompt = custom_prompt
-                    else:
-                        prompt_template = media_agent.prompt_template
-                        prompt = prompt_template.format(
-                            topic=topic_title, subject=subject, grade=grade, 
-                            style=style, language=language
-                        )
-                    unit["images"] = media_agent.create_image(
-                        prompt=prompt,
-                        n=num_images
-                    )
-                else:
-                    # If neither method exists, provide an empty list
-                    print(f"Warning: Neither create_images nor create_image method found")
-                    unit["images"] = []
+            except Exception as e:
+                print(f"Error generating images: {e}")
+                unit["images"] = []
                     
             # Safer handling of image selection
             if unit["images"]:
