@@ -1,0 +1,13 @@
+{
+  "content": "Test content about photosynthesis",
+  "params": {
+    "topic": "photosynthesis",
+    "subject": "science",
+    "grade": "5",
+    "style": "standard",
+    "language": "english"
+  },
+  "created_at": "2025-11-23T01:59:44.998232",
+  "content_type": "content",
+  "cache_key": "bf7b714a53cf9ea2592908228f8c8a5e"
+}

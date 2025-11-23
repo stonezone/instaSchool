@@ -12,6 +12,9 @@ from io import BytesIO
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Union
 
+# Import BaseAgent from core.types to prevent circular dependencies
+from src.core.types import BaseAgent
+
 # Try to import matplotlib, but provide a fallback for testing
 try:
     import matplotlib.pyplot as plt
@@ -19,150 +22,6 @@ try:
 except ImportError:
     print("Warning: matplotlib not installed, chart generation will not work.")
     MATPLOTLIB_AVAILABLE = False
-
-# Import caching system
-try:
-    from services.cache_service import SmartCache
-    CACHE_AVAILABLE = True
-except ImportError:
-    print("Warning: cache_service not available, caching disabled.")
-    CACHE_AVAILABLE = False
-
-# Import retry system
-try:
-    from services.retry_service import RetryHandler, with_retry, GracefulDegradation
-    RETRY_AVAILABLE = True
-except ImportError:
-    print("Warning: retry_service not available, retry disabled.")
-    RETRY_AVAILABLE = False
-
-class BaseAgent:
-    """Base class for all agents with common functionality"""
-    def __init__(self, client, model="gpt-4.1"):
-        self.client = client
-        self.model = model
-        
-        # Initialize caching
-        if CACHE_AVAILABLE:
-            self.cache = SmartCache()
-        else:
-            self.cache = None
-        
-        # Initialize retry handler
-        if RETRY_AVAILABLE:
-            self.retry_handler = RetryHandler()
-        else:
-            self.retry_handler = None
-        
-        # Try to import the logger
-        try:
-            from src.verbose_logger import get_logger
-            self.logger = get_logger()
-            # Pass logger to retry handler
-            if self.retry_handler:
-                self.retry_handler.logger = self.logger
-        except ImportError:
-            self.logger = None
-            print("Warning: Could not import verbose_logger. API call logging will be disabled.")
-    
-    def _call_model_cached(self, content_type: str, cache_params: Dict[str, Any], 
-                          messages: List[Dict[str, str]], response_format=None, temperature=0.7):
-        """Call model with caching support
-        
-        Args:
-            content_type: Type of content being generated (for cache key)
-            cache_params: Parameters to use for cache key generation
-            messages: Messages for the API call
-            response_format: Optional response format
-            temperature: Temperature setting
-            
-        Returns:
-            API response or cached content
-        """
-        # Try cache first if available
-        if self.cache:
-            cached_content = self.cache.get_similar_content(content_type, cache_params)
-            if cached_content:
-                # Create a mock response object for consistency
-                class CachedResponse:
-                    def __init__(self, content):
-                        self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})()})]
-                        
-                return CachedResponse(cached_content)
-        
-        # If no cache hit, make the API call
-        response = self._call_model(messages, response_format, temperature)
-        
-        # Cache the response if successful
-        if response and response.choices and self.cache:
-            content = response.choices[0].message.content
-            self.cache.content_cache.cache_content(content_type, cache_params, content)
-            
-        return response
-    
-    def _call_model(self, messages, response_format=None, temperature=0.7):
-        """Call the model with standard parameters and retry logic"""
-        params = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": temperature,
-        }
-        if response_format:
-            params["response_format"] = response_format
-        
-        # Create a safe copy of params for logging
-        if self.logger:
-            log_params = params.copy()
-            # Truncate messages to avoid overwhelming logs
-            if 'messages' in log_params and isinstance(log_params['messages'], list):
-                truncated_messages = []
-                for msg in log_params['messages']:
-                    truncated_msg = msg.copy()
-                    if 'content' in truncated_msg and isinstance(truncated_msg['content'], str) and len(truncated_msg['content']) > 500:
-                        truncated_msg['content'] = truncated_msg['content'][:500] + "... [content truncated]"
-                    truncated_messages.append(truncated_msg)
-                log_params['messages'] = truncated_messages
-            
-            # Log the API request
-            self.logger.log_api_request(model=self.model, endpoint="chat.completions", params=log_params)
-        
-        # Define the API call function for retry
-        def make_api_call():
-            response = self.client.chat.completions.create(**params)
-            
-            # Log the response if logger is available
-            if self.logger:
-                self.logger.log_api_response(model=self.model, response=response)
-                
-            return response
-        
-        try:
-            # Use retry handler if available
-            if self.retry_handler:
-                return self.retry_handler.retry_with_backoff(
-                    make_api_call,
-                    context=f"{self.model} API call"
-                )
-            else:
-                return make_api_call()
-                
-        except Exception as e:
-            error_msg = str(e)
-            print(f"Model call error: {e}")
-            
-            # Log the error if logger is available
-            if self.logger:
-                self.logger.log_error(error=e, model=self.model, context="API call")
-            
-            # Check for quota error and display in UI
-            if "insufficient_quota" in error_msg or "quota" in error_msg.lower():
-                try:
-                    import streamlit as st
-                    st.error("⚠️ OpenAI API quota exceeded. Please check your billing details or try again later.")
-                except ImportError:
-                    pass
-            
-            return None
 
 
 class OrchestratorAgent(BaseAgent):

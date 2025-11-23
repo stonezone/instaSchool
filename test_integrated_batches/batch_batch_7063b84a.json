@@ -1,0 +1,47 @@
+{
+  "id": "batch_7063b84a",
+  "name": "Test Integration Batch",
+  "description": "Small batch to test integration",
+  "jobs": [
+    {
+      "id": "job_62761497",
+      "name": "Job 1",
+      "params": {
+        "subject_str": "Science",
+        "grade": "2",
+        "lesson_style": "Simple"
+      },
+      "status": "running",
+      "created_at": "2025-11-23T01:59:41.745622",
+      "started_at": "2025-11-23T01:59:41.745966",
+      "completed_at": null,
+      "error_message": null,
+      "result": null,
+      "progress": 0.0
+    },
+    {
+      "id": "job_f5f081d4",
+      "name": "Job 2",
+      "params": {
+        "subject_str": "Math",
+        "grade": "2",
+        "lesson_style": "Simple"
+      },
+      "status": "pending",
+      "created_at": "2025-11-23T01:59:41.745638",
+      "started_at": null,
+      "completed_at": null,
+      "error_message": null,
+      "result": null,
+      "progress": 0.0
+    }
+  ],
+  "status": "running",
+  "created_at": "2025-11-23T01:59:41.745647",
+  "started_at": "2025-11-23T01:59:41.745893",
+  "completed_at": null,
+  "total_jobs": 2,
+  "completed_jobs": 0,
+  "failed_jobs": 0,
+  "estimated_cost": 0.0
+}
