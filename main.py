@@ -568,6 +568,28 @@ orchestrator = OrchestratorAgent(
 )
 
 # ========================= UI Components =========================
+# Mode Selector - Teacher vs Student
+st.sidebar.markdown("## 🎓 InstaSchool")
+st.sidebar.markdown("---")
+
+app_mode = st.sidebar.radio(
+    "Select Mode",
+    ["👨‍🏫 Teacher (Create & Edit)", "🎒 Student (Learn & Practice)"],
+    key="app_mode"
+)
+
+current_mode = 'teacher' if 'Teacher' in app_mode else 'student'
+StateManager.update_state('current_mode', current_mode)
+
+st.sidebar.markdown("---")
+
+# If student mode, show student interface and stop
+if current_mode == 'student':
+    from src.student_mode.student_ui import render_student_mode
+    render_student_mode(config, client)
+    st.stop()
+
+# Otherwise continue with teacher mode below...
 # Modern Sidebar Configuration
 st.sidebar.markdown("## ⚙️ Curriculum Settings")
 st.sidebar.markdown("---")
