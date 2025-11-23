@@ -361,9 +361,10 @@ student_mode:
   
   # Enable celebration effects
   celebrations_enabled: true
-  
-  # Enable tutor chatbot
+
+  # Tutor configuration
   tutor_enabled: true
-  
-  # Maximum conversation history for tutor
   tutor_max_history: 5
+  tutor_model: "gpt-4.1-nano"  # Use nano for cost efficiency
+  tutor_temperature: 0.7
+  tutor_max_tokens: 500

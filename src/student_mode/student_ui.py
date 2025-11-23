@@ -4,8 +4,9 @@ import os
 import streamlit as st
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from .progress_manager import StudentProgress
+from src.tutor_agent import TutorAgent
 
 
 def render_student_mode(config: Dict[str, Any], client: Any):
@@ -66,7 +67,34 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     
     # Initialize progress tracker
     progress = StudentProgress(curriculum_id)
-    
+
+    # Initialize tutor if enabled
+    tutor_enabled = config.get('student_mode', {}).get('tutor_enabled', True)
+
+    # Initialize session state for tutor
+    if 'tutor_agent' not in st.session_state:
+        if tutor_enabled:
+            tutor_model = config.get('student_mode', {}).get('tutor_model', 'gpt-4.1-nano')
+            st.session_state.tutor_agent = TutorAgent(client, model=tutor_model)
+        else:
+            st.session_state.tutor_agent = None
+
+    if 'tutor_messages' not in st.session_state:
+        st.session_state.tutor_messages = []
+
+    if 'last_curriculum_id' not in st.session_state:
+        st.session_state.last_curriculum_id = None
+
+    if 'last_unit_idx' not in st.session_state:
+        st.session_state.last_unit_idx = None
+
+    # Clear chat history if curriculum changed
+    if st.session_state.last_curriculum_id != curriculum_id:
+        st.session_state.tutor_messages = []
+        st.session_state.last_curriculum_id = curriculum_id
+        if st.session_state.tutor_agent:
+            st.session_state.tutor_agent.clear_conversation()
+
     # Display progress in sidebar
     current_level = progress.get_level()
     current_xp = progress.get_xp()
@@ -122,7 +150,26 @@ def render_student_mode(config: Dict[str, Any], client: Any):
         return
     
     unit = units[unit_idx]
-    
+
+    # Update tutor context if unit changed
+    if tutor_enabled and st.session_state.tutor_agent:
+        if st.session_state.last_unit_idx != unit_idx:
+            st.session_state.last_unit_idx = unit_idx
+            st.session_state.tutor_messages = []  # Clear chat on unit change
+            st.session_state.tutor_agent.clear_conversation()
+
+            # Set the new context
+            unit_content = unit.get('content', '')
+            unit_title = unit.get('title', 'Untitled')
+            subject = meta.get('subject', 'Unknown')
+            grade = meta.get('grade', 'Unknown')
+            st.session_state.tutor_agent.set_lesson_context(
+                unit_content=unit_content,
+                unit_title=unit_title,
+                subject=subject,
+                grade=grade
+            )
+
     # Display current progress
     progress_percent = (section_idx / total_sections) * 100
     st.progress(progress_percent / 100.0, text=f"Progress: {progress_percent:.1f}%")
@@ -164,6 +211,15 @@ def render_student_mode(config: Dict[str, Any], client: Any):
         if st.button("Skip ⏭️", use_container_width=True):
             progress.advance_section()
             st.rerun()
+
+    # Add Tutor Chat Interface
+    if tutor_enabled and st.session_state.tutor_agent:
+        st.markdown("---")
+        st.markdown("## 🤓 Ask Your Tutor")
+
+        # Only show chat interface for content sections
+        if current_section_type in ['content', 'quiz', 'summary']:
+            _render_tutor_chat(config, unit)
 
 
 def _render_section_content(unit: Dict[str, Any], section_type: str):
@@ -309,3 +365,97 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
     
     else:
         st.warning(f"Unknown section type: {section_type}")
+
+
+def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
+    """
+    Render the tutor chat interface
+
+    Args:
+        config: Application configuration
+        unit: Current unit data
+    """
+    # Create chat container
+    chat_container = st.container()
+
+    # Show example questions if no messages
+    if not st.session_state.tutor_messages:
+        with chat_container:
+            st.markdown("### 💭 Try asking me about:")
+            example_questions = st.session_state.tutor_agent.get_example_questions()
+
+            cols = st.columns(len(example_questions))
+            for idx, question in enumerate(example_questions):
+                with cols[idx]:
+                    if st.button(question, key=f"example_{idx}", use_container_width=True):
+                        # Process the example question
+                        st.session_state.tutor_messages.append({
+                            "role": "user",
+                            "content": question
+                        })
+
+                        with st.spinner("🤔 Thinking..."):
+                            tutor_config = config.get('student_mode', {})
+                            temperature = tutor_config.get('tutor_temperature', 0.7)
+                            response = st.session_state.tutor_agent.get_response(
+                                question,
+                                temperature=temperature
+                            )
+
+                            st.session_state.tutor_messages.append({
+                                "role": "assistant",
+                                "content": response
+                            })
+                        st.rerun()
+
+    # Display chat messages
+    with chat_container:
+        for message in st.session_state.tutor_messages:
+            if message["role"] == "user":
+                with st.chat_message("user", avatar="🧑‍🎓"):
+                    st.markdown(message["content"])
+            else:
+                with st.chat_message("assistant", avatar="🤓"):
+                    st.markdown(message["content"])
+
+    # Chat input at the bottom
+    col1, col2 = st.columns([10, 1])
+
+    with col1:
+        user_input = st.chat_input(
+            "Ask the tutor a question about this lesson...",
+            key="tutor_chat_input"
+        )
+
+    with col2:
+        if st.button("🗑️", help="Clear chat history"):
+            st.session_state.tutor_messages = []
+            if st.session_state.tutor_agent:
+                st.session_state.tutor_agent.clear_conversation()
+            st.rerun()
+
+    # Process user input
+    if user_input:
+        # Add user message to history
+        st.session_state.tutor_messages.append({
+            "role": "user",
+            "content": user_input
+        })
+
+        # Get tutor response
+        with st.spinner("🤔 Let me think about that..."):
+            tutor_config = config.get('student_mode', {})
+            temperature = tutor_config.get('tutor_temperature', 0.7)
+
+            response = st.session_state.tutor_agent.get_response(
+                user_input,
+                temperature=temperature
+            )
+
+            # Add assistant response to history
+            st.session_state.tutor_messages.append({
+                "role": "assistant",
+                "content": response
+            })
+
+        st.rerun()
