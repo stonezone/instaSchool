@@ -67,7 +67,7 @@ except ImportError:
     logger = None
 
 # Import the agent framework and image generator
-from src.agent_framework import OrchestratorAgent, OutlineAgent, ContentAgent, MediaAgent, ChartAgent, QuizAgent, SummaryAgent, ResourceAgent
+from src.agent_framework import OrchestratorAgent, OutlineAgent, ContentAgent, MediaAgent, ChartAgent, QuizAgent, SummaryAgent, ResourceAgent, AudioAgent
 from src.image_generator import ImageGenerator
 from services.curriculum_service import CurriculumService, CurriculumValidator, CurriculumExporter
 from services.session_service import SessionManager, QuizManager, InputValidator
@@ -1448,6 +1448,85 @@ with tab2:
                     if media_richness >= 3:
                         st.markdown("_No chart was generated for this unit._")
                     # Don't show any message if charts aren't expected based on media richness
+
+                # --- Audio Narration (TTS) ---
+                if config.get("tts", {}).get("enabled", True):
+                    st.markdown("##### 🔊 Audio Narration")
+                    
+                    # Check if audio already exists for this unit
+                    audio_data = unit.get("audio")
+                    
+                    # Create columns for audio player and controls
+                    audio_col1, audio_col2 = st.columns([3, 1])
+                    
+                    with audio_col1:
+                        # Display audio player if audio exists
+                        if audio_data:
+                            audio_path = audio_data.get("path")
+                            if audio_path and os.path.exists(audio_path):
+                                # Read audio file and display player
+                                with open(audio_path, "rb") as audio_file:
+                                    audio_bytes = audio_file.read()
+                                    st.audio(audio_bytes, format="audio/mp3")
+                                
+                                # Show audio metadata
+                                voice_used = audio_data.get("voice", "unknown")
+                                st.caption(f"Voice: {voice_used} | Generated: {audio_data.get('created_at', 'N/A')}")
+                            else:
+                                st.info("Audio file not found. Generate new audio below.")
+                        else:
+                            st.info("No audio narration available. Generate audio to listen to this lesson.")
+                    
+                    with audio_col2:
+                        # Voice selection
+                        available_voices = config.get("tts", {}).get("available_voices", 
+                            ["alloy", "echo", "fable", "onyx", "nova", "shimmer"])
+                        
+                        current_voice = audio_data.get("voice") if audio_data else config.get("tts", {}).get("default_voice", "alloy")
+                        
+                        selected_voice = st.selectbox(
+                            "Voice",
+                            available_voices,
+                            index=available_voices.index(current_voice) if current_voice in available_voices else 0,
+                            key=f"{unit_key_base}_audio_voice"
+                        )
+                        
+                        # Generate/Regenerate button
+                        button_label = "🔄 Regenerate Audio" if audio_data else "▶️ Generate Audio"
+                        
+                        if st.button(button_label, key=f"{unit_key_base}_generate_audio"):
+                            # Initialize AudioAgent if not already done
+                            if not hasattr(st.session_state, 'audio_agent'):
+                                from src.audio_agent import AudioAgent
+                                st.session_state.audio_agent = AudioAgent(client, config)
+                            
+                            # Generate audio
+                            with st.spinner(f"Generating audio for Unit {i+1}..."):
+                                try:
+                                    audio_result = st.session_state.audio_agent.get_audio_for_unit(
+                                        unit, 
+                                        voice=selected_voice
+                                    )
+                                    
+                                    if audio_result:
+                                        # Handle multi-chunk audio
+                                        if audio_result.get("type") == "multi_chunk":
+                                            st.warning(f"Content is long. Generated {audio_result['total_chunks']} audio segments.")
+                                            # For now, use the first chunk
+                                            # TODO: Implement multi-chunk playback
+                                            audio_result = audio_result["chunks"][0]
+                                        
+                                        # Store audio info in unit
+                                        st.session_state.curriculum["units"][i]["audio"] = audio_result
+                                        st.success(f"✅ Audio generated successfully for Unit {i+1}!")
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to generate audio. Please try again.")
+                                
+                                except Exception as e:
+                                    st.error(f"Audio generation error: {e}")
+                                    if logger:
+                                        logger.log_error(error=e, context=f"Audio generation for unit {i+1}")
 
                 # --- Display/Edit Quiz ---
                 if include_quizzes:

@@ -1,5 +1,6 @@
 """Student Mode UI - Interactive learning interface"""
 
+import os
 import streamlit as st
 import json
 from pathlib import Path
@@ -199,6 +200,18 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
     
     elif section_type == 'content':
         st.markdown("### 📚 Lesson Content")
+        
+        # Display audio player if available
+        audio_data = unit.get('audio')
+        if audio_data:
+            audio_path = audio_data.get('path')
+            if audio_path and os.path.exists(audio_path):
+                st.markdown("#### 🔊 Listen to this lesson")
+                with open(audio_path, 'rb') as audio_file:
+                    audio_bytes = audio_file.read()
+                    st.audio(audio_bytes, format='audio/mp3')
+                st.markdown("---")
+        
         content = unit.get('content', '')
         if content:
             st.markdown(content)

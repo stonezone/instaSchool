@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 
 # Import BaseAgent from core.types to prevent circular dependencies
 from src.core.types import BaseAgent
+from src.audio_agent import AudioAgent
 
 # Try to import matplotlib, but provide a fallback for testing
 try:

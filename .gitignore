@@ -43,6 +43,7 @@ cache/
 backups/
 curricula/
 exports/
+audio/
 
 # Streamlit
 .streamlit/
