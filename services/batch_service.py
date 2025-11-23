@@ -4,16 +4,68 @@ Handles batch processing of multiple curriculum generation requests
 """
 
 import os
+import sys
 import uuid
 import time
 import json
 import threading
 from queue import Queue, Empty
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Callable
 from pathlib import Path
 from enum import Enum
+
+# Platform-specific file locking
+if sys.platform == 'win32':
+    import msvcrt
+    FCNTL_AVAILABLE = False
+else:
+    import fcntl
+    FCNTL_AVAILABLE = True
+
+
+def _lock_file(file_obj, exclusive: bool = True):
+    """Cross-platform file locking
+    
+    Args:
+        file_obj: File object to lock
+        exclusive: If True, exclusive lock; if False, shared lock
+    """
+    if FCNTL_AVAILABLE:
+        # Unix/Linux/macOS: use fcntl
+        lock_type = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+        fcntl.flock(file_obj.fileno(), lock_type)
+    elif sys.platform == 'win32':
+        # Windows: use msvcrt
+        try:
+            if exclusive:
+                # Lock entire file (max 32-bit signed int)
+                msvcrt.locking(file_obj.fileno(), msvcrt.LK_LOCK, 0x7FFFFFFF)
+            else:
+                # Windows doesn't have shared locks, use exclusive
+                msvcrt.locking(file_obj.fileno(), msvcrt.LK_LOCK, 0x7FFFFFFF)
+        except (OSError, IOError) as e:
+            # Lock failed, log warning and continue without locking
+            print(f"Warning: File lock failed: {e}")
+
+
+def _unlock_file(file_obj):
+    """Cross-platform file unlocking
+    
+    Args:
+        file_obj: File object to unlock
+    """
+    if FCNTL_AVAILABLE:
+        # Unix/Linux/macOS: lock is released automatically on close
+        pass
+    elif sys.platform == 'win32':
+        # Windows: explicitly unlock
+        try:
+            # Unlock entire file (must match lock size)
+            msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 0x7FFFFFFF)
+        except (OSError, IOError):
+            pass
 
 
 class BatchStatus(Enum):
@@ -58,14 +110,27 @@ class BatchRequest:
 
 
 class BatchQueue:
-    """Queue manager for batch jobs"""
+    """Queue manager for batch jobs
     
-    def __init__(self, max_concurrent: int = 2, max_completed_jobs: int = 1000):
+    IMPORTANT: This class uses background threads for job processing.
+    Streamlit is NOT thread-safe, so worker threads MUST NOT:
+    - Write to st.session_state
+    - Call any Streamlit UI functions
+    - Modify shared objects that may be accessed by the UI thread
+    
+    Instead, use file-based status tracking:
+    - Worker threads write status to JSON files
+    - UI thread reads status from JSON files
+    - This ensures complete thread isolation
+    """
+    
+    def __init__(self, max_concurrent: int = 2, max_completed_jobs: int = 1000, status_dir: str = "batch_status"):
         """Initialize batch queue
         
         Args:
             max_concurrent: Maximum number of concurrent jobs
             max_completed_jobs: Maximum number of completed jobs to keep in memory
+            status_dir: Directory to store job status files
         """
         self.max_concurrent = max_concurrent
         self.max_completed_jobs = max_completed_jobs
@@ -74,6 +139,13 @@ class BatchQueue:
         self.completed_jobs: Dict[str, BatchJob] = {}
         self.job_lock = threading.Lock()
         self.running = True
+        
+        # Initialize status directory for file-based status tracking
+        self.status_dir = Path(status_dir)
+        self.status_dir.mkdir(exist_ok=True)
+        
+        # Clean up old status files on startup
+        self._cleanup_old_status_files()
         
         # Start worker threads
         self.workers = []
@@ -109,8 +181,100 @@ class BatchQueue:
             except Exception as e:
                 print(f"Worker error: {e}")
     
+    def _write_job_status(self, job: BatchJob):
+        """Write job status to file (thread-safe, no session_state access)
+        
+        Args:
+            job: Job to write status for
+        """
+        status_file = self.status_dir / f"{job.id}.json"
+        
+        try:
+            # Convert job to dict for serialization
+            job_data = asdict(job)
+            job_data["status"] = job.status.value
+            
+            # Use file locking for concurrent access safety
+            with open(status_file, 'w', encoding='utf-8') as f:
+                try:
+                    # Acquire exclusive lock (cross-platform)
+                    _lock_file(f, exclusive=True)
+
+                    json.dump(job_data, f, indent=2)
+
+                finally:
+                    # Unlock before closing (important for Windows)
+                    _unlock_file(f)
+                
+        except Exception as e:
+            print(f"Error writing job status for {job.id}: {e}")
+    
+    def _read_job_status(self, job_id: str) -> Optional[BatchJob]:
+        """Read job status from file
+        
+        Args:
+            job_id: Job ID to read status for
+            
+        Returns:
+            BatchJob object or None if not found
+        """
+        status_file = self.status_dir / f"{job_id}.json"
+        
+        if not status_file.exists():
+            return None
+        
+        try:
+            with open(status_file, 'r', encoding='utf-8') as f:
+                try:
+                    # Acquire shared lock for reading (cross-platform)
+                    _lock_file(f, exclusive=False)
+
+                    job_data = json.load(f)
+
+                    # Validate required fields before creating BatchJob
+                    required_fields = ['id', 'name', 'params', 'status', 'created_at']
+                    if not all(field in job_data for field in required_fields):
+                        raise ValueError(f"Missing required fields in job data for {job_id}")
+
+                    # Convert status back to enum
+                    job_data["status"] = BatchStatus(job_data["status"])
+
+                    return BatchJob(**job_data)
+
+                finally:
+                    # Unlock before closing (important for Windows)
+                    _unlock_file(f)
+                
+        except Exception as e:
+            print(f"Error reading job status for {job_id}: {e}")
+            return None
+    
+    def _cleanup_old_status_files(self, max_age_hours: int = 24):
+        """Clean up old status files
+        
+        Args:
+            max_age_hours: Maximum age of status files to keep (default 24 hours)
+        """
+        try:
+            cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
+            
+            for status_file in self.status_dir.glob("*.json"):
+                try:
+                    # Check file modification time
+                    file_mtime = datetime.fromtimestamp(status_file.stat().st_mtime)
+                    
+                    if file_mtime < cutoff_time:
+                        status_file.unlink()
+                        print(f"Cleaned up old status file: {status_file.name}")
+                        
+                except Exception as e:
+                    print(f"Error checking/deleting status file {status_file}: {e}")
+                    
+        except Exception as e:
+            print(f"Error during status file cleanup: {e}")
+    
     def _execute_job(self, job: BatchJob, generator_func: Callable):
-        """Execute a single job with thread-safe updates
+        """Execute a single job with file-based status tracking (NO session_state access)
         
         Args:
             job: Job to execute
@@ -121,6 +285,9 @@ class BatchQueue:
             self.active_jobs[job.id] = threading.current_thread()
             job.status = BatchStatus.RUNNING
             job.started_at = datetime.now().isoformat()
+        
+        # Write initial status to file (thread-safe, no session_state)
+        self._write_job_status(job)
         
         try:
             # Execute generation (this is the long-running operation)
@@ -133,6 +300,9 @@ class BatchQueue:
                 job.result = result
                 job.progress = 1.0
             
+            # Write completion status to file
+            self._write_job_status(job)
+            
         except Exception as e:
             # Thread-safe status update for job failure
             with self.job_lock:
@@ -140,6 +310,9 @@ class BatchQueue:
                 job.completed_at = datetime.now().isoformat()
                 job.error_message = str(e)
                 job.progress = 0.0
+            
+            # Write failure status to file
+            self._write_job_status(job)
                 
         finally:
             # Thread-safe cleanup
@@ -171,15 +344,22 @@ class BatchQueue:
             print(f"Cleaned up {removed_count} old batch jobs, keeping {len(jobs_to_keep)}")
     
     def get_job_status(self, job_id: str) -> Optional[BatchJob]:
-        """Get status of a specific job
-        
+        """Get status of a specific job (reads from file, safe for UI thread)
+
         Args:
             job_id: ID of job to check
-            
+
         Returns:
             Job status or None if not found
         """
-        return self.completed_jobs.get(job_id)
+        # Read from file system first (authoritative source)
+        file_job = self._read_job_status(job_id)
+        if file_job:
+            return file_job
+
+        # Fallback to memory with lock protection
+        with self.job_lock:
+            return self.completed_jobs.get(job_id)
     
     def cancel_job(self, job_id: str) -> bool:
         """Cancel a job
@@ -208,19 +388,20 @@ class BatchQueue:
 class BatchManager:
     """Manages batch generation requests"""
     
-    def __init__(self, batch_dir: str = "batches", max_concurrent: int = 2):
+    def __init__(self, batch_dir: str = "batches", max_concurrent: int = 2, status_dir: str = "batch_status"):
         """Initialize batch manager
         
         Args:
             batch_dir: Directory to store batch data
             max_concurrent: Maximum concurrent jobs
+            status_dir: Directory to store job status files
         """
         self.batch_dir = Path(batch_dir)
         self.batch_dir.mkdir(exist_ok=True)
         self.max_concurrent = max_concurrent
         
-        # Initialize queue
-        self.queue = BatchQueue(max_concurrent)
+        # Initialize queue with status directory
+        self.queue = BatchQueue(max_concurrent, status_dir=status_dir)
         
         # Track active batches
         self.active_batches: Dict[str, BatchRequest] = {}
@@ -425,7 +606,10 @@ class BatchManager:
         return True
     
     def get_batch_status(self, batch_id: str) -> Optional[BatchRequest]:
-        """Get batch status
+        """Get batch status (reads from files, safe for UI thread)
+        
+        This method reads job statuses from the file system, making it safe
+        to call from the main Streamlit thread without threading violations.
         
         Args:
             batch_id: Batch ID
@@ -438,11 +622,12 @@ class BatchManager:
         
         batch_request = self.active_batches[batch_id]
         
-        # Update job statuses
+        # Update job statuses by reading from files (thread-safe)
         completed = 0
         failed = 0
         
         for job in batch_request.jobs:
+            # Read from file system (safe for UI thread)
             updated_job = self.queue.get_job_status(job.id)
             if updated_job:
                 # Update job in batch
