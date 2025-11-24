@@ -319,21 +319,75 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
     elif section_type == 'quiz':
         st.markdown("### 🎯 Knowledge Check")
         quiz_data = unit.get('quiz', {})
-        
+
         if quiz_data and isinstance(quiz_data, dict):
             questions = quiz_data.get('questions', [])
-            
+
             if questions:
-                st.markdown("**Quiz questions will be interactive in Phase 3!**")
-                st.markdown("For now, here's what you'll be tested on:")
-                
-                for i, q in enumerate(questions, 1):
-                    with st.expander(f"Question {i}"):
-                        st.markdown(f"**{q.get('question', '')}**")
+                # Initialize session state for quiz answers
+                if 'quiz_submitted' not in st.session_state:
+                    st.session_state.quiz_submitted = False
+                if 'quiz_answers' not in st.session_state:
+                    st.session_state.quiz_answers = {}
+
+                # Create quiz form
+                with st.form("quiz_form"):
+                    user_answers = {}
+
+                    for i, q in enumerate(questions):
+                        st.markdown(f"**Question {i + 1}: {q.get('question', '')}**")
                         options = q.get('options', [])
-                        for opt in options:
-                            st.markdown(f"- {opt}")
-                        st.caption(f"Correct answer: {q.get('correct', 'Not specified')}")
+
+                        # Radio buttons for answer selection
+                        answer = st.radio(
+                            f"Select your answer for question {i + 1}",
+                            options,
+                            key=f"q_{i}",
+                            label_visibility="collapsed"
+                        )
+                        user_answers[i] = answer
+                        st.markdown("")  # Spacing
+
+                    submitted = st.form_submit_button("Submit Quiz", type="primary", use_container_width=True)
+
+                    if submitted:
+                        st.session_state.quiz_submitted = True
+                        st.session_state.quiz_answers = user_answers
+
+                # Show results if submitted
+                if st.session_state.quiz_submitted:
+                    correct_count = 0
+
+                    for i, q in enumerate(questions):
+                        user_answer = st.session_state.quiz_answers.get(i)
+                        correct_answer = q.get('correct', '')
+
+                        if user_answer == correct_answer:
+                            correct_count += 1
+                            st.success(f"✅ Question {i + 1}: Correct!")
+                        else:
+                            st.error(f"❌ Question {i + 1}: Incorrect. The correct answer was: {correct_answer}")
+
+                    # Award XP based on performance
+                    total_questions = len(questions)
+                    if correct_count == total_questions:
+                        st.success(f"🌟 Perfect score! {correct_count}/{total_questions} correct!")
+                        progress = StudentProgress(st.session_state.last_curriculum_id)
+                        progress.add_xp(50)
+                        st.info("🎁 Bonus: +50 XP for perfect score!")
+                    elif correct_count > 0:
+                        st.info(f"📊 You got {correct_count}/{total_questions} correct!")
+                        progress = StudentProgress(st.session_state.last_curriculum_id)
+                        progress.add_xp(10)
+                        st.info("⭐ +10 XP for completing the quiz!")
+                    else:
+                        st.warning(f"Keep trying! You got {correct_count}/{total_questions} correct.")
+
+                    # Reset button
+                    if st.button("🔄 Try Again"):
+                        st.session_state.quiz_submitted = False
+                        st.session_state.quiz_answers = {}
+                        st.rerun()
             else:
                 st.info("No quiz questions available.")
         else:

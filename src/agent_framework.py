@@ -27,10 +27,58 @@ except ImportError:
 
 class OrchestratorAgent(BaseAgent):
     """Main agent that coordinates the curriculum generation process"""
-    
+
+    # Persona mapping for subject-based tutor personalities
+    PERSONA_MAP = {
+        "physics": {
+            "name": "Albert Einstein",
+            "style": "a curious, wonder-filled style that explores the mysteries of the universe"
+        },
+        "history": {
+            "name": "George Washington",
+            "style": "a storytelling style that brings historical events to life"
+        },
+        "math": {
+            "name": "Ada Lovelace",
+            "style": "a logical, step-by-step style that celebrates mathematical elegance"
+        },
+        "science": {
+            "name": "Marie Curie",
+            "style": "an inquisitive, experimental style that encourages discovery"
+        },
+        "literature": {
+            "name": "William Shakespeare",
+            "style": "a dramatic, expressive style that brings stories and words to life"
+        },
+        "default": {
+            "name": "a friendly tutor",
+            "style": "an encouraging, supportive style"
+        }
+    }
+
     def __init__(self, client, model="gpt-4.1", worker_model="gpt-4.1-mini"):
         super().__init__(client, model)
         self.worker_model = worker_model
+
+    def get_persona_for_subject(self, subject: str) -> Dict[str, str]:
+        """
+        Get the appropriate persona based on the subject.
+
+        Args:
+            subject: The curriculum subject
+
+        Returns:
+            Dict with 'name' and 'style' keys for the persona
+        """
+        # Normalize subject to lowercase for matching
+        subject_lower = subject.lower() if subject else ""
+
+        # Check for keyword matches in subject
+        for key, persona in self.PERSONA_MAP.items():
+            if key != "default" and key in subject_lower:
+                return persona
+
+        return self.PERSONA_MAP["default"]
         
     def create_curriculum(self, subject, grade, style, language, extra, config):
         """Main entry point for curriculum generation"""
@@ -71,6 +119,9 @@ class OrchestratorAgent(BaseAgent):
             print("Generation cancelled after outline phase")
             return {"meta": {"cancelled": True}, "units": []}
         
+        # Get persona based on subject
+        persona = self.get_persona_for_subject(subject)
+
         # Initialize curriculum structure
         curriculum = {
             "meta": {
@@ -85,6 +136,7 @@ class OrchestratorAgent(BaseAgent):
                 "include_resources": config["defaults"]["include_resources"],
                 "include_keypoints": config["defaults"]["include_keypoints"],
                 "media_richness": config["defaults"]["media_richness"],
+                "persona": persona,
             },
             "units": []
         }

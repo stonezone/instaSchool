@@ -26,8 +26,12 @@ class TutorAgent(BaseAgent):
         self.current_context = None
         self.conversation_history = []
         self.max_history = 5  # Configurable conversation memory limit
+        # Default persona settings
+        self.persona_name = "a friendly tutor"
+        self.persona_style = "an encouraging, supportive style"
 
-    def set_lesson_context(self, unit_content: str, unit_title: str, subject: str, grade: str):
+    def set_lesson_context(self, unit_content: str, unit_title: str, subject: str, grade: str,
+                           persona_name: Optional[str] = None, persona_style: Optional[str] = None):
         """
         Update the tutor's context when the student changes units.
 
@@ -36,6 +40,8 @@ class TutorAgent(BaseAgent):
             unit_title: Title of the current unit
             subject: Subject being studied
             grade: Grade level
+            persona_name: Optional persona name (e.g., "Albert Einstein")
+            persona_style: Optional teaching style (e.g., "curious, wonder-filled style")
         """
         self.current_context = {
             'unit_content': unit_content,
@@ -43,6 +49,11 @@ class TutorAgent(BaseAgent):
             'subject': subject,
             'grade': grade
         }
+        # Update persona if provided
+        if persona_name:
+            self.persona_name = persona_name
+        if persona_style:
+            self.persona_style = persona_style
         # Clear conversation history when context changes
         self.conversation_history = []
 
@@ -60,7 +71,11 @@ class TutorAgent(BaseAgent):
         if not self.current_context:
             return "You are a helpful tutor. Please ask the student to select a lesson first."
 
-        return f"""You are a friendly, encouraging Socratic tutor helping a {self.current_context['grade']} student understand "{self.current_context['unit_title']}" in {self.current_context['subject']}.
+        grade = self.current_context['grade']
+
+        return f"""You are {self.persona_name}. Speak in {self.persona_style}, but keep explanations simple for a {grade} student.
+
+You are helping a {grade} student understand "{self.current_context['unit_title']}" in {self.current_context['subject']}.
 
 CRITICAL RULES:
 1. ONLY answer questions about this specific lesson content
@@ -68,13 +83,13 @@ CRITICAL RULES:
 3. Keep responses concise (max 3-4 sentences)
 4. Be encouraging and supportive
 5. If asked about unrelated topics, gently redirect to the lesson
-6. Use age-appropriate language for {self.current_context['grade']} students
+6. Use age-appropriate language for {grade} students
 
 LESSON CONTENT:
 {self.current_context['unit_content']}
 
 TEACHING APPROACH:
-- Start with "That's a great question!" or similar encouragement
+- Start with encouragement appropriate to your persona
 - Ask guiding questions like "What do you think would happen if...?"
 - Help students discover answers themselves
 - Connect concepts to things they already know
