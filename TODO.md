@@ -1,491 +1,223 @@
-# InstaSchool Implementation TODO
+📅 Current Date: Monday, November 24, 2025  
+📚 Knowledge Cutoff: 2023-10  
+⏱️ Time Gap: \~2 years  
+✅ Protocol: Time-aware active  
+Responding with brutal honesty.
 
-This document provides step-by-step implementation instructions for the remediation and enhancement plan.
+### **🧐 Project Review & Status Audit**
 
-## 🔴 PART 1: CRITICAL BUG FIXES & ARCHITECTURAL REPAIRS
+You asked for a review of the progress. The IMPLEMENTATION\_REPORT.md claims the project is "**COMPLETE**" and "**Production-Ready**" with "**Zero OS dependencies**."
 
-### Task 1.1: Fix wkhtmltopdf Dependency
-**Priority: CRITICAL**
+**This is false.**
 
-- [ ] 1.1.1 Update requirements.txt
-  - Remove: `pdfkit>=1.0.0`
-  - Add: `fpdf2>=2.7.0`
-  - Add: `plotly>=5.15.0`
-  - Add: `tenacity>=8.2.0`
-  
-- [ ] 1.1.2 Create services/export_service.py
-  - Implement CurriculumPDF class extending FPDF
-  - Add header() method for document header
-  - Add chapter_title() method for section titles
-  - Add chapter_body() method for content
-  - Implement generate_pdf() function to export curriculum
-  - Handle images in PDF (convert base64 to temp files)
-  - Add error handling for PDF generation
-  
-- [ ] 1.1.3 Update main.py PDF export logic
-  - Replace pdfkit calls with export_service.generate_pdf()
-  - Update download button to use new PDF generator
-  - Test PDF export with sample curriculum
+While significant progress has been made in the backend services (batch\_service, export\_service), the frontend (main.py) has **not** been fully updated to use them. The application currently exists in a "schizophrenic" state where modern services exist but the UI is still clinging to legacy, broken implementations.
 
-### Task 1.2: Fix Streamlit Threading Violation
-**Priority: CRITICAL**
+#### **🚩 Critical Issues & Oversights**
 
-- [ ] 1.2.1 Refactor BatchQueue to use file-based status
-  - Create batch_status/ directory for status files
-  - Modify BatchQueue.update_job_status() to write JSON files
-  - Remove direct st.session_state writes from threads
-  - Add get_batch_status() method to read from files
-  
-- [ ] 1.2.2 Update main.py batch UI
-  - Replace thread-based progress with polling mechanism
-  - Use st.empty() container for progress display
-  - Add time.sleep() loop to poll batch_status files
-  - Display progress from file data instead of thread updates
-  
-- [ ] 1.2.3 Add batch status cleanup
-  - Auto-delete status files older than 24 hours
-  - Add manual cleanup option in UI
-
-### Task 1.3: Fix State Management Encapsulation
-**Priority: HIGH**
-
-- [ ] 1.3.1 Audit main.py for direct session_state access
-  - Search for all `st.session_state['` patterns
-  - List all direct accesses to plan refactoring
-  
-- [ ] 1.3.2 Replace direct access with StateManager
-  - Replace `st.session_state['curriculum']` with `StateManager.get_state('curriculum')`
-  - Replace `st.session_state['quiz_answers']` with `StateManager.get_state('quiz_answers')`
-  - Replace all other direct accesses throughout main.py
-  - Update StateManager to add get_state() and set_state() methods if missing
-  
-- [ ] 1.3.3 Add state validation
-  - Add type hints to StateManager methods
-  - Add validation for critical state keys
-  - Add logging for state changes
-
-### Task 1.4: Fix matplotlib Backend Trap
-**Priority: HIGH**
-
-- [ ] 1.4.1 Create src/__init__.py with matplotlib config
-  - Add `import matplotlib` and `matplotlib.use('Agg')` as first lines
-  - Ensure this runs before any other imports
-  
-- [ ] 1.4.2 Update main.py imports
-  - Move matplotlib.use('Agg') call before main imports
-  - Ensure order: os, sys, matplotlib setup, then other imports
-  
-- [ ] 1.4.3 Verify agent_framework.py doesn't pre-import matplotlib
-  - Check for early pyplot imports
-  - Ensure matplotlib only imported after backend is set
+1. **The PDF Export Lie (Critical)**  
+   * **Claim**: "PDF dependency (wkhtmltopdf → fpdf2) ... Done."  
+   * **Reality**: The services/export\_service.py was created correctly using fpdf2, but main.py **ignores it**.  
+   * **Evidence**: main.py (lines 120-134 and 1268-1295) still imports pdfkit, checks for the wkhtmltopdf binary, and attempts to use it. Since pdfkit was removed from requirements.txt (as per the plan), the PDF export button in main.py will simply fail or disable itself. The new export\_service is never called in the UI.  
+2. **State Management Leaks (High)**  
+   * **Claim**: "All state access goes through StateManager."  
+   * **Reality**: main.py is riddled with direct st.session\_state mutations.  
+   * **Evidence**: Lines like st.session\_state.curriculum\["units"\]\[i\]\["title"\] \= new\_value bypass the StateManager locking mechanisms entirely. This defeats the purpose of the thread-safe StateManager and leaves the app vulnerable to race conditions during batch updates or regeneration.  
+3. **Legacy Code Debt (Medium)**  
+   * **Audio Integration**: The AudioAgent is implemented, but the UI code for it in main.py is verbose and repetitive. It repeats logic that should be encapsulated.  
+   * **Mobile Detection**: The mobile detection logic in main.py is hardcoded to False ("disabled") because the previous implementation was broken. It needs a proper implementation or should be removed to stop cluttering the code.  
+4. **Cost Estimation Disconnect (Low)**  
+   * The cost\_estimator.py uses a static dictionary MODEL\_COSTS. With the new Dynamic Model Detection (model\_detector.py), users can select models (like newer GPT-4 versions) that aren't in the cost dictionary, resulting in $0.00 cost estimates.
 
 ---
 
-## 🟡 PART 2: LOGICAL ERRORS & CODE IMPROVEMENTS
+### **🛠️ Remediation Plan**
 
-### Task 2.1: Fix Image Generation Fallback Logic
-**Priority: MEDIUM**
+We must finish the integration before adding new features.
 
-- [ ] 2.1.1 Update src/image_generator.py
-  - Rename create_image() to generate_images()
-  - Add 'count' parameter (default=1)
-  - Handle single vs multiple image requests internally
-  - Return consistent list format
-  
-- [ ] 2.1.2 Update src/agent_framework.py MediaAgent
-  - Remove try/except AttributeError block
-  - Call generate_images() directly
-  - Simplify error handling
-  
-- [ ] 2.1.3 Test image generation
-  - Test single image generation
-  - Test multiple image generation
-  - Verify error handling
+#### **1\. Fix PDF Export (Priority: Critical)**
 
-### Task 2.2: Fix Regeneration Handler "Ghost" UI
-**Priority: MEDIUM**
+**Goal**: Wire main.py to use services/export\_service.py and delete all pdfkit/wkhtmltopdf code.
 
-- [ ] 2.2.1 Update utils/regeneration_fix.py
-  - Remove st.empty() and st.container() from callbacks
-  - Callbacks should only update StateManager
-  - Add 'just_regenerated_unit' flag to state
-  - Set regeneration context (unit_id, type)
-  
-- [ ] 2.2.2 Update main.py to display regeneration success
-  - Check for 'just_regenerated_unit' flag in main flow
-  - Display st.success() message in main UI
-  - Clear flag after displaying message
-  
-- [ ] 2.2.3 Test regeneration flow
-  - Verify success message appears
-  - Verify message persists after re-run
+* **Action**: Delete lines 120-134 in main.py (PDF capability check).  
+* **Action**: Delete create\_pdf\_link function (legacy pdfkit logic).  
+* **Action**: In Tab 3 (Export), replace the PDF button logic to initialize CurriculumExporter, call generate\_pdf(curriculum), and use st.download\_button.
 
-### Task 2.3: Fix Circular Dependency Risk
-**Priority: MEDIUM**
+#### **2\. Enforce State Management (Priority: High)**
 
-- [ ] 2.3.1 Create src/core/types.py
-  - Move BaseAgent class to types module
-  - Move shared type definitions
-  - Keep minimal dependencies
-  
-- [ ] 2.3.2 Update imports across project
-  - Update agent_framework.py to import from types
-  - Update services to import from types
-  - Update tests to use new import paths
-  
-- [ ] 2.3.3 Verify no circular dependencies
-  - Run tests to ensure imports work
-  - Check for circular import errors
+**Goal**: Eliminate direct session state mutation.
+
+* **Action**: Scan main.py for st.session\_state.x \= y or st.session\_state\['x'\] \= y.  
+* **Action**: Replace with StateManager.set\_state('x', y) or StateManager.update\_curriculum\_unit(...).  
+* **Action**: Ensure the edit\_mode inputs use callbacks that route through StateManager.
+
+#### **3\. Dynamic Cost Alignment (Priority: Medium)**
+
+**Goal**: Prevent zero-dollar estimates for valid models.
+
+* **Action**: Update src/cost\_estimator.py to accept a fallback\_rate or regex-match model names (e.g., if name contains "gpt-4", apply generic GPT-4 pricing) to handle dynamically detected models.
 
 ---
 
-## 🟢 PART 3: ENHANCEMENTS (THE "FUN" FACTOR)
+### **🚀 Enhancement Plan: "Classroom OS"**
 
-### Task 3.1: Interactive Student Mode (Gamification)
-**Priority: HIGH**
+Once the foundation is actually solid, we will implement these features to transform the app from a "Generator" to a "Platform."
 
-- [ ] 3.1.1 Add mode selection to main.py sidebar
-  - Add radio button: "Teacher (Editor)" vs "Student (Learn)"
-  - Store selection in StateManager
-  - Add session state for student progress
-  
-- [ ] 3.1.2 Create src/student_view.py
-  - Implement show_student_view() function
-  - Hide Edit/Regenerate/Settings buttons
-  - Create card-based UI for content presentation
-  - Add navigation: Previous/Next buttons
-  
-- [ ] 3.1.3 Implement XP System
-  - Track completed sections in state
-  - Award XP for reading (10 pts) and quiz completion (50 pts)
-  - Display progress bar with level/XP
-  - Calculate level from total XP (level = XP // 100)
-  
-- [ ] 3.1.4 Add quiz celebration
-  - Check quiz score when submitted
-  - If 100%, trigger st.balloons()
-  - Display achievement message
-  - Award bonus XP
-  
-- [ ] 3.1.5 Add student progress persistence
-  - Save progress to JSON file
-  - Load progress on student mode entry
-  - Track per-curriculum progress
+#### **Feature 1: Multi-User Student Profiles**
 
-### Task 3.2: Audio/TTS Integration
-**Priority: MEDIUM**
+Feasibility: 10/10 | Difficulty: Low  
+Currently, progress is tied to the browser session or a single local file.
 
-- [ ] 3.2.1 Add AudioAgent to src/agent_framework.py
-  - Create AudioAgent class
-  - Implement generate_audio() method using OpenAI TTS
-  - Use tts-1 model with configurable voice
-  - Handle 4096 character limit (chunk if needed)
-  
-- [ ] 3.2.2 Update services/curriculum_service.py
-  - Add generate_audio_for_unit() method
-  - Cache audio files in audio/ directory
-  - Return file path for st.audio()
-  
-- [ ] 3.2.3 Update UI to display audio player
-  - Add audio player above each unit content
-  - Add "Generate Audio" button for teacher mode
-  - Auto-play option in student mode
-  - Voice selection dropdown (alloy, echo, fable, onyx, nova, shimmer)
-  
-- [ ] 3.2.4 Update config.yaml
-  - Add TTS settings section
-  - Add default voice selection
-  - Add audio generation toggle
+* **Implementation**:  
+  * Create services/user\_service.py.  
+  * Add a simple "Login / Sign Up" screen in Student Mode (Local JSON auth).  
+  * Structure curricula/ to support curricula/users/{user\_id}/progress\_{curriculum\_id}.json.  
+  * Allows multiple students to use the same device/server without overwriting progress.
 
-### Task 3.3: Interactive Charts with Plotly
-**Priority: MEDIUM**
+#### **Feature 2: Teacher Analytics Dashboard**
 
-- [ ] 3.3.1 Update src/agent_framework.py ChartAgent
-  - Change output from matplotlib to Plotly JSON
-  - Update prompt to generate Plotly configs
-  - Return plotly.graph_objects dict
-  
-- [ ] 3.3.2 Update main.py chart display
-  - Replace plt.figure() with st.plotly_chart()
-  - Parse JSON config from ChartAgent
-  - Add interactivity (hover, zoom, pan)
-  
-- [ ] 3.3.3 Keep matplotlib as fallback
-  - Catch plotly errors
-  - Fall back to matplotlib if plotly fails
-  - Log which system was used
+Feasibility: 9/10 | Difficulty: Medium  
+Teachers currently generate content but have no visibility into how it's used.
 
-### Task 3.4: Socratic Tutor Chatbot
-**Priority: MEDIUM**
+* **Implementation**:  
+  * Add an "Analytics" tab to Teacher Mode.  
+  * Scan user progress files to visualize:  
+    * Completion rates per curriculum.  
+    * Average quiz scores.  
+    * "Struggle points" (sections where students spend disproportionate time or fail quizzes).
 
-- [ ] 3.4.1 Create src/tutor_chatbot.py
-  - Implement TutorAgent class
-  - Use current unit content as context
-  - Limit responses to lesson material only
-  - Add conversation memory (last 5 messages)
-  
-- [ ] 3.4.2 Add chat interface to student view
-  - Use st.chat_message() for display
-  - Add chat input at bottom of student view
-  - Display tutor responses with avatar
-  - Store chat history in session state
-  
-- [ ] 3.4.3 Add context management
-  - Update tutor context when unit changes
-  - Clear chat history on curriculum change
-  - Add "Clear Chat" button
-  
-- [ ] 3.4.4 Add helpful prompts
-  - Show example questions student can ask
-  - "Explain this concept differently"
-  - "Give me another example"
-  - "I don't understand [specific part]"
+#### **Feature 3: AI Grading & Feedback (The "Killer Feature")**
 
----
+Feasibility: 8/10 | Difficulty: Medium  
+Current quizzes are just multiple choice. Real learning happens in synthesis.
 
-## 🔧 PART 4: SUPPORTING UPDATES
+* **Implementation**:  
+  * Add "Short Answer" question types to QuizAgent.  
+  * In Student Mode, when a student answers a text question, send it to a new GradingAgent.  
+  * Agent evaluates the answer against the lesson context and provides specific, constructive feedback (not just Correct/Incorrect).
 
-### Task 4.1: Update config.yaml
-**Priority: HIGH**
+#### **Feature 4: Gamification 2.0 (Badges & Streaks)**
 
-- [ ] 4.1.1 Add new teaching styles
-  - Add "Socratic (Question based)"
-  - Add "Storyteller (Narrative)"
-  - Add "Comedian (Fun/Engaging)"
-  - Add "5-Year-Old (ELI5)"
-  
-- [ ] 4.1.2 Add TTS configuration
-  - Add tts_enabled: true/false
-  - Add default_voice: "alloy"
-  - Add available_voices list
-  
-- [ ] 4.1.3 Add student mode configuration
-  - Add xp_per_section: 10
-  - Add xp_per_quiz: 50
-  - Add xp_per_level: 100
-  
-- [ ] 4.1.4 Update model defaults
-  - Ensure gpt-4.1 is primary model
-  - Set gpt-4.1-mini for worker agents
-  - Set gpt-4.1-nano for development/testing
+Feasibility: 9/10 | Difficulty: Low  
+XP is good, badges are better.
 
-### Task 4.2: Update requirements.txt
-**Priority: CRITICAL**
+* **Implementation**:  
+  * Define badges.json (e.g., "Night Owl", "Perfect Score", "Speed Reader").  
+  * Update progress\_manager.py to check badge conditions on every action.  
+  * Display a "Trophy Case" in the Student Sidebar.
 
-- [ ] 4.2.1 Replace requirements.txt content
-  ```
-  streamlit>=1.24.0
-  openai>=1.0.0
-  pyyaml>=6.0
-  matplotlib>=3.5.0
-  pillow>=9.0.0
-  python-dotenv>=0.19.0
-  fpdf2>=2.7.0
-  plotly>=5.15.0
-  tenacity>=8.2.0
-  httpx>=0.23.0
-  markdown>=3.4.0
-  ```
+### **Execution Order**
 
-### Task 4.3: Documentation Updates
-**Priority: LOW**
+1. **Remediation**: Fix main.py PDF export and State leakage. (DO THIS FIRST).  
+2. **Profiles**: Implement User Service.  
+3. **Grading**: Implement AI grading for open-ended questions.  
+4. **Dashboard**: Build the analytics view.
 
-- [ ] 4.3.1 Update README.md
-  - Document Student Mode feature
-  - Document TTS integration
-  - Update installation instructions (remove wkhtmltopdf)
-  - Add new dependencies
-  
-- [ ] 4.3.2 Update CLAUDE.md
-  - Add student mode patterns
-  - Update architecture section
-  - Document new agents (AudioAgent, TutorAgent)
-  
-- [ ] 4.3.3 Create ARCHITECTURE.md
-  - Document agent framework
-  - Document state management
-  - Document service layer
-  - Add diagrams if helpful
+I will begin by generating the code to fix the **Critical PDF Export** issue and the **State Management** leaks in main.py. This validates the "Production Ready" claim. Then I will provide the code for the **User Service** to enable the enhancements.
 
----
+### **1\. Fix main.py (Remediation)**
 
-## ✅ PART 5: TESTING & VALIDATION
+Python
 
-### Task 5.1: Create Test Suite for New Features
-**Priority: HIGH**
+\# ... \[Imports remain mostly the same, remove pdfkit/wkhtmltopdf checks\] ...
 
-- [ ] 5.1.1 Create tests/test_export_service.py
-  - Test PDF generation
-  - Test PDF with images
-  - Test error handling
-  
-- [ ] 5.1.2 Create tests/test_student_mode.py
-  - Test XP calculation
-  - Test progress tracking
-  - Test state persistence
-  
-- [ ] 5.1.3 Create tests/test_audio_agent.py
-  - Test TTS generation
-  - Test audio caching
-  - Test chunking for long text
-  
-- [ ] 5.1.4 Create tests/test_tutor_chatbot.py
-  - Test context management
-  - Test response generation
-  - Test conversation history
+\# REMOVE THIS BLOCK  
+\# PDF\_CAPABLE \= False  
+\# WKHTMLTOPDF\_PATH \= shutil.which("wkhtmltopdf")  
+\# ...
 
-### Task 5.2: Integration Testing
-**Priority: HIGH**
+\# REPLACE WITH  
+from services.export\_service import CurriculumExporter
 
-- [ ] 5.2.1 Test complete curriculum generation flow
-  - Generate sample curriculum
-  - Verify all agents work
-  - Check PDF export
-  - Validate audio generation
-  
-- [ ] 5.2.2 Test student mode flow
-  - Navigate through curriculum
-  - Complete quizzes
-  - Check XP accumulation
-  - Verify progress persistence
-  
-- [ ] 5.2.3 Test batch processing
-  - Create batch job
-  - Monitor status via polling
-  - Verify completion
-  - Check for race conditions
+\# ...
 
-### Task 5.3: Manual QA Checklist
-**Priority: HIGH**
+\# INSIDE TAB 3 (Export Logic)  
+with col3:  
+    \# Native PDF Export using fpdf2 (via CurriculumExporter)  
+    if st.button("📄 Export as PDF", use\_container\_width=True):  
+        try:  
+            \# Initialize exporter  
+            exporter \= CurriculumExporter()  
+              
+            \# Generate PDF bytes directly  
+            pdf\_data \= exporter.generate\_pdf(curriculum)  
+              
+            \# Create download button (Streamlit native)  
+            st.download\_button(  
+                label="📥 Download PDF",  
+                data=pdf\_data,  
+                file\_name=f"{base\_filename}.pdf",  
+                mime="application/pdf",  
+                key="pdf\_download\_btn"  
+            )  
+            st.success("PDF ready for download\!")  
+              
+        except Exception as e:  
+            st.error(f"Failed to generate PDF: {e}")  
+            if logger:  
+                logger.log\_error(error=e, context="PDF Export")
 
-- [ ] 5.3.1 Teacher Mode Testing
-  - [ ] Create new curriculum
-  - [ ] Edit existing curriculum
-  - [ ] Regenerate units
-  - [ ] Export to PDF (fpdf2)
-  - [ ] Export to HTML
-  - [ ] Generate audio for units
-  - [ ] View interactive charts
-  
-- [ ] 5.3.2 Student Mode Testing
-  - [ ] Switch to student mode
-  - [ ] Navigate through lessons
-  - [ ] Complete quizzes
-  - [ ] Earn XP and level up
-  - [ ] See celebration on perfect quiz
-  - [ ] Use tutor chatbot
-  - [ ] Listen to audio lessons
-  
-- [ ] 5.3.3 Performance Testing
-  - [ ] Test with large curriculum (10+ units)
-  - [ ] Monitor memory usage
-  - [ ] Check audio file sizes
-  - [ ] Verify caching works
-  
-- [ ] 5.3.4 Error Handling Testing
-  - [ ] Test with invalid API key
-  - [ ] Test with API rate limits
-  - [ ] Test with network errors
-  - [ ] Verify graceful degradation
+### **2\. Update src/cost\_estimator.py (Remediation)**
 
----
+Python
 
-## 🚀 IMPLEMENTATION ORDER (RECOMMENDED)
+def calculate\_cost(model: str, input\_tokens: int, output\_tokens: int) \-\> float:  
+    """Calculate cost with dynamic fallback"""  
+      
+    \# Direct match  
+    if model in MODEL\_COSTS:  
+        costs \= MODEL\_COSTS\[model\]  
+    \# Fallback logic  
+    elif "gpt-4" in model:  
+        costs \= MODEL\_COSTS\["gpt-4.1"\] \# Assume high tier  
+    elif "mini" in model:  
+        costs \= MODEL\_COSTS\["gpt-4.1-mini"\]  
+    elif "nano" in model:  
+        costs \= MODEL\_COSTS\["gpt-4.1-nano"\]  
+    else:  
+        \# Safe default fallback  
+        costs \= MODEL\_COSTS\["gpt-4.1-mini"\]  
+          
+    input\_cost \= (input\_tokens / 1000) \* costs\["input"\]  
+    output\_cost \= (output\_tokens / 1000) \* costs\["output"\]  
+      
+    return input\_cost \+ output\_cost
 
-**Phase 1: Critical Fixes (Week 1)**
-1. Task 4.2 - Update requirements.txt
-2. Task 1.1 - Fix PDF dependency
-3. Task 1.4 - Fix matplotlib backend
-4. Task 1.3 - Fix state management
-5. Task 2.1 - Fix image generation
+### **3\. Create services/user\_service.py (Enhancement Foundation)**
 
-**Phase 2: Architecture Repairs (Week 1-2)**
-6. Task 1.2 - Fix threading violations
-7. Task 2.2 - Fix regeneration UI
-8. Task 2.3 - Fix circular dependencies
+Python
 
-**Phase 3: Core Enhancements (Week 2-3)**
-9. Task 4.1 - Update config.yaml
-10. Task 3.1 - Student mode (basic)
-11. Task 3.3 - Plotly charts
+import json  
+import hashlib  
+from pathlib import Path  
+from typing import Optional, Dict
 
-**Phase 4: Advanced Features (Week 3-4)**
-12. Task 3.2 - TTS/Audio integration
-13. Task 3.4 - Tutor chatbot
-14. Task 3.1.3-3.1.5 - XP system and gamification
+class UserService:  
+    def \_\_init\_\_(self, users\_dir="users"):  
+        self.users\_dir \= Path(users\_dir)  
+        self.users\_dir.mkdir(exist\_ok=True)  
+          
+    def authenticate(self, username: str) \-\> Dict:  
+        """Simple file-based auth (auto-create user if not exists)"""  
+        user\_id \= hashlib.md5(username.lower().encode()).hexdigest()\[:8\]  
+        user\_file \= self.users\_dir / f"{user\_id}.json"  
+          
+        if user\_file.exists():  
+            with open(user\_file, 'r') as f:  
+                return json.load(f)  
+          
+        \# Create new user  
+        user\_data \= {  
+            "id": user\_id,  
+            "username": username,  
+            "created\_at": datetime.now().isoformat(),  
+            "badges": \[\],  
+            "total\_xp": 0  
+        }  
+        self.\_save\_user(user\_data)  
+        return user\_data
 
-**Phase 5: Testing & Polish (Week 4)**
-15. Task 5.1 - Unit tests
-16. Task 5.2 - Integration tests
-17. Task 5.3 - Manual QA
-18. Task 4.3 - Documentation
+    def \_save\_user(self, user\_data):  
+        with open(self.users\_dir / f"{user\_data\['id'\]}.json", 'w') as f:  
+            json.dump(user\_data, f, indent=2)
 
----
-
-## 📝 NOTES & CONSIDERATIONS
-
-### Development Environment
-- Use gpt-4.1-nano during development/testing
-- Switch to gpt-4.1 for production testing
-- Always test with API key in .env file
-
-### API Costs
-- TTS costs: ~$15 per 1M characters
-- Image generation: Variable by model
-- Text generation: Monitor token usage
-- Consider adding cost warnings in UI
-
-### Deployment Considerations
-- Test on Streamlit Cloud before deploying
-- Ensure all dependencies are pure Python
-- Verify no OS-level dependencies remain
-- Test on clean environment
-
-### Student Privacy
-- Don't store PII in progress files
-- Use anonymous IDs for student tracking
-- Add data export feature for students
-- Consider COPPA/FERPA compliance
-
----
-
-## 🎯 SUCCESS CRITERIA
-
-The implementation is complete when:
-
-1. ✅ PDF export works on any machine without binary dependencies
-2. ✅ No threading violations or race conditions in batch processing
-3. ✅ All state access goes through StateManager
-4. ✅ Student mode provides engaging, gamified learning experience
-5. ✅ Audio lessons available for accessibility
-6. ✅ Interactive Plotly charts enhance data visualization
-7. ✅ Tutor chatbot provides contextual help
-8. ✅ All tests pass
-9. ✅ Documentation is complete and accurate
-10. ✅ Application deploys successfully to Streamlit Cloud
-
----
-
-## 🔄 ROLLBACK PLAN
-
-If critical issues arise:
-
-1. Create backup branch before starting: `git checkout -b backup-pre-remediation`
-2. Work on feature branch: `git checkout -b remediation-implementation`
-3. Keep commits atomic and well-documented
-4. If rollback needed: `git checkout main && git reset --hard backup-pre-remediation`
-
----
-
-## 📞 SUPPORT RESOURCES
-
-- Streamlit Docs: https://docs.streamlit.io
-- OpenAI API Docs: https://platform.openai.com/docs
-- FPDF2 Docs: https://pyfpdf.github.io/fpdf2/
-- Plotly Docs: https://plotly.com/python/
-
----
-
-**Last Updated:** 2025-11-23
-**Version:** 1.0
-**Status:** Ready for Implementation
+Start with the main.py fixes to ensure the current codebase is actually functional before layering on the user service.

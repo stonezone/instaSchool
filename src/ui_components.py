@@ -40,11 +40,12 @@ class ModernUI:
             """, unsafe_allow_html=True)
 
     @staticmethod
-    def card(title: str = "", content: str = "", subtitle: str = "", 
+    def card(title: str = "", content: str = "", subtitle: str = "",
              icon: str = "", status: str = "", key: str = None) -> None:
         """
-        Render a modern card component
-        
+        Render a modern card component - FIXED VERSION
+        Uses single complete HTML block to avoid Streamlit rendering issues.
+
         Args:
             title: Card title
             content: Card content (markdown supported)
@@ -54,7 +55,7 @@ class ModernUI:
             key: Unique key for the component
         """
         card_id = key or f"card_{hash(title + content)}"
-        
+
         # Build header if title exists
         header_html = ""
         if title or icon:
@@ -69,20 +70,31 @@ class ModernUI:
                     {status_badge}
                 </div>
             """
-        
-        # Render the card container with header
+
+        # Convert markdown content to HTML for embedding
+        content_html = ""
+        if content:
+            # Simple markdown to HTML conversion for common patterns
+            import re
+            html = content
+            # Bold: **text** -> <strong>text</strong>
+            html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
+            # Italic: *text* -> <em>text</em>
+            html = re.sub(r'\*(.+?)\*', r'<em>\1</em>', html)
+            # Line breaks
+            html = html.replace('\n\n', '</p><p>').replace('\n', '<br>')
+            # Wrap numbered lists
+            html = re.sub(r'^(\d+)\. (.+)$', r'<li>\2</li>', html, flags=re.MULTILINE)
+            if '<li>' in html:
+                html = f'<ol>{html}</ol>'
+            content_html = f'<p>{html}</p>'
+
+        # SINGLE complete HTML block - no split calls!
         st.markdown(f"""
             <div class="modern-card" id="{card_id}">
                 {header_html}
                 <div class="modern-card-content">
-        """, unsafe_allow_html=True)
-        
-        # Render the content as markdown (this allows proper markdown processing)
-        if content:
-            st.markdown(content)
-        
-        # Close the card container
-        st.markdown("""
+                    {content_html}
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -114,41 +126,37 @@ class ModernUI:
     @staticmethod
     def progress_steps(steps: List[Dict[str, Any]], current_step: int = 0) -> None:
         """
-        Render a modern progress steps component
-        
+        Render a modern progress steps component using native Streamlit
+
         Args:
             steps: List of step dictionaries with 'title' and optional 'icon'
             current_step: Index of the current active step (0-based)
         """
-        steps_html = []
-        
-        for i, step in enumerate(steps):
-            if i < current_step:
-                status = "completed"
-                icon = "✓"
-            elif i == current_step:
-                status = "active"
-                icon = str(i + 1)
-            else:
-                status = "pending"
-                icon = str(i + 1)
-            
-            step_icon = step.get('icon', icon)
-            
-            steps_html.append(f"""
-                <div class="progress-step {status}">
-                    <div class="progress-step-icon">{step_icon}</div>
-                    <span>{step['title']}</span>
-                </div>
-            """)
-        
-        st.markdown(f"""
-            <div class="modern-progress-container">
-                <div class="progress-steps">
-                    {''.join(steps_html)}
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        # Use native Streamlit columns for reliable rendering
+        cols = st.columns(len(steps))
+
+        for i, (col, step) in enumerate(zip(cols, steps)):
+            with col:
+                # Determine status and styling
+                if i < current_step:
+                    status_icon = "✅"
+                    color = "#10b981"  # green
+                elif i == current_step:
+                    status_icon = step.get('icon', '🔄')
+                    color = "#3b82f6"  # blue
+                else:
+                    status_icon = step.get('icon', '⏳')
+                    color = "#94a3b8"  # gray
+
+                # Render step with markdown
+                st.markdown(f"""
+                    <div style="text-align: center; padding: 8px;">
+                        <div style="font-size: 1.5em; margin-bottom: 4px;">{status_icon}</div>
+                        <div style="font-size: 0.75em; color: {color}; font-weight: {'600' if i <= current_step else '400'};">
+                            {step['title']}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
 
     @staticmethod
     def section_header(title: str, icon: str = "", section_type: str = "generate") -> None:

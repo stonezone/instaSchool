@@ -13,6 +13,7 @@ eggs/
 lib/
 lib64/
 parts/
+archived_docs/
 sdist/
 var/
 wheels/

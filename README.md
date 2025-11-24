@@ -34,19 +34,20 @@ InstaSchool Curriculum Generator is a powerful tool that leverages advanced AI m
 ### Required Packages
 
 ```
-streamlit>=1.10.0
+streamlit>=1.24.0
 openai>=1.0.0
 pyyaml>=6.0
 matplotlib>=3.5.0
-pillow>=8.0.0
+pillow>=9.0.0
 python-dotenv>=0.19.0
+fpdf2>=2.7.0
+plotly>=5.15.0
+tenacity>=8.2.0
+httpx>=0.23.0
+markdown>=3.4.0
 ```
 
-For PDF export functionality:
-```
-pdfkit>=1.0.0
-```
-You will also need to install `wkhtmltopdf` separately.
+PDF export now uses the pure-Python `fpdf2` library and does not require any external OS binaries like `wkhtmltopdf`.
 
 ### Installation Steps
 
@@ -220,12 +221,7 @@ The application is highly configurable through the `config.yaml` file:
 If you encounter issues with dependencies, try reinstalling them individually:
 
 ```bash
-pip install --upgrade streamlit openai pyyaml matplotlib pillow python-dotenv
-```
-
-For PDF export functionality:
-```bash
-pip install --upgrade pdfkit
+pip install --upgrade streamlit openai pyyaml matplotlib pillow python-dotenv fpdf2 plotly tenacity httpx markdown
 ```
 
 ### Resource Usage

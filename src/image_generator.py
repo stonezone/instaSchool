@@ -31,15 +31,25 @@ class ImageGenerator:
         # Define supported models and their sizes based on your available models
         self.models = {
             "gpt-image-1": {"sizes": ["1024x1024", "1024x1536", "1536x1024", "auto"]},
+            "gpt-image-1-mini": {"sizes": ["1024x1024", "1024x1536", "1536x1024", "auto"]},
             "dall-e-2": {"sizes": ["256x256", "512x512", "1024x1024"]},
             "dall-e-3": {"sizes": ["1024x1024", "1024x1792", "1792x1024"]}
         }
-        
+
         # Default sizes for each model - using 1024x1024 for all as safest option
         self.default_sizes = {
             "gpt-image-1": "1024x1024",
+            "gpt-image-1-mini": "1024x1024",
             "dall-e-2": "1024x1024",
             "dall-e-3": "1024x1024"
+        }
+
+        # Maximum prompt lengths per model
+        self.max_prompt_lengths = {
+            "gpt-image-1": 32000,
+            "gpt-image-1-mini": 32000,
+            "dall-e-2": 1000,
+            "dall-e-3": 4000
         }
     
     def create_image(self, prompt: str, model: str = None, size: str = None, n: int = 1, 
@@ -124,28 +134,35 @@ class ImageGenerator:
             use_size = size if size in available_sizes else self.default_sizes[current_model]
             
             try:
+                # Truncate prompt if needed for this model
+                max_length = self.max_prompt_lengths.get(current_model, 1000)
+                truncated_prompt = prompt
+                if len(prompt) > max_length:
+                    truncated_prompt = prompt[:max_length - 50] + "... [educational illustration]"
+                    print(f"Warning: Prompt truncated from {len(prompt)} to {len(truncated_prompt)} chars for {current_model}")
+
                 # Create parameters based on the selected model
                 params = {
                     "model": current_model,
-                    "prompt": prompt,
+                    "prompt": truncated_prompt,
                     "n": 1,  # API-defined limitation for certain models
                     "size": use_size
                 }
-                
+
                 # Add response_format parameter only for DALL-E models
                 if "dall-e" in current_model.lower():
                     params["response_format"] = "b64_json"
-                    
+
                 # Add model-specific parameters based on the model
                 if current_model == "dall-e-3":
                     params["quality"] = "standard"  # could be "hd" for higher quality
                     # params["style"] = "vivid"  # or "natural"
-                elif current_model == "gpt-image-1":
-                    # For gpt-image-1, we need to ensure we're using supported size
+                elif current_model in ["gpt-image-1", "gpt-image-1-mini"]:
+                    # For gpt-image models, we need to ensure we're using supported size
                     if use_size not in ["1024x1024", "1024x1536", "1536x1024", "auto"]:
                         use_size = "1024x1024"
                         params["size"] = use_size
-                    # For gpt-image-1, we do not need quality, style, or response_format parameters
+                    # For gpt-image models, we do not need quality, style, or response_format parameters
                     if "response_format" in params:
                         del params["response_format"]
                     

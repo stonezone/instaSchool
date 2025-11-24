@@ -101,22 +101,34 @@ class BaseAgent:
             
         return response
     
+    # Models that don't support temperature parameter
+    NO_TEMPERATURE_MODELS = ['gpt-5-nano', 'o1', 'o3', 'o4']
+
     def _call_model(self, messages, response_format=None, temperature: float = 0.7):
         """Call the model with standard parameters and retry logic.
-        
+
         Args:
             messages: List of message dictionaries for the API
             response_format: Optional response format specification
             temperature: Temperature parameter for generation
-            
+
         Returns:
             API response or None on error
         """
         params = {
             "model": self.model,
             "messages": messages,
-            "temperature": temperature,
         }
+
+        # Only add temperature if model supports it
+        # Some models (gpt-5-nano, o1, o3, o4 series) don't support temperature
+        model_lower = self.model.lower()
+        supports_temperature = not any(
+            model_lower.startswith(prefix) for prefix in self.NO_TEMPERATURE_MODELS
+        )
+        if supports_temperature:
+            params["temperature"] = temperature
+
         if response_format:
             params["response_format"] = response_format
         

@@ -69,7 +69,8 @@ except ImportError:
 # Import the agent framework and image generator
 from src.agent_framework import OrchestratorAgent, OutlineAgent, ContentAgent, MediaAgent, ChartAgent, QuizAgent, SummaryAgent, ResourceAgent, AudioAgent
 from src.image_generator import ImageGenerator
-from services.curriculum_service import CurriculumService, CurriculumValidator, CurriculumExporter
+from services.curriculum_service import CurriculumService, CurriculumValidator
+from services.export_service import CurriculumExporter
 from services.session_service import SessionManager, QuizManager, InputValidator
 from services.batch_service import BatchManager
 
@@ -95,7 +96,7 @@ def is_mobile():
 # Set global state for mobile detection
 if "is_mobile" not in st.session_state:
     mobile_detected = is_mobile()
-    st.session_state.is_mobile = mobile_detected
+    StateManager.set_state("is_mobile", mobile_detected)
 
 # More robust OpenAI import handling
 try:
@@ -130,24 +131,6 @@ except ImportError:
     # Fallback definitions for older versions or if specific errors aren't found
     class APIError(Exception): pass
     class RateLimitError(Exception): pass
-
-# ========== PDF Export Compatibility Check ==========
-PDF_CAPABLE = False
-WKHTMLTOPDF_PATH = shutil.which("wkhtmltopdf")
-if WKHTMLTOPDF_PATH:
-    try:
-        import pdfkit
-        PDF_CAPABLE = True
-        # Define config globally for pdfkit path, avoid using 'config' as variable name here to prevent confusion
-        pdfkit_wkhtmltopdf_config = pdfkit.configuration(wkhtmltopdf=WKHTMLTOPDF_PATH)
-    except ImportError:
-        st.warning("pdfkit library not installed. PDF export will be disabled. Run: pip install pdfkit")
-        PDF_CAPABLE = False
-    except Exception as e:
-        st.error(f"Error configuring pdfkit: {e}")
-        PDF_CAPABLE = False
-else:
-     st.warning("wkhtmltopdf executable not found in PATH. PDF export will be disabled. Please install it.")
 
 # ========== Load OpenAI Key and Client ==========
 try:
@@ -197,40 +180,38 @@ if "available_models" not in st.session_state:
             # Fallback to config if detection fails
             sys.stderr.write(f"Model detection failed: {available_models['error']}\\n")
             sys.stderr.write("Using fallback models from config...\\n")
-            st.session_state.available_models = None
-            st.session_state.model_detection_error = available_models['error']
+            StateManager.set_state("available_models", None)
+            StateManager.set_state("model_detection_error", available_models['error'])
         else:
-            st.session_state.available_models = available_models
-            st.session_state.model_detection_error = None
+            StateManager.set_state("available_models", available_models)
+            StateManager.set_state("model_detection_error", None)
             sys.stderr.write(f"Detected {len(available_models['text_models'])} text models and {len(available_models['image_models'])} image models\\n")
     except Exception as e:
         sys.stderr.write(f"Exception during model detection: {e}\\n")
-        st.session_state.available_models = None
-        st.session_state.model_detection_error = str(e)
+        StateManager.set_state("available_models", None)
+        StateManager.set_state("model_detection_error", str(e))
 
 # ========== Initialize session state and services ==========
 # Initialize session manager
 if "session_manager" not in st.session_state:
     try:
-        st.session_state.session_manager = SessionManager()
+        StateManager.set_state("session_manager", SessionManager())
     except Exception as e:
         st.error(f"Failed to initialize session manager: {e}")
-        st.session_state.session_manager = None
-
-# Curriculum service and template manager will be initialized after config is loaded
+        StateManager.set_state("session_manager", None)
 
 if "curriculum" not in st.session_state:
-    st.session_state.curriculum = None
+    StateManager.set_state("curriculum", None)
 if "curriculum_id" not in st.session_state:
-    st.session_state.curriculum_id = uuid.uuid4().hex
+    StateManager.set_state("curriculum_id", uuid.uuid4().hex)
 # Initialize session state using StateManager
 StateManager.initialize_state()
 
 # Additional state initialization
 if "api_error" not in st.session_state:
-    st.session_state.api_error = None
+    StateManager.set_state("api_error", None)
 if "theme" not in st.session_state:
-    st.session_state.theme = "Light"
+    StateManager.set_state("theme", "Light")
 
 # Create directories if they don't exist
 Path("curricula").mkdir(exist_ok=True)
@@ -240,9 +221,11 @@ Path("exports").mkdir(exist_ok=True)
 def add_to_cleanup(file_path: Optional[str]):
     """Adds a file path to the set of temporary files to be cleaned up on exit."""
     if file_path and os.path.exists(file_path):
-        if 'last_tmp_files' not in st.session_state:
-            st.session_state['last_tmp_files'] = set()
-        st.session_state['last_tmp_files'].add(file_path)
+        temp_files = StateManager.get_state("last_tmp_files", set())
+        if not isinstance(temp_files, set):
+            temp_files = set(temp_files) if temp_files else set()
+        temp_files.add(file_path)
+        StateManager.set_state("last_tmp_files", temp_files)
 
 def save_base64_to_temp_file(b64_data: str, suffix=".png") -> Optional[str]:
     """Decodes base64 data and saves it to a temporary file, returning the path."""
@@ -430,38 +413,38 @@ config = load_config()
 # Initialize curriculum service and template manager after config is loaded
 if "curriculum_service" not in st.session_state:
     try:
-        st.session_state.curriculum_service = CurriculumService(client, config)
+        StateManager.set_state("curriculum_service", CurriculumService(client, config))
     except Exception as e:
         st.error(f"Failed to initialize curriculum service: {e}")
         sys.stderr.write(f"Curriculum service error: {e}\n")
         sys.stderr.write(traceback.format_exc() + "\n")
-        st.session_state.curriculum_service = None
+        StateManager.set_state("curriculum_service", None)
 
 # Initialize template manager
 if "template_manager" not in st.session_state:
     try:
         from services.template_service import TemplateManager
-        st.session_state.template_manager = TemplateManager()
+        StateManager.set_state("template_manager", TemplateManager())
     except ImportError:
         sys.stderr.write("Warning: template_service not available\n")
-        st.session_state.template_manager = None
+        StateManager.set_state("template_manager", None)
     except Exception as e:
         st.error(f"Failed to initialize template manager: {e}")
-        st.session_state.template_manager = None
+        StateManager.set_state("template_manager", None)
 
 # Initialize batch manager
 if "batch_manager" not in st.session_state:
     try:
-        st.session_state.batch_manager = BatchManager(max_concurrent=2)
+        StateManager.set_state("batch_manager", BatchManager(max_concurrent=2))
     except Exception as e:
         st.error(f"Failed to initialize batch manager: {e}")
-        st.session_state.batch_manager = None
+        StateManager.set_state("batch_manager", None)
 
 # Initialize batch state
 if "active_batch_id" not in st.session_state:
-    st.session_state.active_batch_id = None
+    StateManager.set_state("active_batch_id", None)
 if "batch_polling" not in st.session_state:
-    st.session_state.batch_polling = False
+    StateManager.set_state("batch_polling", False)
 
 # ====================== Cleanup Function ======================
 def cleanup_tmp_files(fileset: set):
@@ -481,7 +464,7 @@ def cleanup_on_exit():
             st.session_state.session_manager.cleanup_temp_files()
         else:
             # Fallback cleanup if session manager not available
-            temp_files = st.session_state.get('last_tmp_files', set())
+            temp_files = StateManager.get_state('last_tmp_files', set())
             for filepath in temp_files:
                 try:
                     Path(filepath).unlink(missing_ok=True)
@@ -506,22 +489,14 @@ def update_quiz_answer(q_key: str, user_answer: str, correct_answer: str, case_s
         bool: True if update succeeded, False otherwise
     """
     try:
-        # Use get() with defaults to avoid KeyError
-        current_answers = dict(st.session_state.get('quiz_answers', {}))
-        current_feedback = dict(st.session_state.get('quiz_feedback', {}))
-        
         # Compare answers
         if case_sensitive:
             is_correct = (user_answer == correct_answer)
         else:
             is_correct = (user_answer.strip().lower() == correct_answer.strip().lower())
-        
-        current_answers[q_key] = user_answer
-        current_feedback[q_key] = is_correct
-        
-        # Atomic update - only update if both operations succeed
-        st.session_state.quiz_answers = current_answers
-        st.session_state.quiz_feedback = current_feedback
+
+        # Atomic update via StateManager
+        StateManager.update_quiz_answer(q_key, user_answer, is_correct)
         return True
     except Exception as e:
         st.error(f"Error updating quiz answer: {e}")
@@ -550,45 +525,6 @@ def base64_to_file(base64_str: str, file_path: str) -> Optional[str]:
         return file_path
     except Exception as e:
         sys.stderr.write(f"Error saving base64 to file: {e}\n")
-        return None
-
-def create_pdf_link(html_content: str, filename: str) -> Optional[str]:
-    """Generates a Streamlit download button link for a PDF created from HTML."""
-    if not PDF_CAPABLE:
-        return None
-    
-    try:
-        # Create a temporary file for the PDF output
-        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
-        temp_pdf.close()  # Close the file to allow pdfkit to write to it
-        
-        # Add the PDF to the list of temp files to be cleaned up
-        st.session_state.last_tmp_files.add(temp_pdf.name)
-        
-        # Generate PDF with pdfkit
-        try:
-            pdfkit.from_string(
-                html_content, 
-                temp_pdf.name, 
-                configuration=pdfkit_wkhtmltopdf_config,
-                options={'quiet': ''}
-            )
-            
-            # Get the PDF data for the download button
-            with open(temp_pdf.name, "rb") as file:
-                pdf_data = file.read()
-            
-            # Create a download button
-            b64_pdf = base64.b64encode(pdf_data).decode('utf-8')
-            href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="{filename}" style="display: inline-block; padding: 0.5em 1em; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; cursor: pointer;">📥 Download PDF</a>'
-            return href
-            
-        except Exception as e:
-            sys.stderr.write(f"PDF generation error: {e}\n")
-            return None
-    
-    except Exception as e:
-        sys.stderr.write(f"Error creating PDF link: {e}\n")
         return None
 
 # ====================== Agent Classes ======================
@@ -771,7 +707,7 @@ with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
         )
     
     # Store the selected size in session state for later use
-    st.session_state.image_size = image_size
+    StateManager.set_state("image_size", image_size)
     
 # Content Settings Section
 with st.sidebar.expander("📝 **Content Settings**", expanded=False):
@@ -816,7 +752,7 @@ is_mobile = st.session_state.get("is_mobile", False)
 
 # Mobile banner disabled
 # Always use desktop view for now to ensure proper sidebar behavior
-st.session_state.is_mobile = False
+StateManager.set_state("is_mobile", False)
 
 # --- Main Area Tabs ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch"])
@@ -847,19 +783,16 @@ with tab1:
     # Quick action cards
     if st.session_state.curriculum is None:
         # Show quick start options when no curriculum exists
-        ModernUI.card(
-            title="🚀 Quick Start",
-            content="""
-            **Ready to create your curriculum?**
-            
-            1. ⚙️ Configure your settings in the sidebar
-            2. 📋 Optionally choose a template below  
-            3. ✨ Click Generate to create your curriculum
-            
-            Your settings: **{subject} • {grade} • {style}**
-            """.format(subject=subject_str, grade=grade, style=lesson_style),
-            icon="🎓"
-        )
+        with st.container(border=True):
+            st.markdown("### 🎓 🚀 Quick Start")
+            st.markdown("""
+**Ready to create your curriculum?**
+
+1. ⚙️ Configure your settings in the sidebar
+2. 📋 Optionally choose a template below
+3. ✨ Click Generate to create your curriculum
+""")
+            st.markdown(f"Your settings: **{subject_str} • {grade} • {lesson_style}**")
     else:
         # Show quick actions when curriculum exists
         col1, col2 = st.columns(2)
@@ -881,7 +814,7 @@ with tab1:
                 "quick_edit_current"
             ):
                 # Switch to edit tab
-                st.session_state.active_tab = 1
+                StateManager.set_state("active_tab", 1)
                 st.info("Switch to the 'View & Edit' tab to continue editing!")
     
     # Template selection section
@@ -918,12 +851,12 @@ with tab1:
                         st.write(f"**Used:** {selected_template.usage_count} times")
                     
                     # Store selected template in session state
-                    st.session_state.selected_template_id = selected_template.id
+                    StateManager.set_state("selected_template_id", selected_template.id)
                 else:
-                    st.session_state.selected_template_id = None
+                    StateManager.set_state("selected_template_id", None)
             else:
                 st.info("No templates found for the selected subject and grade. You can create custom templates in the Templates tab.")
-                st.session_state.selected_template_id = None
+                StateManager.set_state("selected_template_id", None)
     
     st.markdown("Configure your curriculum using the sidebar settings, then click generate.")
 
@@ -1043,7 +976,7 @@ with tab1:
         progress_bar = st.progress(st.session_state.progress, text=f"Generating curriculum... {int(st.session_state.progress*100)}% complete")
         
         if st.button("❌ Cancel Generation", use_container_width=True, type="secondary"):
-            st.session_state.generating = False
+            StateManager.update_state("generating", False)
             progress_bar.empty()
             st.warning("Generation cancelled.")
             
@@ -1051,7 +984,7 @@ with tab1:
     elif st.button("🚀 Generate New Curriculum", use_container_width=True, type="primary"):
         # --- Start Generation Process ---
         # Set generating flag to true
-        st.session_state.generating = True
+        StateManager.update_state("generating", True)
         
         # Check if using a template
         using_template = hasattr(st.session_state, 'selected_template_id') and st.session_state.selected_template_id
@@ -1083,8 +1016,8 @@ with tab1:
         # Store current settings in generation params
         if using_template:
             # Use template parameters as base, override with UI selections
-            st.session_state.generation_params = template_params.copy()
-            st.session_state.generation_params.update({
+            generation_params = template_params.copy()
+            generation_params.update({
                 "text_model": text_model,
                 "worker_model": worker_model,
                 "image_model": image_model,
@@ -1092,7 +1025,7 @@ with tab1:
             })
         else:
             # Use standard parameters
-            st.session_state.generation_params = {
+            generation_params = {
                 "subject_str": subject_str,
                 "grade": grade,
                 "lesson_style": lesson_style,
@@ -1108,13 +1041,15 @@ with tab1:
                 "include_resources": include_resources,
                 "include_keypoints": include_keypoints
             }
+
+        StateManager.update_state("generation_params", generation_params)
         
         # We'll clear temp files only if generation is successful
         # Store the current tmp files to clean up later
-        current_tmp_files = set(st.session_state.get('last_tmp_files', set()))
+        current_tmp_files = set(StateManager.get_state('last_tmp_files', set()))
 
         # Reset progress and show modern progress interface
-        st.session_state.progress = 0.0
+        StateManager.update_state("progress", 0.0)
         
         # Modern progress steps
         progress_container = st.empty()
@@ -1147,26 +1082,27 @@ with tab1:
             if not is_valid:
                 st.error(f"Validation error: {error_msg}")
                 progress_bar.empty()
-                st.session_state.generating = False
+                StateManager.update_state("generating", False)
                 st.stop()
         else:
             # Fallback validation
             if not subject_str:
                 st.error("Validation error: Please select at least one subject")
                 progress_bar.empty()
-                st.session_state.generating = False
+                StateManager.update_state("generating", False)
                 st.stop()
             if len(subject_str) > 50:
                 st.error("Validation error: Subject string is too long. Please reduce the number of subjects.")
                 progress_bar.empty()
-                st.session_state.generating = False
+                StateManager.update_state("generating", False)
                 st.stop()
 
         # Initialize curriculum structure in session state
-        st.session_state.curriculum_id = uuid.uuid4().hex
-        st.session_state.curriculum = {
+        curriculum_id = uuid.uuid4().hex
+        StateManager.update_state("curriculum_id", curriculum_id)
+        StateManager.update_state("curriculum", {
             "meta": {
-                "id": st.session_state.curriculum_id,
+                "id": curriculum_id,
                 "subject": subject_str,
                 "grade": grade,
                 "style": lesson_style,
@@ -1182,13 +1118,10 @@ with tab1:
                 "include_keypoints": include_keypoints
             },
             "units": []
-        }
+        })
         
         # Clear previous dynamic states
-        st.session_state.edit_history = {}
-        st.session_state.quiz_answers = {}
-        st.session_state.quiz_feedback = {}
-        st.session_state.edit_mode = False
+        StateManager.clear_generation_state()
 
         try:
             # Use the curriculum service to generate the curriculum
@@ -1237,7 +1170,7 @@ with tab1:
                     if not st.session_state.generating:
                         progress_bar.empty()
                         st.warning("Generation cancelled.")
-                        st.session_state.generating = False
+                        StateManager.update_state("generating", False)
                 
                 # Update progress - Step 4: Finalizing
                 StateManager.update_state('progress', 0.9)
@@ -1260,12 +1193,12 @@ with tab1:
                     
                     # Generation complete - now clean up old temp files
                     cleanup_tmp_files(current_tmp_files)
-                    st.session_state['last_tmp_files'] = set()
+                    StateManager.set_state('last_tmp_files', set())
                     
                     # Update progress to complete - Step 5: Complete
                     with progress_container.container():
                         ModernUI.progress_steps(generation_steps, current_step=5)
-                    st.session_state.progress = 1.0
+                    StateManager.update_state("progress", 1.0)
                     progress_bar.progress(1.0, text="Curriculum generation complete!")
                     st.success("Curriculum generated successfully! View results in the 'View & Edit' tab.")
                     time.sleep(1.5)
@@ -1274,21 +1207,21 @@ with tab1:
                 progress_container.empty()
                 
                 # Reset generating flag
-                st.session_state.generating = False
+                StateManager.update_state("generating", False)
         
         except ValueError as e:
             # Handle validation errors specifically
             st.error(f"Validation error: {e}")
             sys.stderr.write(f"Validation error during curriculum generation: {e}\n")
             progress_container.empty()
-            st.session_state.generating = False
+            StateManager.update_state("generating", False)
         except Exception as e:
             # Handle all other errors
             st.error(f"Unexpected error during curriculum generation: {e}")
             sys.stderr.write(f"Curriculum generation error: {e}\n")
             sys.stderr.write(traceback.format_exc() + "\n")
             progress_container.empty()
-            st.session_state.generating = False
+            StateManager.update_state("generating", False)
             
             # Log error details if logger is available
             if logger:
@@ -1307,7 +1240,7 @@ with tab2:
 
         # Edit Mode Toggle
         edit_mode = st.checkbox("Enable Edit Mode", value=st.session_state.edit_mode, key="edit_mode_toggle")
-        st.session_state.edit_mode = edit_mode
+        StateManager.set_state("edit_mode", edit_mode)
         if edit_mode:
             st.info("Edit Mode Enabled: Changes are saved automatically as you type or select options.")
 
@@ -1393,7 +1326,7 @@ with tab2:
                     # Use on_change callback for immediate update without rerun
                     def update_title():
                         new_value = st.session_state[f"{unit_key_base}_title"]
-                        st.session_state.curriculum["units"][i]["title"] = new_value
+                        StateManager.update_curriculum_unit(i, "title", new_value)
                     
                     st.text_input("Unit Title", 
                                  value=unit.get("title", ""), 
@@ -1453,7 +1386,7 @@ with tab2:
                             def update_selected_image():
                                 selected_caption = st.session_state[f"{unit_key_base}_img_select"]
                                 new_selected_b64 = img_options.get(selected_caption)
-                                st.session_state.curriculum["units"][i]["selected_image_b64"] = new_selected_b64
+                                StateManager.update_curriculum_unit(i, "selected_image_b64", new_selected_b64)
                             
                             selected_caption = st.selectbox(
                                 "Choose Illustration", 
@@ -1481,7 +1414,7 @@ with tab2:
                     new_content = st.text_area("Edit Content", value=unit.get("content", ""), key=content_key, height=300)
                     # Update session state directly if changed
                     if new_content != unit.get("content", ""):
-                         st.session_state.curriculum["units"][i]["content"] = new_content
+                         StateManager.update_curriculum_unit(i, "content", new_content)
                          # Edit history management could be added here if needed
                 else:
                     # Display content using markdown rendering
@@ -1598,7 +1531,7 @@ with tab2:
                             # Initialize AudioAgent if not already done
                             if not hasattr(st.session_state, 'audio_agent'):
                                 from src.audio_agent import AudioAgent
-                                st.session_state.audio_agent = AudioAgent(client, config)
+                                StateManager.set_state("audio_agent", AudioAgent(client, config))
                             
                             # Generate audio
                             with st.spinner(f"Generating audio for Unit {i+1}..."):
@@ -1617,7 +1550,7 @@ with tab2:
                                             audio_result = audio_result["chunks"][0]
                                         
                                         # Store audio info in unit
-                                        st.session_state.curriculum["units"][i]["audio"] = audio_result
+                                        StateManager.update_curriculum_unit(i, "audio", audio_result)
                                         st.success(f"✅ Audio generated successfully for Unit {i+1}!")
                                         st.rerun()
                                     else:
@@ -1669,8 +1602,7 @@ with tab2:
                                 check_col, feedback_col = st.columns([1, 3])
                                 with check_col:
                                     def check_mcq_answer():
-                                        st.session_state.quiz_answers[q_key] = selected
-                                        st.session_state.quiz_feedback[q_key] = (selected == correct_answer)
+                                        update_quiz_answer(q_key, selected, correct_answer, case_sensitive=True)
                                     
                                     st.button("Check Answer", 
                                              key=f"{q_key}_check",
@@ -1699,8 +1631,7 @@ with tab2:
                                 check_col, feedback_col = st.columns([1, 3])
                                 with check_col:
                                     def check_tf_answer():
-                                        st.session_state.quiz_answers[q_key] = selected
-                                        st.session_state.quiz_feedback[q_key] = (selected == correct_answer)
+                                        update_quiz_answer(q_key, selected, correct_answer, case_sensitive=True)
                                     
                                     st.button("Check Answer", 
                                              key=f"{q_key}_check",
@@ -1734,8 +1665,7 @@ with tab2:
                                         user_answer = answer_input.strip().lower()
                                         correct = correct_answer.strip().lower()
                                         
-                                        st.session_state.quiz_answers[q_key] = answer_input
-                                        st.session_state.quiz_feedback[q_key] = (user_answer == correct)
+                                        update_quiz_answer(q_key, answer_input, correct_answer, case_sensitive=False)
                                 
                                 # Display feedback outside form
                                 if has_answered:
@@ -1761,7 +1691,7 @@ with tab2:
                         summary_key = f"{unit_key_base}_summary_edit"
                         new_summary = st.text_area("Edit Summary", value=unit.get("summary", ""), key=summary_key, height=100)
                         if new_summary != unit.get("summary", ""):
-                            st.session_state.curriculum["units"][i]["summary"] = new_summary
+                            StateManager.update_curriculum_unit(i, "summary", new_summary)
                     else:
                         st.markdown(unit.get("summary", "_No summary available._"))
 
@@ -1772,7 +1702,7 @@ with tab2:
                         resources_key = f"{unit_key_base}_resources_edit"
                         new_resources = st.text_area("Edit Resources", value=unit.get("resources", ""), key=resources_key, height=100)
                         if new_resources != unit.get("resources", ""):
-                            st.session_state.curriculum["units"][i]["resources"] = new_resources
+                            StateManager.update_curriculum_unit(i, "resources", new_resources)
                     else:
                         # Use unsafe_allow_html=True to correctly render links in resources
                         st.markdown(unit.get("resources", "_No resources available._"), unsafe_allow_html=True)
@@ -2189,19 +2119,22 @@ with tab3:
         
         with col3:
             if st.button("📄 Export as PDF", use_container_width=True):
-                if not PDF_CAPABLE:
-                    st.error("PDF export is not available. Please install wkhtmltopdf and pdfkit.")
-                else:
-                    html_content = generate_html(curriculum, include_images)
-                    pdf_filename = f"{base_filename}.pdf"
-                    
-                    # Create PDF download link
-                    pdf_link = create_pdf_link(html_content, pdf_filename)
-                    if pdf_link:
-                        st.markdown(pdf_link, unsafe_allow_html=True)
-                        st.success("PDF generated successfully!")
-                    else:
-                        st.error("Failed to generate PDF. See console for details.")
+                try:
+                    exporter = CurriculumExporter()
+                    pdf_data = exporter.generate_pdf(curriculum)
+
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=pdf_data,
+                        file_name=f"{base_filename}.pdf",
+                        mime="application/pdf",
+                        key="pdf_download_btn",
+                    )
+                    st.success("PDF ready for download!")
+                except Exception as e:
+                    st.error(f"Failed to generate PDF: {e}")
+                    if logger:
+                        logger.log_error(error=e, context="PDF Export")
         
         # Load saved curriculum
         st.markdown("#### Load Saved Curriculum")
@@ -2302,7 +2235,7 @@ with tab4:
                             
                             # Action buttons
                             if st.button(f"Use Template", key=f"use_{template.id}"):
-                                st.session_state.selected_template_id = template.id
+                                StateManager.set_state("selected_template_id", template.id)
                                 st.success(f"Template '{template.name}' selected! Go to the Generate tab to use it.")
                             
                             # Delete button for user templates only
@@ -2529,8 +2462,8 @@ with tab5:
 
                                 if success:
                                     st.success(f"Batch '{batch_name}' created and started!")
-                                    st.session_state.active_batch_id = batch_id
-                                    st.session_state.batch_polling = True
+                                    StateManager.set_state("active_batch_id", batch_id)
+                                    StateManager.set_state("batch_polling", True)
                                     st.rerun()
                                 else:
                                     st.error("Failed to start batch processing")
@@ -2605,7 +2538,7 @@ with tab5:
 
                                     # Check if batch is complete
                                     if updated_batch.status.value in ["completed", "failed", "cancelled"]:
-                                        st.session_state.batch_polling = False
+                                        StateManager.set_state("batch_polling", False)
                                         stop_polling = True
                                         st.success(f"Batch {updated_batch.status.value}!")
                                         st.rerun()
@@ -2616,7 +2549,7 @@ with tab5:
 
                             # Stop polling button
                             if st.button("⏸️ Stop Monitoring", key=f"stop_{batch.id}"):
-                                st.session_state.batch_polling = False
+                                StateManager.set_state("batch_polling", False)
                                 st.rerun()
 
                         else:
@@ -2634,8 +2567,8 @@ with tab5:
 
                             # Monitor button
                             if st.button("👁️ Monitor Progress", key=f"monitor_{batch.id}"):
-                                st.session_state.active_batch_id = batch.id
-                                st.session_state.batch_polling = True
+                                StateManager.set_state("active_batch_id", batch.id)
+                                StateManager.set_state("batch_polling", True)
                                 st.rerun()
 
                         # Action buttons
@@ -2644,7 +2577,7 @@ with tab5:
                             if st.button("🗑️ Cancel Batch", key=f"cancel_{batch.id}"):
                                 if st.session_state.batch_manager.cancel_batch(batch.id):
                                     st.success("Batch cancelled")
-                                    st.session_state.batch_polling = False
+                                    StateManager.set_state("batch_polling", False)
                                     st.rerun()
 
                         with col2:

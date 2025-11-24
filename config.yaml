@@ -243,22 +243,26 @@ defaults:
   language: "English"
 
   # Default AI models to use.
-  # GPT-4o is the primary model for orchestration
-  text_model: "gpt-4o-mini"  # Default to mini for cost efficiency
+  # GPT-5-nano for testing (cheapest), switch to gpt-5.1 for production
+  text_model: "gpt-5-nano"  # Default to nano for cost efficiency during testing
   # Text model for worker agents (most economical option)
-  worker_model: "gpt-4o-mini"  # Mini model for content generation
+  worker_model: "gpt-5-nano"  # Nano model for content generation (testing)
   # Default image model
-  image_model: "dall-e-3"
+  image_model: "gpt-image-1-mini"  # Use mini for testing, gpt-image-1 for production
   # Available image models (fallback if API detection fails)
   image_models:
+    - "gpt-image-1"
+    - "gpt-image-1-mini"
     - "dall-e-3"
     - "dall-e-2"
   # Available text models (fallback if API detection fails)
   text_models:
+    - "gpt-5.1"
+    - "gpt-5"
+    - "gpt-5-mini"
+    - "gpt-5-nano"
     - "gpt-4o"
     - "gpt-4o-mini"
-    - "gpt-4-turbo"
-    - "gpt-3.5-turbo"
 
   # Default states for the feature toggles.
   include_quizzes: true

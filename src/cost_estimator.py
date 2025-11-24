@@ -6,6 +6,32 @@ Provides cost estimation for different model configurations
 # Hypothetical costs per 1K tokens (you should update these with actual costs)
 # Based on typical pricing patterns where nano < mini < full
 MODEL_COSTS = {
+    # GPT-5 Series (Current)
+    "gpt-5-nano": {
+        "input": 0.00015,   # $0.15 per 1M tokens
+        "output": 0.0006,   # $0.60 per 1M tokens
+        "name": "GPT-5 Nano (Most Affordable)",
+        "relative_cost": "$"
+    },
+    "gpt-5-mini": {
+        "input": 0.003,     # $3 per 1M tokens
+        "output": 0.012,    # $12 per 1M tokens
+        "name": "GPT-5 Mini (Balanced)",
+        "relative_cost": "$$"
+    },
+    "gpt-5": {
+        "input": 0.01,      # $10 per 1M tokens
+        "output": 0.03,     # $30 per 1M tokens
+        "name": "GPT-5 (High Quality)",
+        "relative_cost": "$$$"
+    },
+    "gpt-5.1": {
+        "input": 0.03,      # $30 per 1M tokens
+        "output": 0.12,     # $120 per 1M tokens
+        "name": "GPT-5.1 (Premium)",
+        "relative_cost": "$$$$$"
+    },
+    # GPT-4.1 Series (Legacy)
     "gpt-4.1-nano": {
         "input": 0.00015,   # $0.15 per 1M tokens
         "output": 0.0006,   # $0.60 per 1M tokens
@@ -23,6 +49,19 @@ MODEL_COSTS = {
         "output": 0.12,     # $120 per 1M tokens
         "name": "Full (Premium)",
         "relative_cost": "$$$$$"
+    },
+    # GPT-4o Series
+    "gpt-4o": {
+        "input": 0.005,     # $5 per 1M tokens
+        "output": 0.015,    # $15 per 1M tokens
+        "name": "GPT-4o",
+        "relative_cost": "$$"
+    },
+    "gpt-4o-mini": {
+        "input": 0.00015,   # $0.15 per 1M tokens
+        "output": 0.0006,   # $0.60 per 1M tokens
+        "name": "GPT-4o Mini",
+        "relative_cost": "$"
     }
 }
 
@@ -136,14 +175,25 @@ def estimate_curriculum_cost(orchestrator_model: str, worker_model: str,
     }
 
 def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """Calculate cost for given model and token counts"""
-    if model not in MODEL_COSTS:
-        return 0.0
-    
-    costs = MODEL_COSTS[model]
+    """Calculate cost with dynamic fallback"""
+
+    # Direct match
+    if model in MODEL_COSTS:
+        costs = MODEL_COSTS[model]
+    # Fallback logic for similar model names
+    elif "gpt-4" in model:
+        costs = MODEL_COSTS["gpt-4.1"]  # Assume high tier
+    elif "mini" in model:
+        costs = MODEL_COSTS["gpt-4.1-mini"]
+    elif "nano" in model:
+        costs = MODEL_COSTS["gpt-4.1-nano"]
+    else:
+        # Safe default fallback
+        costs = MODEL_COSTS["gpt-4.1-mini"]
+
     input_cost = (input_tokens / 1000) * costs["input"]
     output_cost = (output_tokens / 1000) * costs["output"]
-    
+
     return input_cost + output_cost
 
 def calculate_savings(orchestrator_model: str, worker_model: str, actual_cost: float) -> float:
