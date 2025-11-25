@@ -147,11 +147,12 @@ class CurriculumExporter:
                     pdf.cell(0, 8, 'Content', 0, 1)
                     pdf.chapter_body(unit['content'])
                 
-                # Images
-                if unit.get('image'):
+                # Images - Check both 'selected_image_b64' (new) and 'image' (legacy)
+                img_b64 = unit.get('selected_image_b64') or unit.get('image')
+                if img_b64:
                     pdf.set_font('Arial', 'B', 12)
                     pdf.cell(0, 8, 'Illustration', 0, 1)
-                    pdf.add_image_from_base64(unit['image'])
+                    pdf.add_image_from_base64(img_b64)
                 
                 # Chart
                 if unit.get('chart'):
@@ -277,8 +278,9 @@ class CurriculumExporter:
             if unit.get('content'):
                 html += f'<h3>Content</h3>\n<p>{unit["content"]}</p>\n'
             
-            if unit.get('image'):
-                html += f'<h3>Illustration</h3>\n<img src="{unit["image"]}" alt="Unit illustration">\n'
+            img_b64 = unit.get('selected_image_b64') or unit.get('image')
+            if img_b64:
+                html += f'<h3>Illustration</h3>\n<img src="{img_b64}" alt="Unit illustration">\n'
             
             if unit.get('chart'):
                 html += f'<h3>Data Visualization</h3>\n<img src="{unit["chart"]}" alt="Chart">\n'

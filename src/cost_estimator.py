@@ -175,20 +175,58 @@ def estimate_curriculum_cost(orchestrator_model: str, worker_model: str,
     }
 
 def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """Calculate cost with dynamic fallback"""
+    """Calculate cost with dynamic fallback and robust model matching"""
 
-    # Direct match
+    # Normalize model name for matching
+    model_lower = model.lower() if model else ""
+
+    # 1. Direct/exact match
     if model in MODEL_COSTS:
         costs = MODEL_COSTS[model]
-    # Fallback logic for similar model names
-    elif "gpt-4" in model:
-        costs = MODEL_COSTS["gpt-4.1"]  # Assume high tier
-    elif "mini" in model:
-        costs = MODEL_COSTS["gpt-4.1-mini"]
-    elif "nano" in model:
+
+    # 2. GPT-5 series (newest)
+    elif "gpt-5" in model_lower:
+        if "nano" in model_lower:
+            costs = MODEL_COSTS.get("gpt-5-nano", MODEL_COSTS["gpt-4.1-nano"])
+        elif "mini" in model_lower:
+            costs = MODEL_COSTS.get("gpt-5-mini", MODEL_COSTS["gpt-4.1-mini"])
+        else:
+            costs = MODEL_COSTS.get("gpt-5", MODEL_COSTS["gpt-4.1"])
+
+    # 3. GPT-4.1 series
+    elif "gpt-4.1" in model_lower:
+        if "nano" in model_lower:
+            costs = MODEL_COSTS["gpt-4.1-nano"]
+        elif "mini" in model_lower:
+            costs = MODEL_COSTS["gpt-4.1-mini"]
+        else:
+            costs = MODEL_COSTS["gpt-4.1"]
+
+    # 4. GPT-4 series (including gpt-4-turbo, gpt-4-0613, gpt-4o, etc.)
+    elif "gpt-4" in model_lower:
+        if "mini" in model_lower or "turbo" in model_lower:
+            costs = MODEL_COSTS["gpt-4.1-mini"]  # Proxy for 4-turbo/mini
+        elif "o" in model_lower and "gpt-4o" in model_lower:
+            costs = MODEL_COSTS["gpt-4.1-mini"]  # GPT-4o is efficient
+        else:
+            costs = MODEL_COSTS["gpt-4.1"]  # Base GPT-4 pricing
+
+    # 5. GPT-3.5 series
+    elif "gpt-3.5" in model_lower:
+        costs = MODEL_COSTS["gpt-4.1-nano"]  # Very cheap, similar to nano
+
+    # 6. O-series reasoning models (o1, o3, etc.)
+    elif model_lower.startswith("o1") or model_lower.startswith("o3"):
+        costs = MODEL_COSTS["gpt-4.1"]  # Premium pricing for reasoning
+
+    # 7. Generic fallback by keywords
+    elif "nano" in model_lower:
         costs = MODEL_COSTS["gpt-4.1-nano"]
+    elif "mini" in model_lower:
+        costs = MODEL_COSTS["gpt-4.1-mini"]
+
+    # 8. Safe default fallback
     else:
-        # Safe default fallback
         costs = MODEL_COSTS["gpt-4.1-mini"]
 
     input_cost = (input_tokens / 1000) * costs["input"]

@@ -161,6 +161,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     # Update tutor context if unit changed
     if tutor_enabled and st.session_state.tutor_agent:
         if st.session_state.last_unit_idx != unit_idx:
+            previous_unit_idx = st.session_state.last_unit_idx
             st.session_state.last_unit_idx = unit_idx
             st.session_state.tutor_messages = []  # Clear chat on unit change
             st.session_state.tutor_agent.clear_conversation()
@@ -176,6 +177,14 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                 subject=subject,
                 grade=grade
             )
+
+            # Add a helpful transition message so tutor feels less "amnesiac"
+            if previous_unit_idx is not None:
+                transition_msg = f"📚 *You've moved to Unit {unit_idx + 1}: {unit_title}. Feel free to ask questions about this new topic!*"
+                st.session_state.tutor_messages.append({
+                    "role": "assistant",
+                    "content": transition_msg
+                })
 
     # Display current progress
     progress_percent = (section_idx / total_sections) * 100
@@ -331,11 +340,11 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
             questions = quiz_data.get('questions', [])
 
             if questions:
-                # Initialize session state for quiz answers
-                if 'quiz_submitted' not in st.session_state:
-                    st.session_state.quiz_submitted = False
-                if 'quiz_answers' not in st.session_state:
-                    st.session_state.quiz_answers = {}
+                # Initialize session state for quiz answers using StateManager for thread-safety
+                if StateManager.get_state('quiz_submitted') is None:
+                    StateManager.set_state('quiz_submitted', False)
+                if StateManager.get_state('quiz_answers') is None:
+                    StateManager.set_state('quiz_answers', {})
 
                 # Create quiz form
                 with st.form("quiz_form"):
@@ -358,15 +367,17 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                     submitted = st.form_submit_button("Submit Quiz", type="primary", use_container_width=True)
 
                     if submitted:
-                        st.session_state.quiz_submitted = True
-                        st.session_state.quiz_answers = user_answers
+                        # Use StateManager for atomic updates to prevent race conditions
+                        StateManager.set_state('quiz_submitted', True)
+                        StateManager.set_state('quiz_answers', user_answers)
 
                 # Show results if submitted
-                if st.session_state.quiz_submitted:
+                if StateManager.get_state('quiz_submitted', False):
                     correct_count = 0
+                    quiz_answers = StateManager.get_state('quiz_answers', {})
 
                     for i, q in enumerate(questions):
-                        user_answer = st.session_state.quiz_answers.get(i)
+                        user_answer = quiz_answers.get(i)
                         correct_answer = q.get('correct', '')
 
                         if user_answer == correct_answer:
@@ -397,8 +408,8 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
 
                     # Reset button
                     if st.button("🔄 Try Again"):
-                        st.session_state.quiz_submitted = False
-                        st.session_state.quiz_answers = {}
+                        StateManager.set_state('quiz_submitted', False)
+                        StateManager.set_state('quiz_answers', {})
                         st.rerun()
             else:
                 st.info("No quiz questions available.")

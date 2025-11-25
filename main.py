@@ -74,6 +74,7 @@ from services.export_service import CurriculumExporter
 from services.session_service import SessionManager, QuizManager, InputValidator
 from services.batch_service import BatchManager
 from services.user_service import UserService
+from services.analytics_service import AnalyticsService
 from version import get_version_display, VERSION
 
 # Import modern UI components
@@ -784,7 +785,7 @@ is_mobile = st.session_state.get("is_mobile", False)
 StateManager.set_state("is_mobile", False)
 
 # --- Main Area Tabs ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch", "📊 Analytics"])
 
 with tab1:
     # Modern section header
@@ -2650,6 +2651,134 @@ with tab5:
                             if st.session_state.batch_manager.delete_batch(batch.id):
                                 st.success("Batch deleted")
                                 st.rerun()
+
+# =============================================================================
+# TAB 6: ANALYTICS DASHBOARD
+# =============================================================================
+with tab6:
+    ModernUI.section_header("Teacher Analytics Dashboard", "📊", "analytics")
+
+    # Initialize analytics service
+    if "analytics_service" not in st.session_state:
+        st.session_state.analytics_service = AnalyticsService()
+
+    analytics = st.session_state.analytics_service
+
+    # Refresh button
+    col_refresh, col_spacer = st.columns([1, 4])
+    with col_refresh:
+        if st.button("🔄 Refresh Data", use_container_width=True):
+            st.rerun()
+
+    # Get analytics summary
+    try:
+        summary = analytics.get_analytics_summary()
+
+        # Overview metrics
+        st.subheader("📈 Overview")
+        metric_cols = st.columns(4)
+
+        with metric_cols[0]:
+            st.metric("Total Students", summary.total_students)
+        with metric_cols[1]:
+            st.metric("Active (7 days)", summary.active_students_7d)
+        with metric_cols[2]:
+            st.metric("Curricula Used", summary.total_curricula)
+        with metric_cols[3]:
+            st.metric("Total XP Awarded", f"{summary.total_xp_awarded:,}")
+
+        st.markdown("---")
+
+        # Two-column layout for leaderboard and curriculum stats
+        col_left, col_right = st.columns(2)
+
+        with col_left:
+            st.subheader("🏆 Top Students")
+            if summary.top_students:
+                for i, student in enumerate(summary.top_students, 1):
+                    medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "⭐"
+                    with st.container():
+                        st.markdown(f"""
+                        <div style="padding: 0.5rem; margin: 0.25rem 0; background: linear-gradient(90deg, rgba(255,215,0,0.1) 0%, transparent 100%); border-radius: 8px;">
+                            <strong>{medal} {student.username}</strong><br>
+                            <span style="color: #888; font-size: 0.85rem;">
+                                Level {student.level} • {student.total_xp:,} XP •
+                                {student.curricula_completed}/{student.curricula_started} completed
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.info("No student data yet. Students will appear here after they start learning.")
+
+        with col_right:
+            st.subheader("📚 Curriculum Performance")
+            if summary.curriculum_stats:
+                for cstats in summary.curriculum_stats[:5]:  # Top 5
+                    completion_color = "#4CAF50" if cstats.completion_rate > 70 else "#FFC107" if cstats.completion_rate > 40 else "#f44336"
+                    struggle_badge = "⚠️" if cstats.struggle_sections else ""
+
+                    st.markdown(f"""
+                    <div style="padding: 0.5rem; margin: 0.25rem 0; border-left: 3px solid {completion_color}; padding-left: 1rem;">
+                        <strong>{cstats.title}</strong> {struggle_badge}<br>
+                        <span style="color: #888; font-size: 0.85rem;">
+                            {cstats.total_students} students • {cstats.completion_rate:.1f}% completion
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("No curriculum data yet.")
+
+        st.markdown("---")
+
+        # Detailed curriculum analysis
+        st.subheader("🔍 Detailed Curriculum Analysis")
+
+        if summary.curriculum_stats:
+            curriculum_options = {f"{cs.title} ({cs.curriculum_id[:8]}...)": cs.curriculum_id
+                                  for cs in summary.curriculum_stats}
+
+            selected_curriculum_name = st.selectbox(
+                "Select a curriculum to analyze:",
+                options=list(curriculum_options.keys())
+            )
+
+            if selected_curriculum_name:
+                selected_id = curriculum_options[selected_curriculum_name]
+                details = analytics.get_curriculum_details(selected_id)
+
+                # Section breakdown
+                if details['sections']:
+                    st.markdown("**Section-by-Section Breakdown:**")
+
+                    for section in details['sections']:
+                        struggle_indicator = "🔴 STRUGGLE POINT" if section['is_struggle_point'] else ""
+                        bar_width = min(section['completion_rate'], 100)
+                        bar_color = "#f44336" if section['is_struggle_point'] else "#4CAF50"
+
+                        st.markdown(f"""
+                        <div style="margin: 0.5rem 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><strong>Section {section['index'] + 1}:</strong> {section['title'][:40]}...</span>
+                                <span style="color: #888;">{section['completions']} completions ({section['completion_rate']:.0f}%)</span>
+                            </div>
+                            <div style="background: #333; border-radius: 4px; height: 8px; margin-top: 4px;">
+                                <div style="background: {bar_color}; width: {bar_width}%; height: 100%; border-radius: 4px;"></div>
+                            </div>
+                            <span style="color: #f44336; font-size: 0.75rem;">{struggle_indicator}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    if details['struggle_sections']:
+                        st.warning(f"⚠️ **Struggle Points Detected:** Sections {[s+1 for s in details['struggle_sections']]} have significantly lower completion rates. Consider reviewing the content difficulty or adding more support materials.")
+                else:
+                    st.info("No section data available for this curriculum.")
+        else:
+            st.info("Generate some curricula and have students use them to see analytics here.")
+
+    except Exception as e:
+        st.error(f"Error loading analytics: {e}")
+        if logger:
+            logger.log_error(error=e, context="Analytics Dashboard")
 
 # Initialize agents when needed (done in the agentic_framework.py now)
 
