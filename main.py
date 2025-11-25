@@ -89,16 +89,23 @@ st.set_page_config(page_title="Curriculum Generator", page_icon=":books:", layou
 # Load modern UI design system
 ModernUI.load_css()
 
-# Detect if user is on mobile
-def is_mobile():
-    """Detect if user is on a mobile device using viewport width"""
-    # Simplified mobile detection that doesn't rely on the broken component
-    # Default to desktop view to avoid layout issues
+# Mobile layout detection
+# Note: True JS-based detection requires streamlit-js-eval dependency
+# Instead, we provide a manual toggle and use CSS media query hints
+def detect_mobile_from_query_params():
+    """Check if mobile mode was requested via query params or previous toggle"""
+    # Check query params for mobile hint
+    try:
+        params = st.query_params
+        if params.get("mobile") == "1":
+            return True
+    except Exception:
+        pass
     return False
 
 # Set global state for mobile detection
 if "is_mobile" not in st.session_state:
-    mobile_detected = is_mobile()
+    mobile_detected = detect_mobile_from_query_params()
     StateManager.set_state("is_mobile", mobile_detected)
 
 # More robust OpenAI import handling
@@ -572,25 +579,111 @@ if "current_user" not in st.session_state:
 # If student mode, show login + student interface and stop
 if current_mode == 'student':
     st.sidebar.markdown("### 👤 Student Login")
-    username = st.sidebar.text_input("Your name", key="student_username")
 
-    if st.sidebar.button("Login / Continue", use_container_width=True):
-        if username and username.strip():
-            try:
-                user_service: UserService = StateManager.get_state("user_service")
-                user = user_service.authenticate(username.strip())
-                StateManager.set_state("current_user", user)
-            except Exception as e:
-                st.sidebar.error(f"Login failed: {e}")
-        else:
-            st.sidebar.warning("Please enter a name to continue.")
-
+    user_service: UserService = StateManager.get_state("user_service")
     current_user = StateManager.get_state("current_user", None)
+
+    # Check if we need to show PIN input for existing user
+    if not StateManager.has_state('login_needs_pin'):
+        StateManager.set_state('login_needs_pin', False)
+    if not StateManager.has_state('login_username'):
+        StateManager.set_state('login_username', '')
+
+    needs_pin = StateManager.get_state('login_needs_pin', False)
+    saved_username = StateManager.get_state('login_username', '')
+
     if not current_user:
-        st.info("Enter your name in the sidebar to start learning in Student Mode.")
+        if needs_pin:
+            # User exists and has PIN - show PIN entry
+            st.sidebar.info(f"Welcome back, **{saved_username}**!")
+            pin = st.sidebar.text_input("Enter PIN", type="password", max_chars=6, key="student_pin")
+
+            col1, col2 = st.sidebar.columns(2)
+            with col1:
+                if st.button("Login", use_container_width=True):
+                    if pin:
+                        user, msg = user_service.authenticate(saved_username, pin)
+                        if msg == "success":
+                            StateManager.set_state("current_user", user)
+                            StateManager.set_state('login_needs_pin', False)
+                            st.rerun()
+                        else:
+                            st.sidebar.error("Incorrect PIN. Try again.")
+                    else:
+                        st.sidebar.warning("Please enter your PIN.")
+            with col2:
+                if st.button("Cancel", use_container_width=True):
+                    StateManager.set_state('login_needs_pin', False)
+                    StateManager.set_state('login_username', '')
+                    st.rerun()
+        else:
+            # Show username input
+            username = st.sidebar.text_input("Your name", key="student_username")
+
+            # Check if user exists and show appropriate action
+            user_exists = user_service.user_exists(username.strip()) if username.strip() else False
+
+            if user_exists:
+                has_pin = user_service.user_has_pin(username.strip())
+                if has_pin:
+                    if st.sidebar.button("Continue →", use_container_width=True):
+                        StateManager.set_state('login_needs_pin', True)
+                        StateManager.set_state('login_username', username.strip())
+                        st.rerun()
+                else:
+                    if st.sidebar.button("Login", use_container_width=True):
+                        user, msg = user_service.authenticate(username.strip())
+                        if msg == "success":
+                            StateManager.set_state("current_user", user)
+                            st.rerun()
+            else:
+                # New user - show create account options
+                if username.strip():
+                    st.sidebar.caption("New student? Create your profile:")
+                    pin_input = st.sidebar.text_input("Optional PIN (4-6 digits)", type="password", max_chars=6, key="new_user_pin",
+                                                      help="Set a PIN to protect your progress")
+
+                    if st.sidebar.button("Create Profile", use_container_width=True):
+                        # Validate PIN if provided
+                        if pin_input and (len(pin_input) < 4 or not pin_input.isdigit()):
+                            st.sidebar.error("PIN must be 4-6 digits")
+                        else:
+                            user, msg = user_service.create_user(username.strip(), pin_input if pin_input else None)
+                            if msg == "created":
+                                StateManager.set_state("current_user", user)
+                                st.sidebar.success("Profile created!")
+                                st.rerun()
+                            else:
+                                st.sidebar.error(f"Could not create profile: {msg}")
+
+        # Show existing profiles for quick switching
+        users = user_service.list_users()
+        if users:
+            with st.sidebar.expander("📋 Switch Profile", expanded=False):
+                for u in users[:5]:  # Limit to 5 profiles
+                    label = f"{'🔒' if u['has_pin'] else '👤'} {u['username']}"
+                    if st.button(label, key=f"switch_{u['username']}", use_container_width=True):
+                        if u['has_pin']:
+                            StateManager.set_state('login_needs_pin', True)
+                            StateManager.set_state('login_username', u['username'])
+                        else:
+                            user, _ = user_service.authenticate(u['username'])
+                            StateManager.set_state("current_user", user)
+                        st.rerun()
+
+    if not current_user:
+        st.info("👈 Enter your name in the sidebar to start learning in Student Mode.")
         st.stop()
 
-    st.sidebar.markdown(f"Logged in as **{current_user['username']}**")
+    # Logged in - show user info and logout
+    st.sidebar.success(f"✓ Logged in as **{current_user['username']}**")
+    if current_user.get('has_pin'):
+        st.sidebar.caption("🔒 PIN protected")
+    if st.sidebar.button("Logout", use_container_width=True):
+        StateManager.set_state("current_user", None)
+        StateManager.set_state('login_needs_pin', False)
+        StateManager.set_state('login_username', '')
+        st.rerun()
 
     from src.student_mode.student_ui import render_student_mode
     render_student_mode(config, client)
@@ -776,13 +869,14 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**Preferences**")
 theme = ThemeManager.get_theme_toggle()
 
-# Apply theme-specific styling (handled by design system)
-# Mobile detection
-is_mobile = st.session_state.get("is_mobile", False)
-
-# Mobile banner disabled
-# Always use desktop view for now to ensure proper sidebar behavior
-StateManager.set_state("is_mobile", False)
+# Mobile layout toggle - useful for phones or tablets
+mobile_mode = st.sidebar.checkbox(
+    "📱 Mobile Layout",
+    value=StateManager.get_state("is_mobile", False),
+    help="Enable compact layout for smaller screens"
+)
+StateManager.set_state("is_mobile", mobile_mode)
+is_mobile = mobile_mode
 
 # --- Main Area Tabs ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch", "📊 Analytics"])

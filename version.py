@@ -8,11 +8,23 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.8.2"
-VERSION_NAME = "Gamification & AI Grading"
+VERSION = "0.8.3"
+VERSION_NAME = "Production Refinement"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.8.3": {
+        "date": "2025-11-25",
+        "name": "Production Refinement",
+        "changes": [
+            "StateManager enforcement in student_ui.py (no direct st.session_state)",
+            "PIN-based authentication for student profiles (optional security)",
+            "Profile switching with PIN lock indicators",
+            "Mobile layout toggle in preferences",
+            "Standardized logging in audio_agent (verbose_logger)",
+            "Code quality improvements throughout",
+        ]
+    },
     "0.8.2": {
         "date": "2025-11-25",
         "name": "Gamification & AI Grading",

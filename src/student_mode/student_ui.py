@@ -79,29 +79,30 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     # Initialize tutor if enabled
     tutor_enabled = config.get('student_mode', {}).get('tutor_enabled', True)
 
-    # Initialize session state for tutor
-    if 'tutor_agent' not in st.session_state:
+    # Initialize session state for tutor using StateManager for thread-safety
+    if not StateManager.has_state('tutor_agent'):
         if tutor_enabled:
             tutor_model = config.get('student_mode', {}).get('tutor_model', 'gpt-4.1-nano')
-            st.session_state.tutor_agent = TutorAgent(client, model=tutor_model)
+            StateManager.set_state('tutor_agent', TutorAgent(client, model=tutor_model))
         else:
-            st.session_state.tutor_agent = None
+            StateManager.set_state('tutor_agent', None)
 
-    if 'tutor_messages' not in st.session_state:
-        st.session_state.tutor_messages = []
+    if not StateManager.has_state('tutor_messages'):
+        StateManager.set_state('tutor_messages', [])
 
-    if 'last_curriculum_id' not in st.session_state:
-        st.session_state.last_curriculum_id = None
+    if not StateManager.has_state('last_curriculum_id'):
+        StateManager.set_state('last_curriculum_id', None)
 
-    if 'last_unit_idx' not in st.session_state:
-        st.session_state.last_unit_idx = None
+    if not StateManager.has_state('last_unit_idx'):
+        StateManager.set_state('last_unit_idx', None)
 
     # Clear chat history if curriculum changed
-    if st.session_state.last_curriculum_id != curriculum_id:
-        st.session_state.tutor_messages = []
-        st.session_state.last_curriculum_id = curriculum_id
-        if st.session_state.tutor_agent:
-            st.session_state.tutor_agent.clear_conversation()
+    if StateManager.get_state('last_curriculum_id') != curriculum_id:
+        StateManager.set_state('tutor_messages', [])
+        StateManager.set_state('last_curriculum_id', curriculum_id)
+        tutor_agent = StateManager.get_state('tutor_agent')
+        if tutor_agent:
+            tutor_agent.clear_conversation()
 
     # Display progress in sidebar
     current_level = progress.get_level()
@@ -228,19 +229,20 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     unit = units[unit_idx]
 
     # Update tutor context if unit changed
-    if tutor_enabled and st.session_state.tutor_agent:
-        if st.session_state.last_unit_idx != unit_idx:
-            previous_unit_idx = st.session_state.last_unit_idx
-            st.session_state.last_unit_idx = unit_idx
-            st.session_state.tutor_messages = []  # Clear chat on unit change
-            st.session_state.tutor_agent.clear_conversation()
+    tutor_agent = StateManager.get_state('tutor_agent')
+    if tutor_enabled and tutor_agent:
+        if StateManager.get_state('last_unit_idx') != unit_idx:
+            previous_unit_idx = StateManager.get_state('last_unit_idx')
+            StateManager.set_state('last_unit_idx', unit_idx)
+            StateManager.set_state('tutor_messages', [])  # Clear chat on unit change
+            tutor_agent.clear_conversation()
 
             # Set the new context
             unit_content = unit.get('content', '')
             unit_title = unit.get('title', 'Untitled')
             subject = meta.get('subject', 'Unknown')
             grade = meta.get('grade', 'Unknown')
-            st.session_state.tutor_agent.set_lesson_context(
+            tutor_agent.set_lesson_context(
                 unit_content=unit_content,
                 unit_title=unit_title,
                 subject=subject,
@@ -250,10 +252,12 @@ def render_student_mode(config: Dict[str, Any], client: Any):
             # Add a helpful transition message so tutor feels less "amnesiac"
             if previous_unit_idx is not None:
                 transition_msg = f"📚 *You've moved to Unit {unit_idx + 1}: {unit_title}. Feel free to ask questions about this new topic!*"
-                st.session_state.tutor_messages.append({
+                tutor_messages = StateManager.get_state('tutor_messages', [])
+                tutor_messages.append({
                     "role": "assistant",
                     "content": transition_msg
                 })
+                StateManager.set_state('tutor_messages', tutor_messages)
 
     # Display current progress
     progress_percent = (section_idx / total_sections) * 100
@@ -305,7 +309,8 @@ def render_student_mode(config: Dict[str, Any], client: Any):
             st.rerun()
 
     # Add Tutor Chat Interface
-    if tutor_enabled and st.session_state.tutor_agent:
+    tutor_agent = StateManager.get_state('tutor_agent')
+    if tutor_enabled and tutor_agent:
         st.markdown("---")
         st.markdown("## 🤓 Ask Your Tutor")
 
@@ -473,7 +478,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                             st.success(f"🌟 Perfect score! {correct_count}/{total_mc} correct!")
                             current_user = StateManager.get_state("current_user", None)
                             user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                            progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+                            progress = StudentProgress(StateManager.get_state('last_curriculum_id'), user_id=user_id)
                             progress.add_xp(50)
                             # Record perfect quiz for badge tracking
                             new_badges = progress.record_perfect_quiz()
@@ -486,7 +491,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                             st.info(f"📊 You got {correct_count}/{total_mc} correct!")
                             current_user = StateManager.get_state("current_user", None)
                             user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                            progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+                            progress = StudentProgress(StateManager.get_state('last_curriculum_id'), user_id=user_id)
                             progress.add_xp(10)
                             st.info("⭐ +10 XP for completing the quiz!")
                         else:
@@ -517,14 +522,15 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                                 with st.spinner("🤖 AI is grading your answer..."):
                                     try:
                                         # Initialize grading agent
-                                        grading_model = st.session_state.get('config', {}).get('student_mode', {}).get('grading_model', 'gpt-4.1-nano')
+                                        grading_model = StateManager.get_state('config', {}).get('student_mode', {}).get('grading_model', 'gpt-4.1-nano')
                                         grader = GradingAgent(
-                                            client=st.session_state.get('client'),
+                                            client=StateManager.get_state('client'),
                                             model=grading_model
                                         )
 
                                         # Get context
-                                        meta = st.session_state.get('selected_curriculum', {}).get('data', {}).get('meta', {})
+                                        selected_curriculum = StateManager.get_state('selected_curriculum', {})
+                                        meta = selected_curriculum.get('data', {}).get('meta', {}) if selected_curriculum else {}
                                         unit_content = unit.get('content', '')
                                         unit_title = unit.get('title', 'Unknown')
 
@@ -547,7 +553,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                                         # Award XP based on score
                                         current_user = StateManager.get_state("current_user", None)
                                         user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                                        progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+                                        progress = StudentProgress(StateManager.get_state('last_curriculum_id'), user_id=user_id)
 
                                         xp_earned = int(result.score * 20)  # Up to 20 XP per short answer
                                         if xp_earned > 0:
@@ -658,39 +664,49 @@ def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
     # Create chat container
     chat_container = st.container()
 
+    # Get tutor state from StateManager
+    tutor_messages = StateManager.get_state('tutor_messages', [])
+    tutor_agent = StateManager.get_state('tutor_agent')
+
     # Show example questions if no messages
-    if not st.session_state.tutor_messages:
+    if not tutor_messages:
         with chat_container:
             st.markdown("### 💭 Try asking me about:")
-            example_questions = st.session_state.tutor_agent.get_example_questions()
+            example_questions = tutor_agent.get_example_questions() if tutor_agent else []
 
-            cols = st.columns(len(example_questions))
-            for idx, question in enumerate(example_questions):
-                with cols[idx]:
-                    if st.button(question, key=f"example_{idx}", use_container_width=True):
-                        # Process the example question
-                        st.session_state.tutor_messages.append({
-                            "role": "user",
-                            "content": question
-                        })
-
-                        with st.spinner("🤔 Thinking..."):
-                            tutor_config = config.get('student_mode', {})
-                            temperature = tutor_config.get('tutor_temperature', 0.7)
-                            response = st.session_state.tutor_agent.get_response(
-                                question,
-                                temperature=temperature
-                            )
-
-                            st.session_state.tutor_messages.append({
-                                "role": "assistant",
-                                "content": response
+            if example_questions:
+                cols = st.columns(len(example_questions))
+                for idx, question in enumerate(example_questions):
+                    with cols[idx]:
+                        if st.button(question, key=f"example_{idx}", use_container_width=True):
+                            # Process the example question
+                            tutor_messages = StateManager.get_state('tutor_messages', [])
+                            tutor_messages.append({
+                                "role": "user",
+                                "content": question
                             })
-                        st.rerun()
+                            StateManager.set_state('tutor_messages', tutor_messages)
+
+                            with st.spinner("🤔 Thinking..."):
+                                tutor_config = config.get('student_mode', {})
+                                temperature = tutor_config.get('tutor_temperature', 0.7)
+                                response = tutor_agent.get_response(
+                                    question,
+                                    temperature=temperature
+                                )
+
+                                tutor_messages = StateManager.get_state('tutor_messages', [])
+                                tutor_messages.append({
+                                    "role": "assistant",
+                                    "content": response
+                                })
+                                StateManager.set_state('tutor_messages', tutor_messages)
+                            st.rerun()
 
     # Display chat messages
     with chat_container:
-        for message in st.session_state.tutor_messages:
+        tutor_messages = StateManager.get_state('tutor_messages', [])
+        for message in tutor_messages:
             if message["role"] == "user":
                 with st.chat_message("user", avatar="🧑‍🎓"):
                     st.markdown(message["content"])
@@ -709,24 +725,28 @@ def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
 
     with col2:
         if st.button("🗑️", help="Clear chat history"):
-            st.session_state.tutor_messages = []
-            if st.session_state.tutor_agent:
-                st.session_state.tutor_agent.clear_conversation()
+            StateManager.set_state('tutor_messages', [])
+            tutor_agent = StateManager.get_state('tutor_agent')
+            if tutor_agent:
+                tutor_agent.clear_conversation()
             st.rerun()
 
     # Process user input
     if user_input:
         # Add user message to history
-        st.session_state.tutor_messages.append({
+        tutor_messages = StateManager.get_state('tutor_messages', [])
+        tutor_messages.append({
             "role": "user",
             "content": user_input
         })
+        StateManager.set_state('tutor_messages', tutor_messages)
 
         # Track tutor question for badge system
         current_user = StateManager.get_state("current_user", None)
         user_id = current_user.get("id") if isinstance(current_user, dict) else None
-        if st.session_state.get('last_curriculum_id'):
-            progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+        curriculum_id = StateManager.get_state('last_curriculum_id')
+        if curriculum_id:
+            progress = StudentProgress(curriculum_id, user_id=user_id)
             new_badges = progress.record_tutor_question()
             if new_badges:
                 StateManager.set_state('new_badges', new_badges)
@@ -736,15 +756,18 @@ def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
             tutor_config = config.get('student_mode', {})
             temperature = tutor_config.get('tutor_temperature', 0.7)
 
-            response = st.session_state.tutor_agent.get_response(
+            tutor_agent = StateManager.get_state('tutor_agent')
+            response = tutor_agent.get_response(
                 user_input,
                 temperature=temperature
             )
 
             # Add assistant response to history
-            st.session_state.tutor_messages.append({
+            tutor_messages = StateManager.get_state('tutor_messages', [])
+            tutor_messages.append({
                 "role": "assistant",
                 "content": response
             })
+            StateManager.set_state('tutor_messages', tutor_messages)
 
         st.rerun()

@@ -49,6 +49,18 @@ class AudioAgent(BaseAgent):
         except ImportError:
             self.logger = None
 
+    def _log(self, message: str, level: str = "info"):
+        """Log message using logger if available, otherwise silent in production."""
+        if self.logger:
+            if level == "warning":
+                self.logger.log_warning(message)
+            elif level == "error":
+                self.logger.log_error(message)
+            elif level == "debug":
+                self.logger.log_debug(message)
+            else:
+                self.logger.log_info(message)
+
     def generate_audio(
         self,
         content: str,
@@ -66,11 +78,11 @@ class AudioAgent(BaseAgent):
             Dictionary with audio file path and metadata, or None on error
         """
         if not self.enabled:
-            print("TTS is disabled in configuration")
+            self._log("TTS is disabled in configuration", "debug")
             return None
 
         if not content:
-            print("No content provided for audio generation")
+            self._log("No content provided for audio generation", "warning")
             return None
 
         # Use default voice if none specified
@@ -79,22 +91,20 @@ class AudioAgent(BaseAgent):
 
         # Validate voice
         if voice not in self.available_voices:
-            print(f"Invalid voice '{voice}', using default '{self.default_voice}'")
+            self._log(f"Invalid voice '{voice}', using default '{self.default_voice}'", "warning")
             voice = self.default_voice
 
         # Check cache first
         cached_audio = self._get_cached_audio(content, voice)
         if cached_audio:
-            if self.logger:
-                self.logger.log_debug(f"Using cached audio for content: {content[:50]}...")
-            print(f"Using cached audio for: {unit_title or 'content'}")
+            self._log(f"Using cached audio for: {unit_title or 'content'}", "debug")
             return cached_audio
 
         # Truncate or chunk content if needed
         chunks = self._chunk_content(content)
 
         if len(chunks) > 1:
-            print(f"Content exceeds {self.max_chars} chars, generating {len(chunks)} audio chunks")
+            self._log(f"Content exceeds {self.max_chars} chars, generating {len(chunks)} audio chunks")
 
         # Generate audio for each chunk
         audio_files = []
@@ -103,7 +113,7 @@ class AudioAgent(BaseAgent):
             if chunk_audio:
                 audio_files.append(chunk_audio)
             else:
-                print(f"Failed to generate audio for chunk {i+1}/{len(chunks)}")
+                self._log(f"Failed to generate audio for chunk {i+1}/{len(chunks)}", "error")
                 return None
 
         # If single chunk, return directly
@@ -215,7 +225,7 @@ class AudioAgent(BaseAgent):
                     response={"status": "success", "file": str(audio_path)}
                 )
 
-            print(f"Generated audio: {audio_filename}")
+            self._log(f"Generated audio: {audio_filename}")
 
             return {
                 "path": str(audio_path),
@@ -227,7 +237,7 @@ class AudioAgent(BaseAgent):
 
         except Exception as e:
             error_msg = f"Audio generation error: {e}"
-            print(error_msg)
+            self._log(error_msg, "error")
 
             if self.logger:
                 self.logger.log_error(
@@ -283,7 +293,7 @@ class AudioAgent(BaseAgent):
         file_age = datetime.now() - datetime.fromtimestamp(audio_path.stat().st_mtime)
 
         if file_age > timedelta(days=self.cache_expiry_days):
-            print(f"Cached audio expired (age: {file_age.days} days), regenerating")
+            self._log(f"Cached audio expired (age: {file_age.days} days), regenerating", "debug")
             audio_path.unlink()  # Delete expired file
             return None
 
@@ -310,10 +320,10 @@ class AudioAgent(BaseAgent):
                     audio_file.unlink()
                     deleted_count += 1
                 except Exception as e:
-                    print(f"Error deleting {audio_file}: {e}")
+                    self._log(f"Error deleting {audio_file}: {e}", "warning")
 
         if deleted_count > 0:
-            print(f"Cleaned up {deleted_count} old audio files")
+            self._log(f"Cleaned up {deleted_count} old audio files")
 
         return deleted_count
 
@@ -331,7 +341,7 @@ class AudioAgent(BaseAgent):
         content = unit.get("content", "")
 
         if not content:
-            print(f"No content to narrate for unit: {title}")
+            self._log(f"No content to narrate for unit: {title}", "warning")
             return None
 
         return self.generate_audio(content, voice=voice, unit_title=title)

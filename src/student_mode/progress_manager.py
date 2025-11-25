@@ -105,7 +105,8 @@ class StudentProgress:
             with open(self.progress_file, 'w') as f:
                 json.dump(self.data, f, indent=2)
         except IOError as e:
-            print(f"Error saving progress: {e}")
+            import sys
+            sys.stderr.write(f"Error saving progress: {e}\n")
     
     def get_current_section(self) -> int:
         """Get current section index"""
