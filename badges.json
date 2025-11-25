@@ -1,0 +1,124 @@
+{
+    "badges": [
+        {
+            "id": "first_steps",
+            "name": "First Steps",
+            "icon": "🎯",
+            "description": "Complete your first lesson section",
+            "condition": {"type": "sections_completed", "value": 1},
+            "xp_bonus": 10
+        },
+        {
+            "id": "quick_learner",
+            "name": "Quick Learner",
+            "icon": "⚡",
+            "description": "Complete 5 lesson sections",
+            "condition": {"type": "sections_completed", "value": 5},
+            "xp_bonus": 25
+        },
+        {
+            "id": "knowledge_seeker",
+            "name": "Knowledge Seeker",
+            "icon": "📚",
+            "description": "Complete 20 lesson sections",
+            "condition": {"type": "sections_completed", "value": 20},
+            "xp_bonus": 100
+        },
+        {
+            "id": "perfect_score",
+            "name": "Perfect Score",
+            "icon": "⭐",
+            "description": "Get 100% on any quiz",
+            "condition": {"type": "perfect_quiz", "value": 1},
+            "xp_bonus": 50
+        },
+        {
+            "id": "quiz_master",
+            "name": "Quiz Master",
+            "icon": "🏆",
+            "description": "Get 5 perfect quiz scores",
+            "condition": {"type": "perfect_quiz", "value": 5},
+            "xp_bonus": 150
+        },
+        {
+            "id": "curriculum_complete",
+            "name": "Curriculum Complete",
+            "icon": "🎓",
+            "description": "Complete an entire curriculum",
+            "condition": {"type": "curricula_completed", "value": 1},
+            "xp_bonus": 200
+        },
+        {
+            "id": "multi_graduate",
+            "name": "Multi-Graduate",
+            "icon": "🎖️",
+            "description": "Complete 3 different curricula",
+            "condition": {"type": "curricula_completed", "value": 3},
+            "xp_bonus": 500
+        },
+        {
+            "id": "xp_century",
+            "name": "Century Club",
+            "icon": "💯",
+            "description": "Earn 100 total XP",
+            "condition": {"type": "total_xp", "value": 100},
+            "xp_bonus": 20
+        },
+        {
+            "id": "xp_thousand",
+            "name": "XP Millionaire",
+            "icon": "💰",
+            "description": "Earn 1000 total XP",
+            "condition": {"type": "total_xp", "value": 1000},
+            "xp_bonus": 100
+        },
+        {
+            "id": "level_5",
+            "name": "Rising Star",
+            "icon": "🌟",
+            "description": "Reach Level 5",
+            "condition": {"type": "level", "value": 5},
+            "xp_bonus": 50
+        },
+        {
+            "id": "level_10",
+            "name": "Expert Learner",
+            "icon": "🔥",
+            "description": "Reach Level 10",
+            "condition": {"type": "level", "value": 10},
+            "xp_bonus": 200
+        },
+        {
+            "id": "curious_mind",
+            "name": "Curious Mind",
+            "icon": "🤔",
+            "description": "Ask the AI tutor 10 questions",
+            "condition": {"type": "tutor_questions", "value": 10},
+            "xp_bonus": 30
+        },
+        {
+            "id": "deep_thinker",
+            "name": "Deep Thinker",
+            "icon": "🧠",
+            "description": "Submit 5 short-answer responses",
+            "condition": {"type": "short_answers", "value": 5},
+            "xp_bonus": 50
+        },
+        {
+            "id": "streak_3",
+            "name": "On a Roll",
+            "icon": "🔥",
+            "description": "Study 3 days in a row",
+            "condition": {"type": "streak_days", "value": 3},
+            "xp_bonus": 30
+        },
+        {
+            "id": "streak_7",
+            "name": "Week Warrior",
+            "icon": "📅",
+            "description": "Study 7 days in a row",
+            "condition": {"type": "streak_days", "value": 7},
+            "xp_bonus": 100
+        }
+    ]
+}

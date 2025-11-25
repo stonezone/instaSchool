@@ -8,11 +8,23 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.8.1"
-VERSION_NAME = "Analytics & Fixes"
+VERSION = "0.8.2"
+VERSION_NAME = "Gamification & AI Grading"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.8.2": {
+        "date": "2025-11-25",
+        "name": "Gamification & AI Grading",
+        "changes": [
+            "AI Grading Agent for short-answer questions with constructive feedback",
+            "Gamification 2.0: 15 badges system (Perfect Score, Streak, Curious Mind, etc.)",
+            "Trophy Case in student sidebar with earned badges display",
+            "Streak tracking for consecutive study days",
+            "Badge notifications via toast when new badges earned",
+            "Course completion screen with badge showcase",
+        ]
+    },
     "0.8.1": {
         "date": "2025-11-25",
         "name": "Analytics & Fixes",

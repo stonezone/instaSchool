@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional, List
 from .progress_manager import StudentProgress
 from src.tutor_agent import TutorAgent
 from src.state_manager import StateManager
+from src.grading_agent import GradingAgent, GradingResult
 
 
 def render_student_mode(config: Dict[str, Any], client: Any):
@@ -111,8 +112,50 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     st.sidebar.markdown(f"⭐ **Level {current_level}**")
     st.sidebar.markdown(f"🎯 {current_xp} XP ({xp_in_level}/100 to Level {current_level + 1})")
     st.sidebar.progress(xp_in_level / 100.0)
+
+    # Streak display
+    stats = progress.get_stats()
+    current_streak = stats.get("current_streak", 0)
+    if current_streak > 0:
+        st.sidebar.markdown(f"🔥 **{current_streak} day streak!**")
+
+    # Trophy Case (collapsible)
+    with st.sidebar.expander("🏆 Trophy Case", expanded=False):
+        earned_badges = progress.get_badge_details()
+        if earned_badges:
+            badge_cols = st.columns(3)
+            for i, badge in enumerate(earned_badges):
+                with badge_cols[i % 3]:
+                    st.markdown(f"""
+                    <div style="text-align: center; padding: 5px;">
+                        <span style="font-size: 1.5rem;">{badge['icon']}</span><br>
+                        <span style="font-size: 0.65rem; color: #888;">{badge['name']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.caption("Complete lessons to earn badges!")
+
+        # Show next available badges
+        from .progress_manager import load_badges_config
+        all_badges = load_badges_config().get("badges", [])
+        earned_ids = set(progress.get_badges())
+        available = [b for b in all_badges if b["id"] not in earned_ids][:3]
+
+        if available:
+            st.markdown("**Next badges:**")
+            for badge in available:
+                st.caption(f"{badge['icon']} {badge['name']} - {badge['description']}")
+
     st.sidebar.markdown("---")
-    
+
+    # Check for new badges to display (from previous action)
+    new_badges = StateManager.get_state('new_badges', [])
+    if new_badges:
+        for badge in new_badges:
+            st.toast(f"🏆 New Badge: {badge['icon']} {badge['name']}!", icon="🎉")
+        # Clear after displaying
+        StateManager.set_state('new_badges', [])
+
     # Main area - Header
     meta = curriculum.get('meta', {})
     st.markdown(f"# 🎓 {meta.get('subject', 'Curriculum')}")
@@ -132,15 +175,41 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     
     # Check if course is complete
     if section_idx >= total_sections:
+        # Record curriculum completion for badges (only once)
+        completion_key = f"curriculum_complete_{curriculum_id}"
+        if not StateManager.get_state(completion_key, False):
+            new_badges = progress.record_curriculum_completion()
+            StateManager.set_state(completion_key, True)
+            if new_badges:
+                for badge in new_badges:
+                    st.toast(f"🏆 New Badge: {badge['icon']} {badge['name']}!", icon="🎉")
+
         st.success("🏆 **Congratulations! Course Complete!**")
         st.balloons()
-        st.markdown(f"### Final Stats")
+
+        # Show earned badges
+        earned_badges = progress.get_badge_details()
+        if earned_badges:
+            st.markdown("### 🏆 Your Badges")
+            badge_cols = st.columns(min(len(earned_badges), 5))
+            for i, badge in enumerate(earned_badges):
+                with badge_cols[i % 5]:
+                    st.markdown(f"""
+                    <div style="text-align: center; padding: 8px; background: #f0f2f6; border-radius: 8px; margin: 4px;">
+                        <span style="font-size: 2rem;">{badge['icon']}</span><br>
+                        <span style="font-size: 0.75rem; font-weight: bold;">{badge['name']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        st.markdown(f"### 📊 Final Stats")
         st.markdown(f"- **Level Reached**: {current_level}")
         st.markdown(f"- **Total XP**: {current_xp}")
         st.markdown(f"- **Units Completed**: {len(units)}")
-        
+        st.markdown(f"- **Badges Earned**: {len(earned_badges)}")
+
         if st.button("🔄 Start Over"):
             progress.reset_progress()
+            StateManager.set_state(completion_key, False)
             st.rerun()
         return
     
@@ -213,14 +282,21 @@ def render_student_mode(config: Dict[str, Any], client: Any):
         if st.button("✅ Complete & Continue", type="primary", use_container_width=True):
             # Award XP
             leveled_up = progress.add_xp(10)
+
+            # Mark section complete (updates streak and checks badges)
+            _, new_badges = progress.complete_section(section_idx)
             progress.advance_section()
-            
+
             if leveled_up:
                 st.success(f"🎉 Level Up! You're now Level {progress.get_level()}!")
                 st.balloons()
             else:
                 st.success("+10 XP!")
-            
+
+            # Store new badges for display
+            if new_badges:
+                StateManager.set_state('new_badges', new_badges)
+
             st.rerun()
     
     with col3:
@@ -340,76 +416,203 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
             questions = quiz_data.get('questions', [])
 
             if questions:
+                # Separate multiple choice and short answer questions
+                mc_questions = [q for q in questions if q.get('type', 'multiple_choice') == 'multiple_choice' or 'options' in q]
+                sa_questions = [q for q in questions if q.get('type') == 'short_answer']
+
                 # Initialize session state for quiz answers using StateManager for thread-safety
                 if StateManager.get_state('quiz_submitted') is None:
                     StateManager.set_state('quiz_submitted', False)
                 if StateManager.get_state('quiz_answers') is None:
                     StateManager.set_state('quiz_answers', {})
+                if StateManager.get_state('grading_results') is None:
+                    StateManager.set_state('grading_results', {})
 
-                # Create quiz form
-                with st.form("quiz_form"):
-                    user_answers = {}
+                # === MULTIPLE CHOICE SECTION ===
+                if mc_questions:
+                    st.markdown("#### 📝 Multiple Choice")
+                    with st.form("quiz_form_mc"):
+                        user_answers = {}
 
-                    for i, q in enumerate(questions):
-                        st.markdown(f"**Question {i + 1}: {q.get('question', '')}**")
-                        options = q.get('options', [])
+                        for i, q in enumerate(mc_questions):
+                            st.markdown(f"**Question {i + 1}: {q.get('question', '')}**")
+                            options = q.get('options', [])
 
-                        # Radio buttons for answer selection
-                        answer = st.radio(
-                            f"Select your answer for question {i + 1}",
-                            options,
-                            key=f"q_{i}",
-                            label_visibility="collapsed"
-                        )
-                        user_answers[i] = answer
-                        st.markdown("")  # Spacing
+                            answer = st.radio(
+                                f"Select your answer for question {i + 1}",
+                                options,
+                                key=f"mc_q_{i}",
+                                label_visibility="collapsed"
+                            )
+                            user_answers[i] = answer
+                            st.markdown("")
 
-                    submitted = st.form_submit_button("Submit Quiz", type="primary", use_container_width=True)
+                        submitted = st.form_submit_button("Submit Multiple Choice", type="primary", use_container_width=True)
 
-                    if submitted:
-                        # Use StateManager for atomic updates to prevent race conditions
-                        StateManager.set_state('quiz_submitted', True)
-                        StateManager.set_state('quiz_answers', user_answers)
+                        if submitted:
+                            StateManager.set_state('quiz_submitted', True)
+                            StateManager.set_state('quiz_answers', user_answers)
 
-                # Show results if submitted
-                if StateManager.get_state('quiz_submitted', False):
-                    correct_count = 0
-                    quiz_answers = StateManager.get_state('quiz_answers', {})
+                    # Show MC results if submitted
+                    if StateManager.get_state('quiz_submitted', False) and mc_questions:
+                        correct_count = 0
+                        quiz_answers = StateManager.get_state('quiz_answers', {})
 
-                    for i, q in enumerate(questions):
-                        user_answer = quiz_answers.get(i)
-                        correct_answer = q.get('correct', '')
+                        for i, q in enumerate(mc_questions):
+                            user_answer = quiz_answers.get(i)
+                            correct_answer = q.get('correct', '')
 
-                        if user_answer == correct_answer:
-                            correct_count += 1
-                            st.success(f"✅ Question {i + 1}: Correct!")
+                            if user_answer == correct_answer:
+                                correct_count += 1
+                                st.success(f"✅ Question {i + 1}: Correct!")
+                            else:
+                                st.error(f"❌ Question {i + 1}: Incorrect. The correct answer was: {correct_answer}")
+
+                        total_mc = len(mc_questions)
+                        if correct_count == total_mc:
+                            st.success(f"🌟 Perfect score! {correct_count}/{total_mc} correct!")
+                            current_user = StateManager.get_state("current_user", None)
+                            user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                            progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+                            progress.add_xp(50)
+                            # Record perfect quiz for badge tracking
+                            new_badges = progress.record_perfect_quiz()
+                            st.info("🎁 Bonus: +50 XP for perfect score!")
+                            # Show badge notifications
+                            for badge in new_badges:
+                                st.balloons()
+                                st.success(f"🏆 **New Badge Earned!** {badge['icon']} {badge['name']} - {badge['description']}")
+                        elif correct_count > 0:
+                            st.info(f"📊 You got {correct_count}/{total_mc} correct!")
+                            current_user = StateManager.get_state("current_user", None)
+                            user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                            progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+                            progress.add_xp(10)
+                            st.info("⭐ +10 XP for completing the quiz!")
                         else:
-                            st.error(f"❌ Question {i + 1}: Incorrect. The correct answer was: {correct_answer}")
+                            st.warning(f"Keep trying! You got {correct_count}/{total_mc} correct.")
 
-                    # Award XP based on performance
-                    total_questions = len(questions)
-                    if correct_count == total_questions:
-                        st.success(f"🌟 Perfect score! {correct_count}/{total_questions} correct!")
-                        # Award bonus XP, respecting current user context
-                        current_user = StateManager.get_state("current_user", None)
-                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                        progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
-                        progress.add_xp(50)
-                        st.info("🎁 Bonus: +50 XP for perfect score!")
-                    elif correct_count > 0:
-                        st.info(f"📊 You got {correct_count}/{total_questions} correct!")
-                        current_user = StateManager.get_state("current_user", None)
-                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                        progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
-                        progress.add_xp(10)
-                        st.info("⭐ +10 XP for completing the quiz!")
-                    else:
-                        st.warning(f"Keep trying! You got {correct_count}/{total_questions} correct.")
+                # === SHORT ANSWER SECTION (AI Graded) ===
+                if sa_questions:
+                    st.markdown("---")
+                    st.markdown("#### ✍️ Short Answer (AI Graded)")
+                    st.caption("Write your answers and get personalized AI feedback!")
 
-                    # Reset button
+                    for i, q in enumerate(sa_questions):
+                        q_key = f"sa_{i}"
+                        st.markdown(f"**Question {i + 1}: {q.get('question', '')}**")
+
+                        # Text area for answer
+                        answer = st.text_area(
+                            f"Your answer for question {i + 1}",
+                            key=q_key,
+                            height=100,
+                            label_visibility="collapsed",
+                            placeholder="Type your answer here..."
+                        )
+
+                        # Grade button for each short answer
+                        if st.button(f"📊 Get AI Feedback", key=f"grade_{q_key}"):
+                            if answer and answer.strip():
+                                with st.spinner("🤖 AI is grading your answer..."):
+                                    try:
+                                        # Initialize grading agent
+                                        grading_model = st.session_state.get('config', {}).get('student_mode', {}).get('grading_model', 'gpt-4.1-nano')
+                                        grader = GradingAgent(
+                                            client=st.session_state.get('client'),
+                                            model=grading_model
+                                        )
+
+                                        # Get context
+                                        meta = st.session_state.get('selected_curriculum', {}).get('data', {}).get('meta', {})
+                                        unit_content = unit.get('content', '')
+                                        unit_title = unit.get('title', 'Unknown')
+
+                                        # Grade the answer
+                                        result = grader.grade_answer(
+                                            question=q.get('question', ''),
+                                            student_answer=answer,
+                                            unit_title=unit_title,
+                                            lesson_content=unit_content,
+                                            subject=meta.get('subject', 'General'),
+                                            grade=meta.get('grade', 'K-12'),
+                                            criteria=q.get('criteria')
+                                        )
+
+                                        # Store result
+                                        grading_results = StateManager.get_state('grading_results', {})
+                                        grading_results[q_key] = result
+                                        StateManager.set_state('grading_results', grading_results)
+
+                                        # Award XP based on score
+                                        current_user = StateManager.get_state("current_user", None)
+                                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                                        progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+
+                                        xp_earned = int(result.score * 20)  # Up to 20 XP per short answer
+                                        if xp_earned > 0:
+                                            progress.add_xp(xp_earned)
+
+                                        # Record short answer for badge tracking
+                                        new_badges = progress.record_short_answer()
+                                        # Store badges for display after rerun
+                                        if new_badges:
+                                            StateManager.set_state('new_badges', new_badges)
+
+                                        st.rerun()
+
+                                    except Exception as e:
+                                        st.error(f"Grading error: {e}")
+                            else:
+                                st.warning("Please write an answer first!")
+
+                        # Display grading result if available
+                        grading_results = StateManager.get_state('grading_results', {})
+                        if q_key in grading_results:
+                            result = grading_results[q_key]
+
+                            # Score display with color coding
+                            score_pct = int(result.score * 100)
+                            if score_pct >= 80:
+                                st.success(f"🌟 Score: {score_pct}%")
+                            elif score_pct >= 60:
+                                st.info(f"👍 Score: {score_pct}%")
+                            else:
+                                st.warning(f"📚 Score: {score_pct}%")
+
+                            # Feedback
+                            st.markdown(f"**Feedback:** {result.feedback}")
+
+                            # Strengths and improvements in columns
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if result.strengths:
+                                    st.markdown("**✅ Strengths:**")
+                                    for s in result.strengths:
+                                        st.markdown(f"- {s}")
+                            with col2:
+                                if result.improvements:
+                                    st.markdown("**💡 To improve:**")
+                                    for imp in result.improvements:
+                                        st.markdown(f"- {imp}")
+
+                            # Model answer (expandable)
+                            if result.model_answer:
+                                with st.expander("📖 See example answer"):
+                                    st.markdown(result.model_answer)
+
+                            xp_earned = int(result.score * 20)
+                            if xp_earned > 0:
+                                st.caption(f"⭐ +{xp_earned} XP earned!")
+
+                        st.markdown("---")
+
+                # Reset button
+                if StateManager.get_state('quiz_submitted', False) or StateManager.get_state('grading_results', {}):
                     if st.button("🔄 Try Again"):
                         StateManager.set_state('quiz_submitted', False)
                         StateManager.set_state('quiz_answers', {})
+                        StateManager.set_state('grading_results', {})
                         st.rerun()
             else:
                 st.info("No quiz questions available.")
@@ -518,6 +721,15 @@ def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
             "role": "user",
             "content": user_input
         })
+
+        # Track tutor question for badge system
+        current_user = StateManager.get_state("current_user", None)
+        user_id = current_user.get("id") if isinstance(current_user, dict) else None
+        if st.session_state.get('last_curriculum_id'):
+            progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
+            new_badges = progress.record_tutor_question()
+            if new_badges:
+                StateManager.set_state('new_badges', new_badges)
 
         # Get tutor response
         with st.spinner("🤔 Let me think about that..."):
