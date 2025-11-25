@@ -73,6 +73,8 @@ from services.curriculum_service import CurriculumService, CurriculumValidator
 from services.export_service import CurriculumExporter
 from services.session_service import SessionManager, QuizManager, InputValidator
 from services.batch_service import BatchManager
+from services.user_service import UserService
+from version import get_version_display, VERSION
 
 # Import modern UI components
 from src.ui_components import ModernUI, ThemeManager, LayoutHelpers
@@ -560,8 +562,35 @@ StateManager.update_state('current_mode', current_mode)
 
 st.sidebar.markdown("---")
 
-# If student mode, show student interface and stop
+# Initialize user service and current user state
+if "user_service" not in st.session_state:
+    StateManager.set_state("user_service", UserService())
+if "current_user" not in st.session_state:
+    StateManager.set_state("current_user", None)
+
+# If student mode, show login + student interface and stop
 if current_mode == 'student':
+    st.sidebar.markdown("### 👤 Student Login")
+    username = st.sidebar.text_input("Your name", key="student_username")
+
+    if st.sidebar.button("Login / Continue", use_container_width=True):
+        if username and username.strip():
+            try:
+                user_service: UserService = StateManager.get_state("user_service")
+                user = user_service.authenticate(username.strip())
+                StateManager.set_state("current_user", user)
+            except Exception as e:
+                st.sidebar.error(f"Login failed: {e}")
+        else:
+            st.sidebar.warning("Please enter a name to continue.")
+
+    current_user = StateManager.get_state("current_user", None)
+    if not current_user:
+        st.info("Enter your name in the sidebar to start learning in Student Mode.")
+        st.stop()
+
+    st.sidebar.markdown(f"Logged in as **{current_user['username']}**")
+
     from src.student_mode.student_ui import render_student_mode
     render_student_mode(config, client)
     st.stop()
@@ -2623,3 +2652,17 @@ with tab5:
                                 st.rerun()
 
 # Initialize agents when needed (done in the agentic_framework.py now)
+
+# =============================================================================
+# VERSION FOOTER - Always displayed at the bottom of the page
+# =============================================================================
+st.markdown("---")
+st.markdown(
+    f"""
+    <div style="text-align: center; color: #888; font-size: 0.85rem; padding: 1rem 0;">
+        <strong>InstaSchool</strong> {get_version_display()}<br>
+        <span style="font-size: 0.75rem;">AI-Powered Curriculum Generator</span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)

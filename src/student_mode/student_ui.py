@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from .progress_manager import StudentProgress
 from src.tutor_agent import TutorAgent
+from src.state_manager import StateManager
 
 
 def render_student_mode(config: Dict[str, Any], client: Any):
@@ -65,8 +66,14 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     curriculum = selected_curriculum['data']
     curriculum_id = selected_curriculum['id']
     
+    # Determine current user (if any) for per-student progress
+    current_user = StateManager.get_state("current_user", None)
+    user_id: Optional[str] = None
+    if isinstance(current_user, dict):
+        user_id = current_user.get("id")
+    
     # Initialize progress tracker
-    progress = StudentProgress(curriculum_id)
+    progress = StudentProgress(curriculum_id, user_id=user_id)
 
     # Initialize tutor if enabled
     tutor_enabled = config.get('student_mode', {}).get('tutor_enabled', True)
@@ -372,12 +379,17 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                     total_questions = len(questions)
                     if correct_count == total_questions:
                         st.success(f"🌟 Perfect score! {correct_count}/{total_questions} correct!")
-                        progress = StudentProgress(st.session_state.last_curriculum_id)
+                        # Award bonus XP, respecting current user context
+                        current_user = StateManager.get_state("current_user", None)
+                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                        progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
                         progress.add_xp(50)
                         st.info("🎁 Bonus: +50 XP for perfect score!")
                     elif correct_count > 0:
                         st.info(f"📊 You got {correct_count}/{total_questions} correct!")
-                        progress = StudentProgress(st.session_state.last_curriculum_id)
+                        current_user = StateManager.get_state("current_user", None)
+                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                        progress = StudentProgress(st.session_state.last_curriculum_id, user_id=user_id)
                         progress.add_xp(10)
                         st.info("⭐ +10 XP for completing the quiz!")
                     else:
