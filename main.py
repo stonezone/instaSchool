@@ -79,7 +79,8 @@ from services.provider_service import AIProviderService
 from version import get_version_display, VERSION
 
 # Import modern UI components
-from src.ui_components import ModernUI, ThemeManager, LayoutHelpers, StatusLogger
+from src.ui_components import ModernUI, ThemeManager, LayoutHelpers, StatusLogger, FamilyDashboard
+from services.family_service import get_family_service
 
 # Import model detector for dynamic model detection
 from src.model_detector import get_available_models, get_fallback_models, get_recommended_models
@@ -1033,7 +1034,7 @@ StateManager.set_state("is_mobile", mobile_mode)
 is_mobile = mobile_mode
 
 # --- Main Area Tabs ---
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch", "📊 Analytics"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch", "📊 Analytics", "👨‍👩‍👧‍👦 Family"])
 
 with tab1:
     # Modern section header
@@ -3055,6 +3056,162 @@ with tab6:
         st.error(f"Error loading analytics: {e}")
         if logger:
             logger.log_error(error=e, context="Analytics Dashboard")
+
+# =============================================================================
+# TAB 7: FAMILY DASHBOARD
+# =============================================================================
+with tab7:
+    st.markdown("## 👨‍👩‍👧‍👦 Family Dashboard")
+    st.markdown("Overview of all children's learning progress")
+
+    try:
+        # Get family service
+        family_service = get_family_service()
+
+        # Sub-tabs for family features
+        family_tab1, family_tab2, family_tab3 = st.tabs(["📊 Overview", "➕ Manage Children", "📄 Reports"])
+
+        with family_tab1:
+            # Get family summary data
+            family_data = family_service.get_family_summary()
+            FamilyDashboard.render_dashboard(family_data)
+
+        with family_tab2:
+            st.markdown("### 👧👦 Manage Children")
+
+            # Show existing children
+            children = family_service.get_all_children()
+            if children:
+                st.markdown("#### Current Profiles")
+                for child in children:
+                    col1, col2, col3 = st.columns([3, 1, 1])
+                    with col1:
+                        pin_icon = "🔐" if child.get("has_pin") else "🔓"
+                        st.markdown(f"**{child.get('username')}** {pin_icon}")
+                    with col2:
+                        st.markdown(f"⭐ {child.get('total_xp', 0):,} XP")
+                    with col3:
+                        # View details button
+                        if st.button("📊 Details", key=f"details_{child.get('username')}"):
+                            user = family_service.db.get_user_by_username(child.get("username"))
+                            if user:
+                                summary = family_service.get_child_summary(user["id"])
+                                st.session_state.selected_child_summary = summary
+
+                st.markdown("---")
+
+            # Show selected child details
+            if hasattr(st.session_state, 'selected_child_summary') and st.session_state.selected_child_summary:
+                summary = st.session_state.selected_child_summary
+                st.markdown(f"#### {summary.get('username')}'s Progress")
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("🔥 Streak", f"{summary.get('current_streak', 0)} days")
+                with col2:
+                    st.metric("⭐ Total XP", f"{summary.get('total_xp', 0):,}")
+                with col3:
+                    st.metric("📚 Due Cards", summary.get("due_cards", 0))
+
+                # Curriculum progress
+                curricula = family_service.get_child_curricula_progress(summary.get("user_id"))
+                if curricula:
+                    st.markdown("##### Curricula Progress")
+                    for c in curricula:
+                        st.progress(
+                            c.get("progress_percent", 0) / 100,
+                            text=f"{c.get('title', 'Unknown')} - {c.get('progress_percent', 0)}%"
+                        )
+
+                if st.button("Close Details"):
+                    st.session_state.selected_child_summary = None
+                    st.rerun()
+
+                st.markdown("---")
+
+            # Add new child form
+            new_child = FamilyDashboard.render_add_child_form()
+            if new_child:
+                try:
+                    from services.user_service import UserService
+                    user_service = UserService()
+                    result, status = user_service.create_user(
+                        username=new_child["username"],
+                        pin=new_child.get("pin")
+                    )
+                    if status in ["created", "success"]:
+                        st.success(f"✅ Created profile for {new_child['username']}")
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to create profile: {status}")
+                except Exception as e:
+                    st.error(f"Error creating profile: {e}")
+
+        with family_tab3:
+            st.markdown("### 📄 Progress Reports")
+
+            # Report type selection
+            report_type = st.radio(
+                "Report Type",
+                ["Family Summary", "Individual Child"],
+                horizontal=True
+            )
+
+            if report_type == "Individual Child":
+                children = family_service.get_all_children()
+                if children:
+                    child_names = [c.get("username") for c in children]
+                    selected_child = st.selectbox("Select Child", child_names)
+                else:
+                    st.info("No children profiles found.")
+                    selected_child = None
+            else:
+                selected_child = None
+
+            if st.button("📊 Generate Report", use_container_width=True):
+                with st.spinner("Generating report..."):
+                    if selected_child:
+                        user = family_service.db.get_user_by_username(selected_child)
+                        if user:
+                            report = family_service.generate_weekly_report(user["id"])
+                        else:
+                            report = None
+                    else:
+                        report = family_service.generate_weekly_report()
+
+                    if report:
+                        st.markdown("#### Report Preview")
+
+                        if report.get("type") == "family":
+                            st.markdown(f"**Family Summary** - {report.get('period')}")
+                            st.markdown(f"Generated: {report.get('generated_at', '')[:19]}")
+
+                            totals = report.get("totals", {})
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Total XP", f"{totals.get('total_xp', 0):,}")
+                            with col2:
+                                st.metric("Curricula", totals.get("total_curricula", 0))
+                            with col3:
+                                st.metric("Active Today", totals.get("active_today", 0))
+
+                            for child in report.get("children", []):
+                                st.markdown(f"**{child.get('username')}**: Level {child.get('level', 0)}, {child.get('current_streak', 0)} day streak")
+
+                        else:
+                            st.markdown(f"**{report.get('user')}** - {report.get('period')}")
+                            summary = report.get("summary", {})
+                            st.markdown(f"- XP: {summary.get('total_xp', 0):,}")
+                            st.markdown(f"- Streak: {summary.get('current_streak', 0)} days")
+                            st.markdown(f"- Due Cards: {summary.get('due_cards', 0)}")
+
+                        # TODO: Add PDF export for reports in Phase 2.3
+                        st.info("📄 PDF export coming soon!")
+
+    except Exception as e:
+        st.error(f"Error loading family dashboard: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 
 # Initialize agents when needed (done in the agentic_framework.py now)
 

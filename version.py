@@ -8,11 +8,25 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.9.5"
-VERSION_NAME = "UI/UX Foundation"
+VERSION = "1.0.0"
+VERSION_NAME = "Family Dashboard"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.0.0": {
+        "date": "2025-11-26",
+        "name": "Family Dashboard",
+        "changes": [
+            "Multi-child Family Dashboard for parent overview",
+            "FamilyService for aggregating family-wide learning data",
+            "Child progress cards with streak, XP, due reviews",
+            "Family totals summary (total XP, sections, active today)",
+            "Child management: add new profiles from dashboard",
+            "Weekly progress reports (preview with PDF coming soon)",
+            "Individual and family-wide report generation",
+            "New tab structure: 7 tabs including Family tab",
+        ]
+    },
     "0.9.5": {
         "date": "2025-11-26",
         "name": "UI/UX Foundation",
