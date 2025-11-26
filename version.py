@@ -8,11 +8,24 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.9.0"
-VERSION_NAME = "Multi-Provider AI"
+VERSION = "0.9.1"
+VERSION_NAME = "SQLite Database"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.9.1": {
+        "date": "2025-11-25",
+        "name": "SQLite Database",
+        "changes": [
+            "SQLite database service for local-first data storage",
+            "Automatic JSON-to-SQLite migration for existing users",
+            "Database tables: users, curricula, progress, review_items",
+            "Thread-safe database operations with context managers",
+            "User service refactored to use DatabaseService",
+            "Database backup/export functionality",
+            "Ready for Phase 1: Spaced Repetition System (SRS)",
+        ]
+    },
     "0.9.0": {
         "date": "2025-11-25",
         "name": "Multi-Provider AI",

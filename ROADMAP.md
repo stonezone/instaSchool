@@ -460,8 +460,8 @@ To keep scope manageable:
 - [ ] Add Kimi K2 provider configuration
 - [ ] Test Kimi K2 with existing agents
 - [ ] Implement provider switcher UI
-- [ ] Migrate JSON → SQLite
-- [ ] Add database backup/export
+- [x] **Migrate JSON → SQLite** ✓ (Complete: database_service.py)
+- [x] **Add database backup/export** ✓ (Complete: backup_database method)
 - [ ] Create pip package structure
 - [ ] Write installation docs
 
