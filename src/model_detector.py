@@ -118,11 +118,15 @@ def get_available_models(
         
         # Filter for text models - ONLY cheap variants (mini, nano)
         # Expensive models (gpt-4o, gpt-4-turbo, o1, o3) excluded to save costs
+        # GPT 3.x REMOVED - outdated
         # Use Kimi or DeepSeek for heavy text generation instead
-        cheap_text_patterns = ['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4-mini', 'nano']
+        cheap_text_patterns = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5-mini', 'gpt-4-mini', 'nano']
+        # Exclude 3.x models explicitly
+        exclude_patterns = ['gpt-3', 'gpt-3.5']
         text_models = [
             m for m in all_models
             if any(pattern in m.lower() for pattern in cheap_text_patterns)
+            and not any(excl in m.lower() for excl in exclude_patterns)
         ]
         
         # Filter for image models (DALL-E, GPT-Image series)
@@ -171,10 +175,10 @@ def get_fallback_models(config: Optional[Dict] = None) -> Dict[str, List[str]]:
     """
     if config is None:
         # Return hardcoded fallbacks - cheap OpenAI models only
-        # Use Kimi/DeepSeek for main text generation to save costs
+        # GPT 3.x REMOVED - Use Kimi/DeepSeek for main text generation
         return {
-            'text_models': ['gpt-4o-mini', 'gpt-3.5-turbo'],
-            'image_models': ['dall-e-3', 'dall-e-2']
+            'text_models': ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5-mini'],
+            'image_models': ['dall-e-3', 'dall-e-2', 'gpt-image-1']
         }
     
     # Extract from config

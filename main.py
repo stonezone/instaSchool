@@ -1233,116 +1233,118 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
         # Show summary
         st.caption(f"📊 Orchestrator: {orchestrator_provider} | Workers: {worker_provider}")
 
-# Advanced Settings Section  
+# Advanced Settings Section
 with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
-    # Get available models from detection or fallback to config
-    if st.session_state.available_models:
-        available_text_models = st.session_state.available_models.get('text_models', [])
-        available_image_models = st.session_state.available_models.get('image_models', [])
-    else:
-        # Fallback to config
-        fallback_models = get_fallback_models(config)
-        available_text_models = fallback_models['text_models']
-        available_image_models = fallback_models['image_models']
-    
-    # Show detection status if there was an error
-    if st.session_state.model_detection_error:
-        st.warning(f"⚠️ Using fallback models (API detection failed)")
-        with st.expander("Detection Error Details"):
-            st.code(st.session_state.model_detection_error)
-    
+    # Get current provider to show its models
+    current_provider = StateManager.get_state("current_provider", "kimi")
+
+    # Get models from the selected provider (not always OpenAI!)
+    available_text_models = provider_service.get_text_models(current_provider)
+
+    # Show provider name
+    provider_display = provider_names.get(current_provider, current_provider)
+    st.caption(f"📍 Showing models for: **{provider_display}**")
+
+    # Fallback if no models defined for provider
+    if not available_text_models:
+        st.warning(f"No models defined for {provider_display}")
+        available_text_models = ["default"]
+
     # Main model selection (for orchestration)
-    # Get default or first available
-    default_text_model = config["defaults"].get("text_model", "gpt-4o")
+    default_text_model = provider_service.get_model_for_task(current_provider, "main")
     if default_text_model not in available_text_models and available_text_models:
         default_text_model = available_text_models[0]
-    
+
     text_model_index = available_text_models.index(default_text_model) if default_text_model in available_text_models else 0
-    
+
     text_model = st.selectbox(
-        "Main AI Model (Orchestrator)", 
+        "Main AI Model (Orchestrator)",
         options=available_text_models,
-        index=text_model_index, 
-        help="Select the primary model for planning and coordination. GPT-4 variants recommended for best quality."
+        index=text_model_index,
+        help=f"Select the primary {provider_display} model for planning and coordination.",
+        key="main_model_select"
     )
-    
+
     # Worker model selection (for content generation)
-    default_worker_model = config["defaults"].get("worker_model", "gpt-4o-mini")
+    default_worker_model = provider_service.get_model_for_task(current_provider, "worker")
     if default_worker_model not in available_text_models and available_text_models:
-        # Try to find a mini model
-        mini_models = [m for m in available_text_models if 'mini' in m.lower()]
-        default_worker_model = mini_models[0] if mini_models else available_text_models[0]
-    
+        default_worker_model = available_text_models[0]
+
     worker_model_index = available_text_models.index(default_worker_model) if default_worker_model in available_text_models else 0
-    
+
     worker_model = st.selectbox(
-        "Worker AI Model (Content)", 
+        "Worker AI Model (Content)",
         options=available_text_models,
-        index=worker_model_index, 
-        help="Model for content generation. Use mini models for cost efficiency."
+        index=worker_model_index,
+        help=f"Select the {provider_display} model for content generation.",
+        key="worker_model_select"
     )
     
-    # Show cost estimation (using defaults for now, will update after user selections)
-    cost_estimate = estimate_curriculum_cost(
-        text_model, worker_model, 
-        num_units=4,  # Typical curriculum size
-        include_quizzes=config["defaults"]["include_quizzes"],
-        include_summary=config["defaults"]["include_summary"],
-        include_resources=config["defaults"]["include_resources"]
-    )
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        orch_info = get_model_info(text_model)
-        st.caption(f"Orchestrator: {orch_info['relative_cost']}")
-    with col2:
-        worker_info = get_model_info(worker_model)
-        st.caption(f"Worker: {worker_info['relative_cost']}")
-    
-    st.info(f"💰 Estimated cost: ${cost_estimate['total']:.2f} per curriculum")
-    
-    if cost_estimate['savings_vs_full']['percent'] > 0:
-        st.success(f"💸 Saving {cost_estimate['savings_vs_full']['percent']:.0f}% vs full model!")
-    
-    # Get available image models from config
-    # Image models were already fetched in the available_image_models variable above
-    # No need to get from config again - they're already set
-    
-    # Get default or first available image model
-    default_image_model = config["defaults"].get("image_model", "dall-e-3")
-    if default_image_model not in available_image_models and available_image_models:
-        default_image_model = available_image_models[0]
+    # Show cost info based on provider tier
+    cost_tier = provider_service.get_cost_tier(current_provider)
+    if cost_tier == "free":
+        st.success(f"✨ **FREE** - {provider_display} has no API costs!")
+    elif cost_tier == "cheap":
+        st.info(f"💵 **Low Cost** - {provider_display} is very affordable")
+    else:
+        # Show cost estimation for paid providers
+        cost_estimate = estimate_curriculum_cost(
+            text_model, worker_model,
+            num_units=4,
+            include_quizzes=config["defaults"]["include_quizzes"],
+            include_summary=config["defaults"]["include_summary"],
+            include_resources=config["defaults"]["include_resources"]
+        )
+        st.warning(f"💰 Estimated: ${cost_estimate['total']:.2f} per curriculum")
 
-    image_model_index = available_image_models.index(default_image_model) if default_image_model in available_image_models else 0
+    st.markdown("---")
+    st.markdown("**🖼️ Image Generation**")
 
-    # Debug - log available models to stderr
-    sys.stderr.write(f"Available image models: {available_image_models}\n")
+    # Image models - only OpenAI supports images
+    available_image_models = provider_service.get_image_models("openai")
 
-    # Image model selection with explicit options
-    image_model = st.selectbox(
-        "Image Model",
-        options=available_image_models,
-        index=image_model_index,
-        help="Select the model for generating images. DALL-E 3 recommended for best quality."
-    )
+    if not provider_service.supports_images(current_provider):
+        st.caption(f"⚠️ {provider_display} doesn't support images. Using OpenAI for images.")
+
+    if available_image_models:
+        default_image_model = "dall-e-3"
+        if default_image_model not in available_image_models:
+            default_image_model = available_image_models[0]
+
+        image_model_index = available_image_models.index(default_image_model) if default_image_model in available_image_models else 0
+
+        image_model = st.selectbox(
+            "Image Model (OpenAI)",
+            options=available_image_models,
+            index=image_model_index,
+            help="Images always use OpenAI. DALL-E 3 recommended.",
+            key="image_model_select"
+        )
+    else:
+        st.warning("⚠️ OpenAI API key required for image generation")
+        image_model = None
     
     # Add image size selection based on the chosen model
-    col1, col2 = st.columns(2)
-    with col1:
-        # Dynamically get valid sizes for selected model
-        image_sizes = image_generator.get_available_sizes(image_model)
-        default_size = image_generator.default_sizes.get(image_model, "1024x1024")
-        
-        # Size selection dropdown
-        image_size = st.selectbox(
-            "Image Size", 
-            options=image_sizes,
-            index=image_sizes.index(default_size) if default_size in image_sizes else 0,
-            help="Select the size for generated images. Larger sizes may produce more detailed images."
-        )
-    
-    # Store the selected size in session state for later use
-    StateManager.set_state("image_size", image_size)
+    if image_model:
+        col1, col2 = st.columns(2)
+        with col1:
+            # Dynamically get valid sizes for selected model
+            image_sizes = image_generator.get_available_sizes(image_model)
+            default_size = image_generator.default_sizes.get(image_model, "1024x1024")
+
+            # Size selection dropdown
+            image_size = st.selectbox(
+                "Image Size",
+                options=image_sizes,
+                index=image_sizes.index(default_size) if default_size in image_sizes else 0,
+                help="Select the size for generated images.",
+                key="image_size_select"
+            )
+
+        # Store the selected size in session state for later use
+        StateManager.set_state("image_size", image_size)
+    else:
+        image_size = "1024x1024"  # Default fallback
     
 # Content Settings Section
 with st.sidebar.expander("📝 **Content Settings**", expanded=False):

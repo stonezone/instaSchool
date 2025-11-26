@@ -11,7 +11,7 @@ from openai import OpenAI
 class AIProviderService:
     """Manages multiple AI provider configurations and provides unified client access"""
 
-    # Provider configurations
+    # Provider configurations with full model lists
     PROVIDERS = {
         "openai": {
             "base_url": "https://api.openai.com/v1",
@@ -25,7 +25,13 @@ class AIProviderService:
                 "main": "gpt-4o-mini",
                 "worker": "gpt-4o-mini",
                 "image": "dall-e-3"
-            }
+            },
+            # Available text models (cheap only - use Kimi/DeepSeek for main work)
+            "text_models": ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5-mini"],
+            # Available image models
+            "image_models": ["dall-e-3", "dall-e-2", "gpt-image-1"],
+            "supports_images": True,
+            "cost_tier": "paid"
         },
         "kimi": {
             "base_url": "https://api.moonshot.cn/v1",
@@ -38,7 +44,11 @@ class AIProviderService:
                 "main": "kimi-k2-0905-preview",
                 "worker": "kimi-k2-0905-preview",
                 "image": None  # Kimi doesn't support image generation
-            }
+            },
+            "text_models": ["kimi-k2-0905-preview", "moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+            "image_models": [],
+            "supports_images": False,
+            "cost_tier": "free"
         },
         "deepseek": {
             "base_url": "https://api.deepseek.com/v1",
@@ -51,7 +61,11 @@ class AIProviderService:
                 "main": "deepseek-chat",
                 "worker": "deepseek-chat",
                 "image": None  # DeepSeek doesn't support image generation
-            }
+            },
+            "text_models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+            "image_models": [],
+            "supports_images": False,
+            "cost_tier": "cheap"
         },
         "ollama": {
             "base_url": "http://localhost:11434/v1",
@@ -64,7 +78,11 @@ class AIProviderService:
                 "main": "llama3.1",
                 "worker": "llama3.1",
                 "image": None
-            }
+            },
+            "text_models": ["llama3.1", "llama3.2", "mistral", "codellama", "phi3"],
+            "image_models": [],
+            "supports_images": False,
+            "cost_tier": "free"
         }
     }
 
@@ -330,6 +348,74 @@ class AIProviderService:
             info["api_key_env"] = provider_config["api_key_env"]
 
         return info
+
+    def get_text_models(self, provider: Optional[str] = None) -> List[str]:
+        """Get available text models for a provider
+
+        Args:
+            provider: Provider name, uses default if None
+
+        Returns:
+            List of text model names
+        """
+        if provider is None:
+            provider = self.get_default_provider()
+
+        if provider not in self.PROVIDERS:
+            return []
+
+        return self.PROVIDERS[provider].get("text_models", [])
+
+    def get_image_models(self, provider: Optional[str] = None) -> List[str]:
+        """Get available image models for a provider
+
+        Args:
+            provider: Provider name, uses default if None
+
+        Returns:
+            List of image model names (empty if provider doesn't support images)
+        """
+        if provider is None:
+            provider = self.get_default_provider()
+
+        if provider not in self.PROVIDERS:
+            return []
+
+        return self.PROVIDERS[provider].get("image_models", [])
+
+    def supports_images(self, provider: Optional[str] = None) -> bool:
+        """Check if a provider supports image generation
+
+        Args:
+            provider: Provider name, uses default if None
+
+        Returns:
+            True if provider supports image generation
+        """
+        if provider is None:
+            provider = self.get_default_provider()
+
+        if provider not in self.PROVIDERS:
+            return False
+
+        return self.PROVIDERS[provider].get("supports_images", False)
+
+    def get_cost_tier(self, provider: Optional[str] = None) -> str:
+        """Get cost tier for a provider
+
+        Args:
+            provider: Provider name, uses default if None
+
+        Returns:
+            Cost tier: 'free', 'cheap', or 'paid'
+        """
+        if provider is None:
+            provider = self.get_default_provider()
+
+        if provider not in self.PROVIDERS:
+            return "unknown"
+
+        return self.PROVIDERS[provider].get("cost_tier", "unknown")
 
     def list_all_providers(self) -> Dict[str, Dict[str, Any]]:
         """Get information about all configured providers
