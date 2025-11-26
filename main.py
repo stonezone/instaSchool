@@ -81,6 +81,7 @@ from version import get_version_display, VERSION
 # Import modern UI components
 from src.ui_components import ModernUI, ThemeManager, LayoutHelpers, StatusLogger, FamilyDashboard
 from services.family_service import get_family_service
+from services.report_service import get_report_service
 
 # Import model detector for dynamic model detection
 from src.model_detector import get_available_models, get_fallback_models, get_recommended_models
@@ -3205,8 +3206,27 @@ with tab7:
                             st.markdown(f"- Streak: {summary.get('current_streak', 0)} days")
                             st.markdown(f"- Due Cards: {summary.get('due_cards', 0)}")
 
-                        # TODO: Add PDF export for reports in Phase 2.3
-                        st.info("📄 PDF export coming soon!")
+                        # Generate PDF report
+                        st.markdown("---")
+                        st.markdown("#### Download Report")
+                        try:
+                            report_service = get_report_service()
+                            if selected_child:
+                                pdf_bytes = report_service.generate_child_report(user["id"])
+                                filename = f"{selected_child}_progress_report.pdf"
+                            else:
+                                pdf_bytes = report_service.generate_family_report()
+                                filename = "family_progress_report.pdf"
+
+                            st.download_button(
+                                label="📥 Download PDF Report",
+                                data=pdf_bytes,
+                                file_name=filename,
+                                mime="application/pdf",
+                                use_container_width=True
+                            )
+                        except Exception as e:
+                            st.error(f"Error generating PDF: {e}")
 
     except Exception as e:
         st.error(f"Error loading family dashboard: {e}")

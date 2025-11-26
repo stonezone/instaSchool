@@ -8,11 +8,24 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.0.0"
-VERSION_NAME = "Family Dashboard"
+VERSION = "1.0.1"
+VERSION_NAME = "Progress Reports"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.0.1": {
+        "date": "2025-11-26",
+        "name": "Progress Reports",
+        "changes": [
+            "PDF Progress Report generation using fpdf2",
+            "ReportService for generating child and family reports",
+            "Beautiful PDF layout with progress bars and stat boxes",
+            "Downloadable PDF reports from Family Dashboard",
+            "Individual child reports with curriculum breakdown",
+            "Family-wide reports with all children's progress",
+            "Personalized recommendations in family reports",
+        ]
+    },
     "1.0.0": {
         "date": "2025-11-26",
         "name": "Family Dashboard",
