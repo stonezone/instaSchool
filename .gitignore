@@ -13,7 +13,6 @@ eggs/
 lib/
 lib64/
 parts/
-archived_docs/
 sdist/
 var/
 wheels/
@@ -36,16 +35,29 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Project specific
+# Environment & Secrets
 .env
 .claude/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Archive (development docs, tests, old code)
+archive/
+
+# User Data (local only, not committed)
 *.db
 logs/
 cache/
-backups/
 curricula/
 exports/
-audio/
+users/
+batches/
+batch_status/
 
-# Streamlit (only ignore secrets, allow config.toml for theme settings)
-.streamlit/secrets.toml
+# Test artifacts
+test_*/
+.pytest_cache/
+
+# Serena AI assistant
+.serena/
