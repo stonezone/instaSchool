@@ -8,11 +8,25 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.0.1"
-VERSION_NAME = "Progress Reports"
+VERSION = "1.0.2"
+VERSION_NAME = "Curriculum Customization"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.0.2": {
+        "date": "2025-11-26",
+        "name": "Curriculum Customization",
+        "changes": [
+            "Parent Controls panel in View & Edit tab",
+            "Content depth selector (brief/standard/deep)",
+            "Supplemental resources management with add/remove",
+            "Per-unit Skip functionality to hide units from students",
+            "Per-unit Flag for Review before showing to students",
+            "Custom parent notes per unit",
+            "Visual indicators for skipped/flagged units",
+            "CustomizationService with database persistence",
+        ]
+    },
     "1.0.1": {
         "date": "2025-11-26",
         "name": "Progress Reports",

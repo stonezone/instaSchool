@@ -82,6 +82,7 @@ from version import get_version_display, VERSION
 from src.ui_components import ModernUI, ThemeManager, LayoutHelpers, StatusLogger, FamilyDashboard
 from services.family_service import get_family_service
 from services.report_service import get_report_service
+from services.customization_service import get_customization_service, CustomizationService
 
 # Import model detector for dynamic model detection
 from src.model_detector import get_available_models, get_fallback_models, get_recommended_models
@@ -1546,6 +1547,62 @@ with tab2:
         st.markdown(f"#### {metadata.get('subject', 'Subject')} Curriculum - Grade {metadata.get('grade', 'Grade')}")
         st.caption(f"Style: {metadata.get('style', 'Standard')} | Language: {metadata.get('language', 'English')} | Generated: {metadata.get('generated', 'N/A')}")
 
+        # Get curriculum ID for customization
+        curriculum_id = metadata.get('id', f"{metadata.get('subject', '')}_{metadata.get('grade', '')}")
+        customization_service = get_customization_service()
+        customization = customization_service.get_customization(curriculum_id)
+
+        # Parent Controls Expander
+        with st.expander("🎛️ Parent Controls", expanded=False):
+            st.markdown("##### Content Depth")
+            st.caption("Adjust how detailed the content presentation is")
+
+            depth_options = CustomizationService.CONTENT_DEPTHS
+            depth_descriptions = CustomizationService.DEPTH_DESCRIPTIONS
+            current_depth_idx = depth_options.index(customization.content_depth) if customization.content_depth in depth_options else 1
+
+            selected_depth = st.selectbox(
+                "Depth Level",
+                options=depth_options,
+                index=current_depth_idx,
+                format_func=lambda x: f"{x.title()} - {depth_descriptions.get(x, '')}",
+                key="curriculum_depth_selector"
+            )
+
+            if selected_depth != customization.content_depth:
+                customization_service.set_content_depth(curriculum_id, selected_depth)
+                st.success(f"Content depth set to: {selected_depth}")
+
+            st.markdown("---")
+            st.markdown("##### Supplemental Resources")
+            st.caption("Add extra learning materials for this curriculum")
+
+            # Display existing resources
+            if customization.supplemental_resources:
+                for res_idx, resource in enumerate(customization.supplemental_resources):
+                    res_col1, res_col2 = st.columns([4, 1])
+                    with res_col1:
+                        st.markdown(f"📚 [{resource.get('title', 'Resource')}]({resource.get('url', '#')})")
+                        if resource.get('description'):
+                            st.caption(resource.get('description'))
+                    with res_col2:
+                        if st.button("🗑️", key=f"remove_res_{res_idx}"):
+                            customization_service.remove_supplemental_resource(curriculum_id, res_idx)
+                            st.rerun()
+
+            # Add new resource form
+            with st.form(key="add_resource_form"):
+                res_title = st.text_input("Resource Title", key="new_res_title")
+                res_url = st.text_input("URL", key="new_res_url")
+                res_desc = st.text_input("Description (optional)", key="new_res_desc")
+                if st.form_submit_button("➕ Add Resource"):
+                    if res_title and res_url:
+                        customization_service.add_supplemental_resource(curriculum_id, res_title, res_url, res_desc)
+                        st.success(f"Added: {res_title}")
+                        st.rerun()
+                    else:
+                        st.warning("Please provide a title and URL")
+
         # Edit Mode Toggle
         edit_mode = st.checkbox("Enable Edit Mode", value=st.session_state.edit_mode, key="edit_mode_toggle")
         StateManager.set_state("edit_mode", edit_mode)
@@ -1560,8 +1617,78 @@ with tab2:
             unit_title = unit.get('title', f'Untitled')
             
             # Don't display any media warnings in the title
-            with st.expander(f"Unit {i+1}: {unit_title}", expanded=(i==0)): # Expand first unit by default
+            # Check if unit is skipped
+            is_skipped = customization_service.is_unit_skipped(curriculum_id, i)
+            is_flagged = customization_service.is_unit_flagged(curriculum_id, i)
+            unit_note = customization_service.get_unit_note(curriculum_id, i)
+
+            # Build expander title with indicators
+            expander_title = f"Unit {i+1}: {unit_title}"
+            if is_skipped:
+                expander_title = f"⏭️ {expander_title} (Skipped)"
+            if is_flagged:
+                expander_title = f"🚩 {expander_title}" if not is_skipped else expander_title.replace("⏭️", "🚩⏭️")
+
+            with st.expander(expander_title, expanded=(i==0 and not is_skipped)): # Expand first non-skipped unit
                 st.markdown(f"#### Unit {i+1}: {unit_title}")
+
+                # Unit customization controls in a horizontal layout
+                ctrl_col1, ctrl_col2, ctrl_col3 = st.columns(3)
+                with ctrl_col1:
+                    skip_btn_label = "✅ Unskip" if is_skipped else "⏭️ Skip Unit"
+                    if st.button(skip_btn_label, key=f"skip_unit_{i}", use_container_width=True):
+                        if is_skipped:
+                            customization_service.unskip_unit(curriculum_id, i)
+                        else:
+                            customization_service.skip_unit(curriculum_id, i)
+                        st.rerun()
+
+                with ctrl_col2:
+                    flag_btn_label = "✅ Unflag" if is_flagged else "🚩 Flag for Review"
+                    if st.button(flag_btn_label, key=f"flag_unit_{i}", use_container_width=True):
+                        if is_flagged:
+                            customization_service.unflag_unit(curriculum_id, i)
+                        else:
+                            customization_service.flag_unit(curriculum_id, i)
+                        st.rerun()
+
+                with ctrl_col3:
+                    if st.button("📝 Add Note" if not unit_note else "📝 Edit Note", key=f"note_btn_{i}", use_container_width=True):
+                        StateManager.set_state(f"show_note_form_{i}", True)
+
+                # Show note form if toggled
+                if StateManager.get_state(f"show_note_form_{i}", False):
+                    with st.form(key=f"unit_note_form_{i}"):
+                        note_text = st.text_area("Parent Note", value=unit_note or "", key=f"note_input_{i}")
+                        note_col1, note_col2 = st.columns(2)
+                        with note_col1:
+                            if st.form_submit_button("💾 Save Note"):
+                                if note_text.strip():
+                                    customization_service.add_unit_note(curriculum_id, i, note_text.strip())
+                                    st.success("Note saved!")
+                                else:
+                                    customization_service.remove_unit_note(curriculum_id, i)
+                                    st.info("Note removed")
+                                StateManager.set_state(f"show_note_form_{i}", False)
+                                st.rerun()
+                        with note_col2:
+                            if st.form_submit_button("❌ Cancel"):
+                                StateManager.set_state(f"show_note_form_{i}", False)
+                                st.rerun()
+
+                # Display existing note if present
+                if unit_note and not StateManager.get_state(f"show_note_form_{i}", False):
+                    st.info(f"📝 **Parent Note:** {unit_note}")
+
+                # Show skipped message prominently
+                if is_skipped:
+                    st.warning("⏭️ This unit is marked as skipped and will be hidden from students.")
+
+                # Show flagged message
+                if is_flagged:
+                    st.info("🚩 This unit is flagged for parent review before showing to students.")
+
+                st.markdown("---")
 
                 # --- Display Regeneration Status Messages ---
                 # Check for regeneration in progress (show spinner)
