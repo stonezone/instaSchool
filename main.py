@@ -79,7 +79,7 @@ from services.provider_service import AIProviderService
 from version import get_version_display, VERSION
 
 # Import modern UI components
-from src.ui_components import ModernUI, ThemeManager, LayoutHelpers
+from src.ui_components import ModernUI, ThemeManager, LayoutHelpers, StatusLogger
 
 # Import model detector for dynamic model detection
 from src.model_detector import get_available_models, get_fallback_models, get_recommended_models
@@ -1403,89 +1403,117 @@ with tab1:
 
         try:
             # Use the curriculum service to generate the curriculum
-            with st.spinner("Generating curriculum..."):
-                # Update progress as we go - Step 1: Planning
-                StateManager.update_state('progress', 0.2)
-                with progress_container.container():
-                    ModernUI.progress_steps(generation_steps, current_step=1)
-                    progress_bar.progress(st.session_state.progress, text="Planning curriculum structure...")
-                
-                # Use stored parameters from when generation started
-                params = st.session_state.generation_params
-                
-                # Check if generation has been cancelled
-                if not st.session_state.generating:
-                    progress_container.empty()
-                    st.warning("Generation cancelled.")
-                    StateManager.update_state('generating', False)
-                else:
-                    # Generate the curriculum using the service - Step 2: Content
-                    StateManager.update_state('progress', 0.3)
+            # Create status logger for detailed real-time feedback
+            status_container = st.container()
+
+            with status_container:
+                with StatusLogger(title="🚀 Generating Curriculum", expanded=True) as status_log:
+                    # Step 1: Initialization
+                    status_log.info(f"Subject: {subject_str}")
+                    status_log.info(f"Grade Level: {grade}")
+                    status_log.info(f"Style: {lesson_style}")
+                    status_log.progress("Initializing generation pipeline...")
+
+                    StateManager.update_state('progress', 0.2)
                     with progress_container.container():
-                        ModernUI.progress_steps(generation_steps, current_step=2)
-                        progress_bar.progress(st.session_state.progress, text="Generating outline and content...")
-                    
-                    # Generate curriculum based on service availability
-                    if st.session_state.curriculum_service:
-                        # Wrap API call with error handler
-                        curriculum = ErrorHandler.safe_api_call(
-                            st.session_state.curriculum_service.generate_curriculum,
-                            params
-                        )
-                    else:
-                        # Fallback to direct orchestrator call
-                        st.warning("Curriculum service not available, using direct generation...")
-                        curriculum = orchestrator.create_curriculum(
-                            subject_str,
-                            grade,
-                            lesson_style,
-                            language,
-                            custom_prompt,
-                            config
-                        )
-                    
+                        ModernUI.progress_steps(generation_steps, current_step=1)
+                        progress_bar.progress(st.session_state.progress, text="Planning curriculum structure...")
+
+                    # Use stored parameters from when generation started
+                    params = st.session_state.generation_params
+
                     # Check if generation has been cancelled
                     if not st.session_state.generating:
-                        progress_bar.empty()
+                        progress_container.empty()
                         st.warning("Generation cancelled.")
-                        StateManager.update_state("generating", False)
-                
-                # Update progress - Step 4: Finalizing
-                StateManager.update_state('progress', 0.9)
-                with progress_container.container():
-                    ModernUI.progress_steps(generation_steps, current_step=4)
-                    progress_bar.progress(st.session_state.progress, text="Finalizing curriculum...")
-                
-                # Check if curriculum was generated successfully
-                if curriculum is None:
-                    st.error("Failed to generate curriculum. Please check your settings and try again.")
-                    StateManager.update_state('generating', False)
-                elif curriculum.get("meta", {}).get("cancelled", False):
-                    # Display a message that generation was cancelled but show any partial results
-                    st.warning("Generation was cancelled. Partial results may be available in the 'View & Edit' tab.")
-                    # Still store what we have so far
-                    StateManager.update_state('curriculum', curriculum)
-                else:
-                    # Store in session state
-                    StateManager.update_state('curriculum', curriculum)
-                    
-                    # Generation complete - now clean up old temp files
-                    cleanup_tmp_files(current_tmp_files)
-                    StateManager.set_state('last_tmp_files', set())
-                    
-                    # Update progress to complete - Step 5: Complete
+                        StateManager.update_state('generating', False)
+                    else:
+                        # Step 2: Content Generation
+                        status_log.update_label("📋 Planning Structure")
+                        status_log.agent_start("Orchestrator Agent")
+                        status_log.progress("Creating curriculum outline...")
+
+                        StateManager.update_state('progress', 0.3)
+                        with progress_container.container():
+                            ModernUI.progress_steps(generation_steps, current_step=2)
+                            progress_bar.progress(st.session_state.progress, text="Generating outline and content...")
+
+                        # Generate curriculum based on service availability
+                        if st.session_state.curriculum_service:
+                            status_log.agent_start("Content Generation Service")
+                            status_log.progress("Generating unit content...")
+
+                            # Wrap API call with error handler
+                            curriculum = ErrorHandler.safe_api_call(
+                                st.session_state.curriculum_service.generate_curriculum,
+                                params
+                            )
+                            status_log.agent_complete("Content Service")
+                        else:
+                            # Fallback to direct orchestrator call
+                            status_log.warning("Curriculum service not available, using direct generation...")
+                            curriculum = orchestrator.create_curriculum(
+                                subject_str,
+                                grade,
+                                lesson_style,
+                                language,
+                                custom_prompt,
+                                config
+                            )
+
+                        # Check if generation has been cancelled
+                        if not st.session_state.generating:
+                            progress_bar.empty()
+                            st.warning("Generation cancelled.")
+                            StateManager.update_state("generating", False)
+
+                    # Step 4: Finalization
+                    status_log.update_label("✨ Finalizing Curriculum")
+                    status_log.progress("Assembling final curriculum...")
+
+                    StateManager.update_state('progress', 0.9)
                     with progress_container.container():
-                        ModernUI.progress_steps(generation_steps, current_step=5)
-                    StateManager.update_state("progress", 1.0)
-                    progress_bar.progress(1.0, text="Curriculum generation complete!")
-                    st.success("Curriculum generated successfully! View results in the 'View & Edit' tab.")
-                    time.sleep(1.5)
-                
-                # Always clean up the progress interface
-                progress_container.empty()
-                
-                # Reset generating flag
-                StateManager.update_state("generating", False)
+                        ModernUI.progress_steps(generation_steps, current_step=4)
+                        progress_bar.progress(st.session_state.progress, text="Finalizing curriculum...")
+
+                    # Check if curriculum was generated successfully
+                    if curriculum is None:
+                        status_log.error("Failed to generate curriculum")
+                        raise ValueError("Curriculum generation returned None")
+                    elif curriculum.get("meta", {}).get("cancelled", False):
+                        # Display a message that generation was cancelled
+                        status_log.warning("Generation was cancelled")
+                        StateManager.update_state('curriculum', curriculum)
+                    else:
+                        # Success! Log details
+                        units = curriculum.get("units", [])
+                        status_log.success(f"Generated {len(units)} units successfully!")
+                        status_log.info(f"Curriculum ID: {curriculum.get('meta', {}).get('id', 'N/A')[:8]}...")
+
+                        # Store in session state
+                        StateManager.update_state('curriculum', curriculum)
+
+                        # Generation complete - now clean up old temp files
+                        cleanup_tmp_files(current_tmp_files)
+                        StateManager.set_state('last_tmp_files', set())
+
+            # Update progress to complete - Step 5: Complete
+            with progress_container.container():
+                ModernUI.progress_steps(generation_steps, current_step=5)
+            StateManager.update_state("progress", 1.0)
+            progress_bar.progress(1.0, text="Curriculum generation complete!")
+
+            if curriculum and not curriculum.get("meta", {}).get("cancelled", False):
+                st.success("Curriculum generated successfully! View results in the 'View & Edit' tab.")
+            elif curriculum and curriculum.get("meta", {}).get("cancelled", False):
+                st.warning("Generation was cancelled. Partial results may be available in the 'View & Edit' tab.")
+            time.sleep(1.5)
+
+            # Always clean up the progress interface
+            progress_container.empty()
+
+            # Reset generating flag
+            StateManager.update_state("generating", False)
         
         except ValueError as e:
             # Handle validation errors specifically

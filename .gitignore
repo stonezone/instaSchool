@@ -46,5 +46,5 @@ curricula/
 exports/
 audio/
 
-# Streamlit
-.streamlit/
+# Streamlit (only ignore secrets, allow config.toml for theme settings)
+.streamlit/secrets.toml

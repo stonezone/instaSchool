@@ -1,5 +1,8 @@
 /* InstaSchool Design System */
 
+/* Google Fonts - Inter for modern, readable typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 /* CSS Variables for consistent theming */
 :root {
     /* Colors - Light Theme */
@@ -102,6 +105,23 @@
 .stApp[data-theme="dark"] {
     --card-bg: #1e1e2e;
     --border-color: #313244;
+}
+
+/* System preference fallback for dark mode */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --primary-50: #1e293b;
+        --primary-100: #334155;
+        --neutral-50: #0f172a;
+        --neutral-100: #1e293b;
+        --neutral-200: #334155;
+        --neutral-300: #475569;
+        --neutral-800: #f1f5f9;
+        --neutral-900: #ffffff;
+        --card-bg: #1e1e2e;
+        --border-color: #313244;
+        --hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
 }
 
 /* Global Styles */

@@ -8,11 +8,24 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.9.4"
-VERSION_NAME = "Cross-Provider & Fixes"
+VERSION = "0.9.5"
+VERSION_NAME = "UI/UX Foundation"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.9.5": {
+        "date": "2025-11-26",
+        "name": "UI/UX Foundation",
+        "changes": [
+            "Fixed font loading: Added Google Fonts import for Inter font",
+            "Created .streamlit/config.toml for native theme support",
+            "Fixed dark mode: Direct CSS injection for immediate effect",
+            "Added system prefers-color-scheme fallback for dark mode",
+            "Real-time generation logs with st.status() API",
+            "StatusLogger component for expandable generation feedback",
+            "Improved theme toggle UX with selectbox",
+        ]
+    },
     "0.9.4": {
         "date": "2025-11-26",
         "name": "Cross-Provider & Fixes",
