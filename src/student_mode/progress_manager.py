@@ -346,3 +346,67 @@ class StudentProgress:
         new_badges = self.check_and_award_badges()
 
         return False, new_badges
+
+    def record_quiz_score(self, unit_idx: int, score: float, total: int, correct: int) -> None:
+        """Record quiz score for a unit
+        
+        Args:
+            unit_idx: Unit index
+            score: Score as percentage (0.0 - 1.0)
+            total: Total questions
+            correct: Number correct
+        """
+        if 'quiz_scores' not in self.data:
+            self.data['quiz_scores'] = {}
+        self.data['quiz_scores'][str(unit_idx)] = {
+            'score': score,
+            'total': total,
+            'correct': correct,
+            'attempts': self.data['quiz_scores'].get(str(unit_idx), {}).get('attempts', 0) + 1,
+            'passed': score >= 0.8
+        }
+        self._save()
+
+    def get_quiz_score(self, unit_idx: int) -> Optional[Dict]:
+        """Get quiz score for a unit"""
+        return self.data.get('quiz_scores', {}).get(str(unit_idx))
+
+    def is_unit_mastered(self, unit_idx: int, threshold: float = 0.8) -> bool:
+        """Check if unit quiz meets mastery threshold"""
+        score_data = self.get_quiz_score(unit_idx)
+        if not score_data:
+            return False
+        return score_data.get('score', 0) >= threshold
+
+    def can_advance_from_section(self, section_idx: int, total_units: int) -> Tuple[bool, str]:
+        """Check if can advance from current section
+        
+        Returns:
+            (can_advance, reason_message)
+        """
+        unit_idx = section_idx // 6
+        section_in_unit = section_idx % 6
+        
+        # Quiz is section 4 in each unit (0-indexed)
+        # After quiz (section 4), check if mastered before allowing to summary (section 5)
+        if section_in_unit == 4:  # Just completed quiz
+            score_data = self.get_quiz_score(unit_idx)
+            
+            # If no quiz was taken yet, require completion
+            if not score_data:
+                return False, "Complete the quiz first!"
+            
+            # If quiz has 0 total questions, allow advancement (empty quiz edge case)
+            if score_data.get('total', 0) == 0:
+                return True, ""
+            
+            # Check mastery threshold
+            if not self.is_unit_mastered(unit_idx):
+                pct = int(score_data['score'] * 100)
+                return False, f"Score {pct}% - need 80% to continue. Review and try again!"
+        
+        return True, ""
+
+    def _save(self):
+        """Internal save method for quiz scores"""
+        self.save_progress()

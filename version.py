@@ -8,11 +8,22 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.9.2"
-VERSION_NAME = "Spaced Repetition"
+VERSION = "0.9.3"
+VERSION_NAME = "Mastery Gates"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.9.3": {
+        "date": "2025-11-25",
+        "name": "Mastery Gates",
+        "changes": [
+            "80% quiz score required to advance to next unit",
+            "Quiz score tracking with attempts count",
+            "Retry mechanism for failed quizzes",
+            "Parent override option for flexibility",
+            "Clear feedback on mastery requirements",
+        ]
+    },
     "0.9.2": {
         "date": "2025-11-25",
         "name": "Spaced Repetition",

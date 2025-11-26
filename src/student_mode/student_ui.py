@@ -305,6 +305,17 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     st.markdown("---")
     
     # Navigation buttons
+    # Store section_idx in state for quiz scoring
+    StateManager.set_state('current_section_idx', section_idx)
+    
+    # Check mastery gates for quiz sections
+    section_in_unit = section_idx % 6
+    can_advance = True
+    gate_message = ""
+
+    if section_in_unit == 4:  # Quiz section
+        can_advance, gate_message = progress.can_advance_from_section(section_idx, len(units))
+    
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col1:
@@ -314,30 +325,47 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                 st.rerun()
     
     with col2:
-        if st.button("✅ Complete & Continue", type="primary", use_container_width=True):
-            # Award XP
-            leveled_up = progress.add_xp(10)
+        if can_advance:
+            if st.button("✅ Complete & Continue", type="primary", use_container_width=True):
+                # Award XP
+                leveled_up = progress.add_xp(10)
 
-            # Mark section complete (updates streak and checks badges)
-            _, new_badges = progress.complete_section(section_idx)
-            progress.advance_section()
+                # Mark section complete (updates streak and checks badges)
+                _, new_badges = progress.complete_section(section_idx)
+                progress.advance_section()
 
-            if leveled_up:
-                st.success(f"🎉 Level Up! You're now Level {progress.get_level()}!")
-                st.balloons()
-            else:
-                st.success("+10 XP!")
+                if leveled_up:
+                    st.success(f"🎉 Level Up! You're now Level {progress.get_level()}!")
+                    st.balloons()
+                else:
+                    st.success("+10 XP!")
 
-            # Store new badges for display
-            if new_badges:
-                StateManager.set_state('new_badges', new_badges)
+                # Store new badges for display
+                if new_badges:
+                    StateManager.set_state('new_badges', new_badges)
 
-            st.rerun()
+                st.rerun()
+        else:
+            # Show locked state with mastery requirement
+            st.error(f"🔒 {gate_message}")
+            if st.button("🔄 Try Again", use_container_width=True, type="primary"):
+                # Reset quiz state to allow retry
+                StateManager.set_state('quiz_submitted', False)
+                StateManager.set_state('quiz_answers', {})
+                st.rerun()
     
     with col3:
-        if st.button("Skip ⏭️", use_container_width=True):
-            progress.advance_section()
-            st.rerun()
+        if not can_advance:
+            # Parent override - allow skip even if not mastered
+            with st.expander("👨‍👩‍👧 Parent"):
+                if st.button("Override & Skip", key="parent_override"):
+                    progress.complete_section(section_idx)
+                    progress.advance_section()
+                    st.rerun()
+        else:
+            if st.button("Skip ⏭️", use_container_width=True):
+                progress.advance_section()
+                st.rerun()
 
     # Add Tutor Chat Interface
     tutor_agent = StateManager.get_state('tutor_agent')
@@ -505,11 +533,23 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                                 st.error(f"❌ Question {i + 1}: Incorrect. The correct answer was: {correct_answer}")
 
                         total_mc = len(mc_questions)
+                        
+                        # Record quiz score for mastery tracking
+                        score_pct = correct_count / total_mc if total_mc > 0 else 0
+                        current_user = StateManager.get_state("current_user", None)
+                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                        curriculum_id = StateManager.get_state('last_curriculum_id')
+                        
+                        # Get unit_idx from section_idx
+                        section_idx = StateManager.get_state('current_section_idx', 0)
+                        unit_idx = section_idx // 6
+                        
+                        # Get progress instance and record score
+                        progress = StudentProgress(curriculum_id, user_id=user_id)
+                        progress.record_quiz_score(unit_idx, score_pct, total_mc, correct_count)
+                        
                         if correct_count == total_mc:
                             st.success(f"🌟 Perfect score! {correct_count}/{total_mc} correct!")
-                            current_user = StateManager.get_state("current_user", None)
-                            user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                            progress = StudentProgress(StateManager.get_state('last_curriculum_id'), user_id=user_id)
                             progress.add_xp(50)
                             # Record perfect quiz for badge tracking
                             new_badges = progress.record_perfect_quiz()
@@ -520,9 +560,6 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                                 st.success(f"🏆 **New Badge Earned!** {badge['icon']} {badge['name']} - {badge['description']}")
                         elif correct_count > 0:
                             st.info(f"📊 You got {correct_count}/{total_mc} correct!")
-                            current_user = StateManager.get_state("current_user", None)
-                            user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                            progress = StudentProgress(StateManager.get_state('last_curriculum_id'), user_id=user_id)
                             progress.add_xp(10)
                             st.info("⭐ +10 XP for completing the quiz!")
                         else:
