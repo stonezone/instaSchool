@@ -156,8 +156,39 @@ def render_student_mode(config: Dict[str, Any], client: Any):
             for badge in available:
                 st.caption(f"{badge['icon']} {badge['name']} - {badge['description']}")
 
+    # Daily Challenges (collapsible)
+    from services.challenge_service import get_challenge_service
+    challenge_service = get_challenge_service()
+    challenges = challenge_service.get_daily_challenges(user_id) if user_id else []
+    summary = challenge_service.get_today_summary(user_id) if user_id else {}
+
+    with st.sidebar.expander(f"🎯 Daily Challenges ({summary.get('completed', 0)}/{summary.get('total', 0)})", expanded=False):
+        if challenges:
+            for challenge in challenges:
+                icon = challenge.get('icon', '🎯')
+                name = challenge.get('name', 'Challenge')
+                progress_val = challenge.get('progress', 0)
+                target = challenge.get('target', 1)
+                xp = challenge.get('xp_reward', 0)
+                completed = challenge.get('completed', False)
+
+                if completed:
+                    st.markdown(f"~~{icon} **{name}**~~ ✅")
+                    st.caption(f"+{xp} XP earned!")
+                else:
+                    progress_pct = min(100, int((progress_val / target) * 100))
+                    st.markdown(f"{icon} **{name}**")
+                    st.progress(progress_pct / 100)
+                    st.caption(f"{progress_val}/{target} | +{xp} XP")
+                st.markdown("")
+
+            if summary.get('all_complete'):
+                st.success("🎉 All challenges complete!")
+        else:
+            st.caption("Complete tasks to earn XP!")
+
     st.sidebar.markdown("---")
-    
+
     # Review Queue section in sidebar
     db = DatabaseService()
     srs = SRSService(db)

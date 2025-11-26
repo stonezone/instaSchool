@@ -8,11 +8,26 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.0.2"
-VERSION_NAME = "Curriculum Customization"
+VERSION = "1.3.0"
+VERSION_NAME = "Engagement & Motivation"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.3.0": {
+        "date": "2025-11-26",
+        "name": "Engagement & Motivation",
+        "changes": [
+            "Daily Challenges system with XP rewards",
+            "10 different challenge types (review cards, units, quizzes, tutor questions)",
+            "Challenge progress tracking with visual indicators",
+            "Enhanced badge system with 30+ achievement badges",
+            "Subject-specific badges (Scientist, Mathematician, etc.)",
+            "Fun badges (Night Owl, Early Bird)",
+            "Printable PDF Certificates (completion, progress, custom)",
+            "Certificates tab in Family Dashboard",
+            "Daily challenge sidebar in student mode",
+        ]
+    },
     "1.0.2": {
         "date": "2025-11-26",
         "name": "Curriculum Customization",

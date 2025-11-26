@@ -6,7 +6,8 @@
             "icon": "🎯",
             "description": "Complete your first lesson section",
             "condition": {"type": "sections_completed", "value": 1},
-            "xp_bonus": 10
+            "xp_bonus": 10,
+            "category": "learning"
         },
         {
             "id": "quick_learner",
@@ -14,7 +15,8 @@
             "icon": "⚡",
             "description": "Complete 5 lesson sections",
             "condition": {"type": "sections_completed", "value": 5},
-            "xp_bonus": 25
+            "xp_bonus": 25,
+            "category": "learning"
         },
         {
             "id": "knowledge_seeker",
@@ -22,7 +24,17 @@
             "icon": "📚",
             "description": "Complete 20 lesson sections",
             "condition": {"type": "sections_completed", "value": 20},
-            "xp_bonus": 100
+            "xp_bonus": 100,
+            "category": "learning"
+        },
+        {
+            "id": "bookworm",
+            "name": "Bookworm",
+            "icon": "📖",
+            "description": "Start 5 different curricula",
+            "condition": {"type": "curricula_started", "value": 5},
+            "xp_bonus": 75,
+            "category": "learning"
         },
         {
             "id": "perfect_score",
@@ -30,7 +42,8 @@
             "icon": "⭐",
             "description": "Get 100% on any quiz",
             "condition": {"type": "perfect_quiz", "value": 1},
-            "xp_bonus": 50
+            "xp_bonus": 50,
+            "category": "learning"
         },
         {
             "id": "quiz_master",
@@ -38,7 +51,8 @@
             "icon": "🏆",
             "description": "Get 5 perfect quiz scores",
             "condition": {"type": "perfect_quiz", "value": 5},
-            "xp_bonus": 150
+            "xp_bonus": 150,
+            "category": "learning"
         },
         {
             "id": "curriculum_complete",
@@ -46,7 +60,17 @@
             "icon": "🎓",
             "description": "Complete an entire curriculum",
             "condition": {"type": "curricula_completed", "value": 1},
-            "xp_bonus": 200
+            "xp_bonus": 200,
+            "category": "learning"
+        },
+        {
+            "id": "master",
+            "name": "Master",
+            "icon": "👑",
+            "description": "Complete a curriculum with 100% mastery",
+            "condition": {"type": "curricula_mastered", "value": 1},
+            "xp_bonus": 300,
+            "category": "learning"
         },
         {
             "id": "multi_graduate",
@@ -54,7 +78,8 @@
             "icon": "🎖️",
             "description": "Complete 3 different curricula",
             "condition": {"type": "curricula_completed", "value": 3},
-            "xp_bonus": 500
+            "xp_bonus": 500,
+            "category": "learning"
         },
         {
             "id": "xp_century",
@@ -62,7 +87,8 @@
             "icon": "💯",
             "description": "Earn 100 total XP",
             "condition": {"type": "total_xp", "value": 100},
-            "xp_bonus": 20
+            "xp_bonus": 20,
+            "category": "xp"
         },
         {
             "id": "xp_thousand",
@@ -70,7 +96,8 @@
             "icon": "💰",
             "description": "Earn 1000 total XP",
             "condition": {"type": "total_xp", "value": 1000},
-            "xp_bonus": 100
+            "xp_bonus": 100,
+            "category": "xp"
         },
         {
             "id": "level_5",
@@ -78,7 +105,8 @@
             "icon": "🌟",
             "description": "Reach Level 5",
             "condition": {"type": "level", "value": 5},
-            "xp_bonus": 50
+            "xp_bonus": 50,
+            "category": "xp"
         },
         {
             "id": "level_10",
@@ -86,7 +114,8 @@
             "icon": "🔥",
             "description": "Reach Level 10",
             "condition": {"type": "level", "value": 10},
-            "xp_bonus": 200
+            "xp_bonus": 200,
+            "category": "xp"
         },
         {
             "id": "curious_mind",
@@ -94,7 +123,8 @@
             "icon": "🤔",
             "description": "Ask the AI tutor 10 questions",
             "condition": {"type": "tutor_questions", "value": 10},
-            "xp_bonus": 30
+            "xp_bonus": 30,
+            "category": "engagement"
         },
         {
             "id": "deep_thinker",
@@ -102,7 +132,8 @@
             "icon": "🧠",
             "description": "Submit 5 short-answer responses",
             "condition": {"type": "short_answers", "value": 5},
-            "xp_bonus": 50
+            "xp_bonus": 50,
+            "category": "engagement"
         },
         {
             "id": "streak_3",
@@ -110,7 +141,8 @@
             "icon": "🔥",
             "description": "Study 3 days in a row",
             "condition": {"type": "streak_days", "value": 3},
-            "xp_bonus": 30
+            "xp_bonus": 30,
+            "category": "streak"
         },
         {
             "id": "streak_7",
@@ -118,7 +150,125 @@
             "icon": "📅",
             "description": "Study 7 days in a row",
             "condition": {"type": "streak_days", "value": 7},
-            "xp_bonus": 100
+            "xp_bonus": 100,
+            "category": "streak"
+        },
+        {
+            "id": "on_fire",
+            "name": "On Fire",
+            "icon": "🔥",
+            "description": "Maintain a 7-day study streak",
+            "condition": {"type": "streak_days", "value": 7},
+            "xp_bonus": 100,
+            "category": "streak"
+        },
+        {
+            "id": "superstar",
+            "name": "Superstar",
+            "icon": "🌟",
+            "description": "Maintain a 30-day study streak",
+            "condition": {"type": "streak_days", "value": 30},
+            "xp_bonus": 500,
+            "category": "streak"
+        },
+        {
+            "id": "night_owl",
+            "name": "Night Owl",
+            "icon": "🦉",
+            "description": "Study after 8pm",
+            "condition": {"type": "study_time", "value": "night"},
+            "xp_bonus": 15,
+            "category": "fun"
+        },
+        {
+            "id": "early_bird",
+            "name": "Early Bird",
+            "icon": "🌅",
+            "description": "Study before 8am",
+            "condition": {"type": "study_time", "value": "morning"},
+            "xp_bonus": 15,
+            "category": "fun"
+        },
+        {
+            "id": "scientist",
+            "name": "Scientist",
+            "icon": "🔬",
+            "description": "Complete a Science curriculum",
+            "condition": {"type": "subject_completed", "value": "science"},
+            "xp_bonus": 100,
+            "category": "subject"
+        },
+        {
+            "id": "mathematician",
+            "name": "Mathematician",
+            "icon": "🔢",
+            "description": "Complete a Math curriculum",
+            "condition": {"type": "subject_completed", "value": "math"},
+            "xp_bonus": 100,
+            "category": "subject"
+        },
+        {
+            "id": "historian",
+            "name": "Historian",
+            "icon": "📜",
+            "description": "Complete a History curriculum",
+            "condition": {"type": "subject_completed", "value": "history"},
+            "xp_bonus": 100,
+            "category": "subject"
+        },
+        {
+            "id": "artist",
+            "name": "Artist",
+            "icon": "🎨",
+            "description": "Complete an Art curriculum",
+            "condition": {"type": "subject_completed", "value": "art"},
+            "xp_bonus": 100,
+            "category": "subject"
+        },
+        {
+            "id": "wordsmith",
+            "name": "Wordsmith",
+            "icon": "✍️",
+            "description": "Complete a Language Arts curriculum",
+            "condition": {"type": "subject_completed", "value": "language"},
+            "xp_bonus": 100,
+            "category": "subject"
+        },
+        {
+            "id": "review_champion",
+            "name": "Review Champion",
+            "icon": "🃏",
+            "description": "Complete 50 review cards",
+            "condition": {"type": "review_cards", "value": 50},
+            "xp_bonus": 50,
+            "category": "engagement"
+        },
+        {
+            "id": "memory_master",
+            "name": "Memory Master",
+            "icon": "🎴",
+            "description": "Complete 200 review cards",
+            "condition": {"type": "review_cards", "value": 200},
+            "xp_bonus": 150,
+            "category": "engagement"
+        },
+        {
+            "id": "challenge_champion",
+            "name": "Challenge Champion",
+            "icon": "🏅",
+            "description": "Complete 10 daily challenges",
+            "condition": {"type": "daily_challenges", "value": 10},
+            "xp_bonus": 75,
+            "category": "engagement"
+        },
+        {
+            "id": "challenge_master",
+            "name": "Challenge Master",
+            "icon": "🥇",
+            "description": "Complete 50 daily challenges",
+            "condition": {"type": "daily_challenges", "value": 50},
+            "xp_bonus": 200,
+            "category": "engagement"
         }
     ]
 }

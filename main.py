@@ -3197,7 +3197,7 @@ with tab7:
         family_service = get_family_service()
 
         # Sub-tabs for family features
-        family_tab1, family_tab2, family_tab3 = st.tabs(["📊 Overview", "➕ Manage Children", "📄 Reports"])
+        family_tab1, family_tab2, family_tab3, family_tab4 = st.tabs(["📊 Overview", "➕ Manage Children", "📄 Reports", "🏆 Certificates"])
 
         with family_tab1:
             # Get family summary data
@@ -3354,6 +3354,107 @@ with tab7:
                             )
                         except Exception as e:
                             st.error(f"Error generating PDF: {e}")
+
+        with family_tab4:
+            st.markdown("### 🏆 Achievement Certificates")
+            st.caption("Generate printable certificates to celebrate your children's achievements!")
+
+            from services.certificate_service import get_certificate_service
+            cert_service = get_certificate_service()
+
+            cert_type = st.radio(
+                "Certificate Type",
+                ["Curriculum Completion", "Progress Certificate", "Custom Certificate"],
+                horizontal=True
+            )
+
+            children = family_service.get_all_children()
+            if children:
+                child_names = [c.get("username") for c in children]
+                selected_child_cert = st.selectbox("Select Child", child_names, key="cert_child")
+            else:
+                st.info("No children profiles found. Add children first.")
+                selected_child_cert = None
+
+            if cert_type == "Curriculum Completion" and selected_child_cert:
+                user = family_service.db.get_user_by_username(selected_child_cert)
+                if user:
+                    curricula = family_service.get_child_curricula_progress(user["id"])
+                    completed = [c for c in curricula if c.get("progress_percent", 0) >= 100]
+
+                    if completed:
+                        curr_options = [c.get("title", "Unknown") for c in completed]
+                        selected_curr = st.selectbox("Select Completed Curriculum", curr_options)
+
+                        if st.button("🎓 Generate Completion Certificate", use_container_width=True):
+                            summary = family_service.get_child_summary(user["id"])
+                            curr_data = next((c for c in completed if c.get("title") == selected_curr), {})
+
+                            pdf_bytes = cert_service.generate_completion_certificate(
+                                student_name=selected_child_cert,
+                                curriculum_title=selected_curr,
+                                subject=curr_data.get("subject", ""),
+                                total_xp=summary.get("total_xp", 0),
+                                level=summary.get("level", 0)
+                            )
+
+                            st.download_button(
+                                label="📥 Download Certificate",
+                                data=pdf_bytes,
+                                file_name=f"{selected_child_cert}_{selected_curr}_certificate.pdf",
+                                mime="application/pdf",
+                                use_container_width=True
+                            )
+                    else:
+                        st.info("No completed curricula yet. Keep learning!")
+
+            elif cert_type == "Progress Certificate" and selected_child_cert:
+                user = family_service.db.get_user_by_username(selected_child_cert)
+                if user:
+                    period = st.text_input("Certificate Period", value=datetime.now().strftime("%B %Y"))
+                    summary = family_service.get_child_summary(user["id"])
+
+                    if st.button("📊 Generate Progress Certificate", use_container_width=True):
+                        pdf_bytes = cert_service.generate_progress_certificate(
+                            student_name=selected_child_cert,
+                            period=period,
+                            sections_completed=summary.get("total_sections_completed", 0),
+                            xp_earned=summary.get("total_xp", 0),
+                            streak_days=summary.get("current_streak", 0),
+                            quizzes_passed=summary.get("completed_curricula", 0)
+                        )
+
+                        st.download_button(
+                            label="📥 Download Certificate",
+                            data=pdf_bytes,
+                            file_name=f"{selected_child_cert}_progress_certificate.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+
+            elif cert_type == "Custom Certificate" and selected_child_cert:
+                st.markdown("#### Create Custom Certificate")
+                custom_title = st.text_input("Certificate Title", value="Certificate of Achievement")
+                custom_subtitle = st.text_input("Subtitle (optional)", value="")
+                custom_text = st.text_area("Main Text", value="For outstanding dedication to learning")
+                custom_footer = st.text_input("Footer (optional)", value="")
+
+                if st.button("✨ Generate Custom Certificate", use_container_width=True):
+                    pdf_bytes = cert_service.generate_custom_certificate(
+                        student_name=selected_child_cert,
+                        title=custom_title,
+                        main_text=custom_text,
+                        subtitle=custom_subtitle,
+                        footer_text=custom_footer
+                    )
+
+                    st.download_button(
+                        label="📥 Download Certificate",
+                        data=pdf_bytes,
+                        file_name=f"{selected_child_cert}_custom_certificate.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
 
     except Exception as e:
         st.error(f"Error loading family dashboard: {e}")
