@@ -8,11 +8,54 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.3.0"
-VERSION_NAME = "Engagement & Motivation"
+VERSION = "1.5.1"
+VERSION_NAME = "Deployment Ready"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.5.1": {
+        "date": "2025-11-26",
+        "name": "Deployment Ready",
+        "changes": [
+            "NEW: Password protection for app security (APP_PASSWORD env var)",
+            "Created .env_example template for easy deployment setup",
+            "Environment variable documentation for all API keys",
+            "Login page with glassmorphism styling",
+            "Session-based authentication persistence",
+            "Ready for cloud deployment (Streamlit Cloud, Railway, Render)",
+        ]
+    },
+    "1.5.0": {
+        "date": "2025-11-26",
+        "name": "Liquid Glass UI",
+        "changes": [
+            "NEW: Apple-inspired Liquid Glass design system",
+            "Glassmorphism effects with backdrop blur throughout UI",
+            "Subtle mesh gradient backgrounds (blue/purple/teal)",
+            "Modern pill-style tabs with glass effect",
+            "Refined typography with Inter font family",
+            "Smooth hover animations and transitions",
+            "Better dark mode with deep space aesthetic",
+            "Improved button styling with gradient and glow",
+            "Glass-styled forms, inputs, and cards",
+            "Enhanced sidebar with frosted glass effect",
+            "Fixed theme toggle to properly switch light/dark",
+        ]
+    },
+    "1.4.0": {
+        "date": "2025-11-26",
+        "name": "GUI Overhaul & Parent Mode",
+        "changes": [
+            "NEW: Dedicated Parent Mode with family-focused interface",
+            "Role-based mode switcher: Parent / Create / Student",
+            "Parent Dashboard with 4 tabs: Family Overview, Reports, Curricula, Settings",
+            "Beautiful empty state onboarding for new users",
+            "Streamlined teacher mode: reduced from 7 to 6 tabs",
+            "Family features moved from teacher to parent mode",
+            "Cleaner navigation and improved UX flow",
+            "Better separation of concerns between parent oversight and content creation",
+        ]
+    },
     "1.3.0": {
         "date": "2025-11-26",
         "name": "Engagement & Motivation",

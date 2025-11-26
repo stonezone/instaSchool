@@ -93,6 +93,65 @@ st.set_page_config(page_title="Curriculum Generator", page_icon=":books:", layou
 # Load modern UI design system
 ModernUI.load_css()
 
+# =============================================================================
+# PASSWORD PROTECTION (for deployment)
+# =============================================================================
+def check_password() -> bool:
+    """Check if user has entered the correct password.
+
+    Returns True if:
+    - APP_PASSWORD is not set (password protection disabled)
+    - User has already authenticated in this session
+    - User enters correct password
+    """
+    app_password = os.environ.get("APP_PASSWORD", "")
+
+    # If no password is set, allow access
+    if not app_password:
+        return True
+
+    # Check if already authenticated
+    if st.session_state.get("authenticated", False):
+        return True
+
+    # Show login form
+    st.markdown("""
+        <style>
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("## InstaSchool")
+        st.markdown("##### Enter password to continue")
+
+        with st.form("login_form"):
+            password = st.text_input("Password", type="password", key="login_password")
+            submitted = st.form_submit_button("Login", use_container_width=True)
+
+            if submitted:
+                if password == app_password:
+                    st.session_state["authenticated"] = True
+                    st.rerun()
+                else:
+                    st.error("Incorrect password")
+
+    return False
+
+# Check password before showing app
+if not check_password():
+    st.stop()
+
 # Mobile layout detection
 # Note: True JS-based detection requires streamlit-js-eval dependency
 # Instead, we provide a manual toggle and use CSS media query hints
@@ -612,17 +671,26 @@ orchestrator = OrchestratorAgent(
 )
 
 # ========================= UI Components =========================
-# Mode Selector - Teacher vs Student
+# Mode Selector - Parent/Teacher/Student
 st.sidebar.markdown("## 🎓 InstaSchool")
 st.sidebar.markdown("---")
 
-app_mode = st.sidebar.radio(
-    "Select Mode",
-    ["👨‍🏫 Teacher (Create & Edit)", "🎒 Student (Learn & Practice)"],
-    key="app_mode"
+# Role-based mode selector with better UX
+mode_options = {
+    "parent": "👨‍👩‍👧 Parent Dashboard",
+    "teacher": "👨‍🏫 Create & Manage",
+    "student": "🎒 Student Learning"
+}
+
+app_mode = st.sidebar.selectbox(
+    "Mode",
+    options=list(mode_options.keys()),
+    format_func=lambda x: mode_options[x],
+    key="app_mode",
+    help="Parent: Family overview & reports | Create: Build curricula | Student: Learn & practice"
 )
 
-current_mode = 'teacher' if 'Teacher' in app_mode else 'student'
+current_mode = app_mode
 StateManager.update_state('current_mode', current_mode)
 
 st.sidebar.markdown("---")
@@ -744,6 +812,217 @@ if current_mode == 'student':
 
     from src.student_mode.student_ui import render_student_mode
     render_student_mode(config, client)
+    st.stop()
+
+# ============================================================================
+# PARENT MODE - Family Dashboard & Reports
+# ============================================================================
+if current_mode == 'parent':
+    # Apply theme in parent mode (since teacher sidebar is skipped)
+    from src.ui_components import ThemeManager
+    if "theme" in st.session_state:
+        ThemeManager.apply_theme(st.session_state.theme)
+
+    st.markdown("# 👨‍👩‍👧 Parent Dashboard")
+
+    # Parent mode tabs - simplified view focused on oversight
+    parent_tab1, parent_tab2, parent_tab3, parent_tab4 = st.tabs([
+        "👨‍👩‍👧‍👦 Family Overview",
+        "📊 Reports & Certificates",
+        "📚 Curricula",
+        "⚙️ Settings"
+    ])
+
+    # Tab 1: Family Overview
+    with parent_tab1:
+        from src.ui_components import FamilyDashboard
+        from services.family_service import get_family_service
+        from services.user_service import UserService
+
+        family_service = get_family_service()
+        user_service = UserService()
+        children = user_service.list_users()
+
+        if not children:
+            # Empty state with onboarding
+            st.markdown("""
+            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; margin: 20px 0;">
+                <h1 style="font-size: 48px; margin-bottom: 10px;">👨‍👩‍👧‍👦</h1>
+                <h2 style="margin-bottom: 10px;">Welcome to InstaSchool!</h2>
+                <p style="opacity: 0.9; max-width: 400px; margin: 0 auto 20px;">
+                    Get started by adding your children's profiles. Each child gets their own
+                    personalized learning experience with progress tracking.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("### 🎯 Quick Start")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.info("**Step 1:** Add your children below")
+            with col2:
+                st.info("**Step 2:** Switch to Create mode to build curricula")
+            with col3:
+                st.info("**Step 3:** Children learn in Student mode")
+
+            st.markdown("---")
+            st.markdown("### ➕ Add Your First Child")
+            new_child_data = FamilyDashboard.render_add_child_form(
+                form_key="add_child_overview_form",
+                show_header=False
+            )
+            if new_child_data:
+                user_service.create_user(
+                    username=new_child_data["username"],
+                    pin=new_child_data.get("pin")
+                )
+                st.success(f"✅ Added {new_child_data['username']}!")
+                st.rerun()
+        else:
+            # Show family dashboard
+            family_data = family_service.get_family_summary()
+            FamilyDashboard.render_dashboard(family_data)
+
+    # Tab 2: Reports & Certificates
+    with parent_tab2:
+        from services.report_service import get_report_service
+        from services.certificate_service import get_certificate_service
+        from services.user_service import UserService
+
+        report_service = get_report_service()
+        cert_service = get_certificate_service()
+        user_service = UserService()
+        children = user_service.list_users()
+
+        if not children:
+            st.info("Add children in the Family Overview tab to generate reports.")
+        else:
+            report_col, cert_col = st.columns(2)
+
+            with report_col:
+                st.markdown("### 📊 Progress Reports")
+                selected_child = st.selectbox(
+                    "Select Child",
+                    options=["All Children"] + children,
+                    key="report_child_select"
+                )
+
+                if st.button("📥 Generate PDF Report", type="primary", key="gen_report"):
+                    with st.spinner("Generating report..."):
+                        if selected_child == "All Children":
+                            pdf_bytes = report_service.generate_family_report()
+                            filename = "family_report.pdf"
+                        else:
+                            pdf_bytes = report_service.generate_child_report(selected_child)
+                            filename = f"{selected_child}_report.pdf"
+
+                        st.download_button(
+                            "⬇️ Download Report",
+                            data=pdf_bytes,
+                            file_name=filename,
+                            mime="application/pdf"
+                        )
+
+            with cert_col:
+                st.markdown("### 🏆 Certificates")
+                cert_child = st.selectbox(
+                    "Select Child",
+                    options=children,
+                    key="cert_child_select"
+                )
+
+                cert_type = st.selectbox(
+                    "Certificate Type",
+                    ["Progress Certificate", "Custom Certificate"],
+                    key="cert_type"
+                )
+
+                if cert_type == "Custom Certificate":
+                    cert_title = st.text_input("Title", "Certificate of Achievement")
+                    cert_text = st.text_area("Main Text", "For outstanding effort in learning!")
+
+                if st.button("🎖️ Generate Certificate", type="secondary", key="gen_cert"):
+                    with st.spinner("Creating certificate..."):
+                        if cert_type == "Progress Certificate":
+                            user_data = user_service.get_user(cert_child) or {}
+                            pdf_bytes = cert_service.generate_progress_certificate(
+                                student_name=cert_child,
+                                period=datetime.now().strftime("%B %Y"),
+                                sections_completed=user_data.get('sections_completed', 0),
+                                xp_earned=user_data.get('xp', 0),
+                                streak_days=user_data.get('streak', 0),
+                                quizzes_passed=user_data.get('quizzes_passed', 0)
+                            )
+                        else:
+                            pdf_bytes = cert_service.generate_custom_certificate(
+                                student_name=cert_child,
+                                title=cert_title,
+                                main_text=cert_text
+                            )
+
+                        st.download_button(
+                            "⬇️ Download Certificate",
+                            data=pdf_bytes,
+                            file_name=f"{cert_child}_certificate.pdf",
+                            mime="application/pdf"
+                        )
+
+    # Tab 3: Curricula Overview
+    with parent_tab3:
+        st.markdown("### 📚 Available Curricula")
+        st.caption("View curricula created in Create mode. Switch to Create mode to add new ones.")
+
+        curricula_dir = Path("curricula")
+        if curricula_dir.exists():
+            json_files = list(curricula_dir.glob("*.json"))
+            if json_files:
+                for json_file in sorted(json_files, key=lambda x: x.stat().st_mtime, reverse=True)[:10]:
+                    try:
+                        with open(json_file) as f:
+                            data = json.load(f)
+                        title = data.get('title', json_file.stem)
+                        subject = data.get('subject', 'Unknown')
+                        units = len(data.get('units', []))
+
+                        with st.expander(f"📖 {title}"):
+                            st.write(f"**Subject:** {subject}")
+                            st.write(f"**Units:** {units}")
+                            st.write(f"**File:** {json_file.name}")
+                    except:
+                        pass
+            else:
+                st.info("No curricula created yet. Switch to Create mode to build your first curriculum!")
+        else:
+            st.info("No curricula created yet. Switch to Create mode to build your first curriculum!")
+
+    # Tab 4: Settings
+    with parent_tab4:
+        st.markdown("### ⚙️ Family Settings")
+
+        settings_col1, settings_col2 = st.columns(2)
+
+        with settings_col1:
+            st.markdown("#### 🎨 Appearance")
+            from src.ui_components import ThemeManager
+            ThemeManager.get_theme_toggle()
+
+        with settings_col2:
+            st.markdown("#### 👥 Manage Children")
+            from src.ui_components import FamilyDashboard
+            from services.user_service import UserService
+            settings_user_service = UserService()
+            new_child_settings = FamilyDashboard.render_add_child_form(
+                form_key="add_child_settings_form",
+                show_header=False
+            )
+            if new_child_settings:
+                settings_user_service.create_user(
+                    username=new_child_settings["username"],
+                    pin=new_child_settings.get("pin")
+                )
+                st.success(f"✅ Added {new_child_settings['username']}!")
+                st.rerun()
+
     st.stop()
 
 # Otherwise continue with teacher mode below...
@@ -1036,7 +1315,7 @@ StateManager.set_state("is_mobile", mobile_mode)
 is_mobile = mobile_mode
 
 # --- Main Area Tabs ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch", "📊 Analytics", "👨‍👩‍👧‍👦 Family"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["✨ Generate", "✏️ View & Edit", "📤 Export", "📋 Templates", "🔄 Batch", "📊 Analytics"])
 
 with tab1:
     # Modern section header
@@ -3184,282 +3463,6 @@ with tab6:
         st.error(f"Error loading analytics: {e}")
         if logger:
             logger.log_error(error=e, context="Analytics Dashboard")
-
-# =============================================================================
-# TAB 7: FAMILY DASHBOARD
-# =============================================================================
-with tab7:
-    st.markdown("## 👨‍👩‍👧‍👦 Family Dashboard")
-    st.markdown("Overview of all children's learning progress")
-
-    try:
-        # Get family service
-        family_service = get_family_service()
-
-        # Sub-tabs for family features
-        family_tab1, family_tab2, family_tab3, family_tab4 = st.tabs(["📊 Overview", "➕ Manage Children", "📄 Reports", "🏆 Certificates"])
-
-        with family_tab1:
-            # Get family summary data
-            family_data = family_service.get_family_summary()
-            FamilyDashboard.render_dashboard(family_data)
-
-        with family_tab2:
-            st.markdown("### 👧👦 Manage Children")
-
-            # Show existing children
-            children = family_service.get_all_children()
-            if children:
-                st.markdown("#### Current Profiles")
-                for child in children:
-                    col1, col2, col3 = st.columns([3, 1, 1])
-                    with col1:
-                        pin_icon = "🔐" if child.get("has_pin") else "🔓"
-                        st.markdown(f"**{child.get('username')}** {pin_icon}")
-                    with col2:
-                        st.markdown(f"⭐ {child.get('total_xp', 0):,} XP")
-                    with col3:
-                        # View details button
-                        if st.button("📊 Details", key=f"details_{child.get('username')}"):
-                            user = family_service.db.get_user_by_username(child.get("username"))
-                            if user:
-                                summary = family_service.get_child_summary(user["id"])
-                                st.session_state.selected_child_summary = summary
-
-                st.markdown("---")
-
-            # Show selected child details
-            if hasattr(st.session_state, 'selected_child_summary') and st.session_state.selected_child_summary:
-                summary = st.session_state.selected_child_summary
-                st.markdown(f"#### {summary.get('username')}'s Progress")
-
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("🔥 Streak", f"{summary.get('current_streak', 0)} days")
-                with col2:
-                    st.metric("⭐ Total XP", f"{summary.get('total_xp', 0):,}")
-                with col3:
-                    st.metric("📚 Due Cards", summary.get("due_cards", 0))
-
-                # Curriculum progress
-                curricula = family_service.get_child_curricula_progress(summary.get("user_id"))
-                if curricula:
-                    st.markdown("##### Curricula Progress")
-                    for c in curricula:
-                        st.progress(
-                            c.get("progress_percent", 0) / 100,
-                            text=f"{c.get('title', 'Unknown')} - {c.get('progress_percent', 0)}%"
-                        )
-
-                if st.button("Close Details"):
-                    st.session_state.selected_child_summary = None
-                    st.rerun()
-
-                st.markdown("---")
-
-            # Add new child form
-            new_child = FamilyDashboard.render_add_child_form()
-            if new_child:
-                try:
-                    from services.user_service import UserService
-                    user_service = UserService()
-                    result, status = user_service.create_user(
-                        username=new_child["username"],
-                        pin=new_child.get("pin")
-                    )
-                    if status in ["created", "success"]:
-                        st.success(f"✅ Created profile for {new_child['username']}")
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to create profile: {status}")
-                except Exception as e:
-                    st.error(f"Error creating profile: {e}")
-
-        with family_tab3:
-            st.markdown("### 📄 Progress Reports")
-
-            # Report type selection
-            report_type = st.radio(
-                "Report Type",
-                ["Family Summary", "Individual Child"],
-                horizontal=True
-            )
-
-            if report_type == "Individual Child":
-                children = family_service.get_all_children()
-                if children:
-                    child_names = [c.get("username") for c in children]
-                    selected_child = st.selectbox("Select Child", child_names)
-                else:
-                    st.info("No children profiles found.")
-                    selected_child = None
-            else:
-                selected_child = None
-
-            if st.button("📊 Generate Report", use_container_width=True):
-                with st.spinner("Generating report..."):
-                    if selected_child:
-                        user = family_service.db.get_user_by_username(selected_child)
-                        if user:
-                            report = family_service.generate_weekly_report(user["id"])
-                        else:
-                            report = None
-                    else:
-                        report = family_service.generate_weekly_report()
-
-                    if report:
-                        st.markdown("#### Report Preview")
-
-                        if report.get("type") == "family":
-                            st.markdown(f"**Family Summary** - {report.get('period')}")
-                            st.markdown(f"Generated: {report.get('generated_at', '')[:19]}")
-
-                            totals = report.get("totals", {})
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Total XP", f"{totals.get('total_xp', 0):,}")
-                            with col2:
-                                st.metric("Curricula", totals.get("total_curricula", 0))
-                            with col3:
-                                st.metric("Active Today", totals.get("active_today", 0))
-
-                            for child in report.get("children", []):
-                                st.markdown(f"**{child.get('username')}**: Level {child.get('level', 0)}, {child.get('current_streak', 0)} day streak")
-
-                        else:
-                            st.markdown(f"**{report.get('user')}** - {report.get('period')}")
-                            summary = report.get("summary", {})
-                            st.markdown(f"- XP: {summary.get('total_xp', 0):,}")
-                            st.markdown(f"- Streak: {summary.get('current_streak', 0)} days")
-                            st.markdown(f"- Due Cards: {summary.get('due_cards', 0)}")
-
-                        # Generate PDF report
-                        st.markdown("---")
-                        st.markdown("#### Download Report")
-                        try:
-                            report_service = get_report_service()
-                            if selected_child:
-                                pdf_bytes = report_service.generate_child_report(user["id"])
-                                filename = f"{selected_child}_progress_report.pdf"
-                            else:
-                                pdf_bytes = report_service.generate_family_report()
-                                filename = "family_progress_report.pdf"
-
-                            st.download_button(
-                                label="📥 Download PDF Report",
-                                data=pdf_bytes,
-                                file_name=filename,
-                                mime="application/pdf",
-                                use_container_width=True
-                            )
-                        except Exception as e:
-                            st.error(f"Error generating PDF: {e}")
-
-        with family_tab4:
-            st.markdown("### 🏆 Achievement Certificates")
-            st.caption("Generate printable certificates to celebrate your children's achievements!")
-
-            from services.certificate_service import get_certificate_service
-            cert_service = get_certificate_service()
-
-            cert_type = st.radio(
-                "Certificate Type",
-                ["Curriculum Completion", "Progress Certificate", "Custom Certificate"],
-                horizontal=True
-            )
-
-            children = family_service.get_all_children()
-            if children:
-                child_names = [c.get("username") for c in children]
-                selected_child_cert = st.selectbox("Select Child", child_names, key="cert_child")
-            else:
-                st.info("No children profiles found. Add children first.")
-                selected_child_cert = None
-
-            if cert_type == "Curriculum Completion" and selected_child_cert:
-                user = family_service.db.get_user_by_username(selected_child_cert)
-                if user:
-                    curricula = family_service.get_child_curricula_progress(user["id"])
-                    completed = [c for c in curricula if c.get("progress_percent", 0) >= 100]
-
-                    if completed:
-                        curr_options = [c.get("title", "Unknown") for c in completed]
-                        selected_curr = st.selectbox("Select Completed Curriculum", curr_options)
-
-                        if st.button("🎓 Generate Completion Certificate", use_container_width=True):
-                            summary = family_service.get_child_summary(user["id"])
-                            curr_data = next((c for c in completed if c.get("title") == selected_curr), {})
-
-                            pdf_bytes = cert_service.generate_completion_certificate(
-                                student_name=selected_child_cert,
-                                curriculum_title=selected_curr,
-                                subject=curr_data.get("subject", ""),
-                                total_xp=summary.get("total_xp", 0),
-                                level=summary.get("level", 0)
-                            )
-
-                            st.download_button(
-                                label="📥 Download Certificate",
-                                data=pdf_bytes,
-                                file_name=f"{selected_child_cert}_{selected_curr}_certificate.pdf",
-                                mime="application/pdf",
-                                use_container_width=True
-                            )
-                    else:
-                        st.info("No completed curricula yet. Keep learning!")
-
-            elif cert_type == "Progress Certificate" and selected_child_cert:
-                user = family_service.db.get_user_by_username(selected_child_cert)
-                if user:
-                    period = st.text_input("Certificate Period", value=datetime.now().strftime("%B %Y"))
-                    summary = family_service.get_child_summary(user["id"])
-
-                    if st.button("📊 Generate Progress Certificate", use_container_width=True):
-                        pdf_bytes = cert_service.generate_progress_certificate(
-                            student_name=selected_child_cert,
-                            period=period,
-                            sections_completed=summary.get("total_sections_completed", 0),
-                            xp_earned=summary.get("total_xp", 0),
-                            streak_days=summary.get("current_streak", 0),
-                            quizzes_passed=summary.get("completed_curricula", 0)
-                        )
-
-                        st.download_button(
-                            label="📥 Download Certificate",
-                            data=pdf_bytes,
-                            file_name=f"{selected_child_cert}_progress_certificate.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-
-            elif cert_type == "Custom Certificate" and selected_child_cert:
-                st.markdown("#### Create Custom Certificate")
-                custom_title = st.text_input("Certificate Title", value="Certificate of Achievement")
-                custom_subtitle = st.text_input("Subtitle (optional)", value="")
-                custom_text = st.text_area("Main Text", value="For outstanding dedication to learning")
-                custom_footer = st.text_input("Footer (optional)", value="")
-
-                if st.button("✨ Generate Custom Certificate", use_container_width=True):
-                    pdf_bytes = cert_service.generate_custom_certificate(
-                        student_name=selected_child_cert,
-                        title=custom_title,
-                        main_text=custom_text,
-                        subtitle=custom_subtitle,
-                        footer_text=custom_footer
-                    )
-
-                    st.download_button(
-                        label="📥 Download Certificate",
-                        data=pdf_bytes,
-                        file_name=f"{selected_child_cert}_custom_certificate.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-
-    except Exception as e:
-        st.error(f"Error loading family dashboard: {e}")
-        import traceback
-        st.code(traceback.format_exc())
 
 # Initialize agents when needed (done in the agentic_framework.py now)
 

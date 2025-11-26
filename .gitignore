@@ -39,6 +39,7 @@ Thumbs.db
 # Project specific
 .env
 .claude/
+*.db
 logs/
 cache/
 backups/

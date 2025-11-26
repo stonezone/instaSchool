@@ -334,40 +334,223 @@ class StatusLogger:
 
 
 class ThemeManager:
-    """Manage theme switching and dark/light mode"""
+    """Manage theme switching and dark/light mode - Apple Liquid Glass Style"""
 
-    # Dark theme CSS variables
-    DARK_THEME_CSS = """
-    <style>
+    # Light theme CSS - Glassmorphism with subtle mesh gradient
+    LIGHT_THEME_CSS = """
+    <style id="theme-light">
         :root, .stApp {
-            --primary-50: #1e293b !important;
-            --primary-100: #334155 !important;
-            --neutral-50: #0f172a !important;
-            --neutral-100: #1e293b !important;
-            --neutral-200: #334155 !important;
-            --neutral-300: #475569 !important;
-            --neutral-800: #f1f5f9 !important;
-            --neutral-900: #ffffff !important;
-            --card-bg: #1e1e2e !important;
-            --border-color: #313244 !important;
-            --hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+            --accent-primary: #007AFF !important;
+            --accent-primary-dark: #0055D4 !important;
+            --glass-bg: rgba(255, 255, 255, 0.72) !important;
+            --glass-bg-strong: rgba(255, 255, 255, 0.85) !important;
+            --glass-border: rgba(255, 255, 255, 0.5) !important;
+            --text-primary: #1C1C1E !important;
+            --text-secondary: #3C3C43 !important;
+            --text-tertiary: #8E8E93 !important;
+            --separator: rgba(60, 60, 67, 0.12) !important;
+            --surface-primary: #FFFFFF !important;
+            --bg-gradient: #F2F2F7 !important;
         }
         .stApp {
-            background-color: #0f172a !important;
-            color: #f1f5f9 !important;
+            background: #F2F2F7 !important;
+            background-image:
+                radial-gradient(ellipse at 20% 30%, rgba(0, 122, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(175, 82, 222, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 100%, rgba(90, 200, 250, 0.05) 0%, transparent 40%) !important;
+            background-attachment: fixed !important;
+            color: #1C1C1E !important;
         }
         .stApp [data-testid="stSidebar"] {
-            background-color: #1e293b !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(40px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.5) !important;
+        }
+        .stApp [data-testid="stSidebar"] > div {
+            background: transparent !important;
         }
         .stApp .stMarkdown, .stApp p, .stApp span, .stApp label {
-            color: #f1f5f9 !important;
+            color: #3C3C43 !important;
         }
         .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
-            color: #ffffff !important;
+            color: #1C1C1E !important;
         }
-        .stApp .stTextInput input, .stApp .stSelectbox select {
-            background-color: #334155 !important;
-            color: #f1f5f9 !important;
+        .stApp .stTextInput > div > div > input,
+        .stApp .stTextArea > div > div > textarea,
+        .stApp .stSelectbox > div > div {
+            background: rgba(255, 255, 255, 0.72) !important;
+            backdrop-filter: blur(8px) !important;
+            border: 1px solid rgba(60, 60, 67, 0.12) !important;
+            border-radius: 10px !important;
+            color: #1C1C1E !important;
+        }
+        .stApp .stButton > button {
+            background: linear-gradient(135deg, #007AFF 0%, #0055D4 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 122, 255, 0.3) !important;
+        }
+        .stApp .stButton > button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 122, 255, 0.4) !important;
+        }
+        .stApp .stTabs [data-baseweb="tab-list"] {
+            background: rgba(255, 255, 255, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border-radius: 20px !important;
+            padding: 4px !important;
+            border: 1px solid rgba(60, 60, 67, 0.12) !important;
+        }
+        .stApp .stTabs [data-baseweb="tab"] {
+            background: transparent !important;
+            border-radius: 14px !important;
+            color: #3C3C43 !important;
+        }
+        .stApp .stTabs [aria-selected="true"] {
+            background: #FFFFFF !important;
+            color: #007AFF !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+        }
+        .stApp .stTabs [data-baseweb="tab-highlight"],
+        .stApp .stTabs [data-baseweb="tab-border"] {
+            display: none !important;
+        }
+        .stApp .streamlit-expanderHeader {
+            background: rgba(255, 255, 255, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(60, 60, 67, 0.12) !important;
+            border-radius: 14px !important;
+            color: #1C1C1E !important;
+        }
+        .stApp [data-testid="stMetric"] {
+            background: rgba(255, 255, 255, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(60, 60, 67, 0.12) !important;
+            border-radius: 20px !important;
+            padding: 20px 24px !important;
+        }
+        .stApp [data-testid="stForm"] {
+            background: rgba(255, 255, 255, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(60, 60, 67, 0.12) !important;
+            border-radius: 20px !important;
+            padding: 24px !important;
+        }
+    </style>
+    """
+
+    # Dark theme CSS - Deep space with glass effects
+    DARK_THEME_CSS = """
+    <style id="theme-dark">
+        :root, .stApp {
+            --accent-primary: #0A84FF !important;
+            --accent-primary-dark: #0066CC !important;
+            --glass-bg: rgba(30, 30, 46, 0.72) !important;
+            --glass-bg-strong: rgba(30, 30, 46, 0.85) !important;
+            --glass-border: rgba(255, 255, 255, 0.1) !important;
+            --text-primary: #FFFFFF !important;
+            --text-secondary: #EBEBF5 !important;
+            --text-tertiary: #8E8E93 !important;
+            --separator: rgba(84, 84, 88, 0.65) !important;
+            --surface-primary: #1C1C1E !important;
+            --bg-gradient: #000000 !important;
+        }
+        .stApp {
+            background: #000000 !important;
+            background-image:
+                radial-gradient(ellipse at 20% 30%, rgba(10, 132, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(191, 90, 242, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 100%, rgba(100, 210, 255, 0.08) 0%, transparent 40%) !important;
+            background-attachment: fixed !important;
+            color: #FFFFFF !important;
+        }
+        .stApp [data-testid="stSidebar"] {
+            background: rgba(28, 28, 30, 0.85) !important;
+            backdrop-filter: blur(40px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        .stApp [data-testid="stSidebar"] > div {
+            background: transparent !important;
+        }
+        .stApp .stMarkdown, .stApp p, .stApp span, .stApp label {
+            color: #EBEBF5 !important;
+        }
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+            color: #FFFFFF !important;
+        }
+        .stApp .stTextInput > div > div > input,
+        .stApp .stTextArea > div > div > textarea,
+        .stApp .stSelectbox > div > div {
+            background: rgba(30, 30, 46, 0.72) !important;
+            backdrop-filter: blur(8px) !important;
+            border: 1px solid rgba(84, 84, 88, 0.65) !important;
+            border-radius: 10px !important;
+            color: #FFFFFF !important;
+        }
+        .stApp .stButton > button {
+            background: linear-gradient(135deg, #0A84FF 0%, #0066CC 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(10, 132, 255, 0.3) !important;
+        }
+        .stApp .stButton > button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(10, 132, 255, 0.4) !important;
+        }
+        .stApp .stTabs [data-baseweb="tab-list"] {
+            background: rgba(30, 30, 46, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border-radius: 20px !important;
+            padding: 4px !important;
+            border: 1px solid rgba(84, 84, 88, 0.65) !important;
+        }
+        .stApp .stTabs [data-baseweb="tab"] {
+            background: transparent !important;
+            border-radius: 14px !important;
+            color: #EBEBF5 !important;
+        }
+        .stApp .stTabs [aria-selected="true"] {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: #0A84FF !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+        }
+        .stApp .stTabs [data-baseweb="tab-highlight"],
+        .stApp .stTabs [data-baseweb="tab-border"] {
+            display: none !important;
+        }
+        .stApp .streamlit-expanderHeader {
+            background: rgba(30, 30, 46, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(84, 84, 88, 0.65) !important;
+            border-radius: 14px !important;
+            color: #FFFFFF !important;
+        }
+        .stApp [data-testid="stMetric"] {
+            background: rgba(30, 30, 46, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(84, 84, 88, 0.65) !important;
+            border-radius: 20px !important;
+            padding: 20px 24px !important;
+        }
+        .stApp [data-testid="stForm"] {
+            background: rgba(30, 30, 46, 0.72) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(84, 84, 88, 0.65) !important;
+            border-radius: 20px !important;
+            padding: 24px !important;
+        }
+        /* Dark mode specific fixes */
+        .stApp .stAlert {
+            background: rgba(30, 30, 46, 0.72) !important;
+            border: 1px solid rgba(84, 84, 88, 0.65) !important;
+        }
+        .stApp .streamlit-expanderContent {
+            background: rgba(30, 30, 46, 0.5) !important;
+            border-color: rgba(84, 84, 88, 0.65) !important;
         }
     </style>
     """
@@ -377,7 +560,8 @@ class ThemeManager:
         """Apply theme CSS directly for immediate effect"""
         if theme == "dark":
             st.markdown(ThemeManager.DARK_THEME_CSS, unsafe_allow_html=True)
-        # Light theme uses default CSS variables from design_system.css
+        else:
+            st.markdown(ThemeManager.LIGHT_THEME_CSS, unsafe_allow_html=True)
 
     @staticmethod
     def get_theme_toggle() -> str:
@@ -386,20 +570,18 @@ class ThemeManager:
             st.session_state.theme = "light"
 
         # Theme toggle with selectbox for cleaner UI
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            theme_choice = st.selectbox(
-                "🎨 Theme",
-                ["Light", "Dark"],
-                index=0 if st.session_state.theme == "light" else 1,
-                key="theme_selector",
-                label_visibility="collapsed"
-            )
+        theme_choice = st.selectbox(
+            "🎨 Theme",
+            ["Light", "Dark"],
+            index=0 if st.session_state.theme == "light" else 1,
+            key="theme_selector"
+        )
 
-        # Update theme
+        # Update theme and rerun if changed
         new_theme = "light" if theme_choice == "Light" else "dark"
         if new_theme != st.session_state.theme:
             st.session_state.theme = new_theme
+            st.rerun()
 
         # Apply theme CSS
         ThemeManager.apply_theme(new_theme)
@@ -577,15 +759,20 @@ class FamilyDashboard:
                         FamilyDashboard.render_child_card(children[i + j])
 
     @staticmethod
-    def render_add_child_form() -> Optional[Dict[str, Any]]:
+    def render_add_child_form(form_key: str = "add_child_form", show_header: bool = True) -> Optional[Dict[str, Any]]:
         """Render form to add a new child
+
+        Args:
+            form_key: Unique key for the form to avoid duplicates
+            show_header: Whether to show the "Add Child" header
 
         Returns:
             Dict with new child data if form submitted, None otherwise
         """
-        st.markdown("### ➕ Add Child")
+        if show_header:
+            st.markdown("### ➕ Add Child")
 
-        with st.form("add_child_form"):
+        with st.form(form_key):
             username = st.text_input(
                 "Child's Name",
                 placeholder="Enter name...",
