@@ -6,9 +6,12 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from .progress_manager import StudentProgress
+from .review_queue import render_review_queue
 from src.tutor_agent import TutorAgent
 from src.state_manager import StateManager
 from src.grading_agent import GradingAgent, GradingResult
+from services.database_service import DatabaseService
+from services.srs_service import SRSService
 
 
 def render_student_mode(config: Dict[str, Any], client: Any):
@@ -148,6 +151,17 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                 st.caption(f"{badge['icon']} {badge['name']} - {badge['description']}")
 
     st.sidebar.markdown("---")
+    
+    # Review Queue section in sidebar
+    db = DatabaseService()
+    srs = SRSService(db)
+    due_count = srs.get_due_count(user_id) if user_id else 0
+    
+    if st.sidebar.button(f"📚 Review Cards ({due_count} due)", use_container_width=True):
+        StateManager.set_state('student_view', 'review')
+        st.rerun()
+    
+    st.sidebar.markdown("---")
 
     # Check for new badges to display (from previous action)
     new_badges = StateManager.get_state('new_badges', [])
@@ -156,6 +170,23 @@ def render_student_mode(config: Dict[str, Any], client: Any):
             st.toast(f"🏆 New Badge: {badge['icon']} {badge['name']}!", icon="🎉")
         # Clear after displaying
         StateManager.set_state('new_badges', [])
+
+    # View mode: 'learn' or 'review'
+    current_view = StateManager.get_state('student_view', 'learn')
+    
+    if current_view == 'review':
+        if user_id:
+            db = DatabaseService()
+            render_review_queue(user_id, db)
+            if st.button("← Back to Learning"):
+                StateManager.set_state('student_view', 'learn')
+                st.rerun()
+        else:
+            st.warning("Please create a student profile to use the review queue.")
+            if st.button("← Back to Learning"):
+                StateManager.set_state('student_view', 'learn')
+                st.rerun()
+        return  # Don't show curriculum content
 
     # Main area - Header
     meta = curriculum.get('meta', {})

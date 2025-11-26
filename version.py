@@ -8,11 +8,23 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.9.1"
-VERSION_NAME = "SQLite Database"
+VERSION = "0.9.2"
+VERSION_NAME = "Spaced Repetition"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.9.2": {
+        "date": "2025-11-25",
+        "name": "Spaced Repetition",
+        "changes": [
+            "SM-2 spaced repetition algorithm for flashcard scheduling",
+            "SRS service with create/review/due cards functionality",
+            "Review Queue UI in student mode with quality buttons",
+            "Sidebar integration showing due card count",
+            "View switching between Learn and Review modes",
+            "Foundation for Phase 1 learning science features",
+        ]
+    },
     "0.9.1": {
         "date": "2025-11-25",
         "name": "SQLite Database",
