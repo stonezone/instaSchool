@@ -1,4 +1,33 @@
-# Python
+# =============================================================================
+# SECURITY - Secrets & Credentials (CRITICAL)
+# =============================================================================
+.env
+.env.*
+!.env_example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.toml
+*secret*
+*credential*
+*password*
+*.token
+api_key*
+apikey*
+auth.json
+credentials.json
+service_account*.json
+
+# =============================================================================
+# STREAMLIT
+# =============================================================================
+.streamlit/secrets.toml
+
+# =============================================================================
+# PYTHON
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -19,34 +48,54 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
 env/
 ENV/
+.venv/
+.conda/
+conda-env/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+pytest_cache/
+nosetests.xml
 
-# OS
-.DS_Store
-Thumbs.db
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
 
-# Environment & Secrets
-.env
-.claude/
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
 
-# Streamlit
-.streamlit/secrets.toml
-
-# Archive (development docs, tests, old code)
-archive/
-
-# User Data (local only, not committed)
+# =============================================================================
+# DATABASES & DATA
+# =============================================================================
 *.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+
+# =============================================================================
+# USER DATA & RUNTIME (Local only)
+# =============================================================================
 logs/
 cache/
 curricula/
@@ -54,10 +103,73 @@ exports/
 users/
 batches/
 batch_status/
+audio/
+temp/
+tmp/
+*.log
+*.bak
+*.backup
 
-# Test artifacts
+# =============================================================================
+# DEVELOPMENT & TESTING
+# =============================================================================
+archive/
 test_*/
-.pytest_cache/
+tests/
+*.test.py
+*_test.py
+debug/
+scratch/
+sandbox/
 
-# Serena AI assistant
+# =============================================================================
+# IDE & EDITORS
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.spyderproject
+.spyproject
+.ropeproject
+
+# =============================================================================
+# OS FILES
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# AI ASSISTANTS & TOOLS
+# =============================================================================
+.claude/
 .serena/
+.cursor/
+.aider*
+.continue/
+
+# =============================================================================
+# MISC
+# =============================================================================
+*.pid
+*.seed
+*.pid.lock
+.node_repl_history
+*.tgz
+*.gz
+*.zip
+*.tar
+*.rar
+.yarn-integrity
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
