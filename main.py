@@ -1165,7 +1165,10 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
     if selected_provider != current_provider:
         StateManager.set_state("current_provider", selected_provider)
         # Update the client
-        StateManager.set_state("client", provider_service.get_client(selected_provider))
+        new_client = provider_service.get_client(selected_provider)
+        StateManager.set_state("client", new_client)
+        # IMPORTANT: Also update curriculum_service with new client!
+        StateManager.set_state("curriculum_service", CurriculumService(new_client, config))
         st.rerun()
     
     # Show provider-specific info
@@ -1864,10 +1867,14 @@ with tab1:
             progress_bar.progress(1.0, text="Curriculum generation complete!")
 
             if curriculum and not curriculum.get("meta", {}).get("cancelled", False):
-                st.success("Curriculum generated successfully! View results in the 'View & Edit' tab.")
+                units = curriculum.get("units", [])
+                st.success(f"✅ **Curriculum generated!** {len(units)} units created. View in 'View & Edit' tab.")
+                st.balloons()
             elif curriculum and curriculum.get("meta", {}).get("cancelled", False):
-                st.warning("Generation was cancelled. Partial results may be available in the 'View & Edit' tab.")
-            time.sleep(1.5)
+                st.warning("⚠️ Generation was cancelled. Partial results may be available in 'View & Edit' tab.")
+            else:
+                st.error("❌ Generation failed. No curriculum was created. Check the logs for details.")
+            time.sleep(2)
 
             # Always clean up the progress interface
             progress_container.empty()

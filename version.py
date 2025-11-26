@@ -8,11 +8,24 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.5.2"
-VERSION_NAME = "Multi-Provider + Quickstart"
+VERSION = "1.5.3"
+VERSION_NAME = "Smart Provider Models"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.5.3": {
+        "date": "2025-11-26",
+        "name": "Smart Provider Models",
+        "changes": [
+            "Model dropdown now shows SELECTED PROVIDER's models (not always OpenAI)",
+            "REMOVED: GPT 3.x models (outdated)",
+            "ADDED: gpt-4.1-mini, gpt-4.1-nano, gpt-5-mini models",
+            "Provider cost tiers: FREE (Kimi), Low Cost (DeepSeek), Paid (OpenAI)",
+            "Image section clearly states OpenAI required for images",
+            "Fixed widget key conflicts in cross-provider mode",
+            "Enhanced Liquid Glass UI throughout site",
+        ]
+    },
     "1.5.2": {
         "date": "2025-11-26",
         "name": "Multi-Provider + Quickstart",
