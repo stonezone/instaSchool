@@ -152,6 +152,82 @@ def check_password() -> bool:
 if not check_password():
     st.stop()
 
+# =============================================================================
+# QUICKSTART GUIDE (for new users)
+# =============================================================================
+def show_quickstart_guide():
+    """Show quickstart overlay for new users"""
+    # Check if user has dismissed the guide
+    if st.session_state.get("quickstart_dismissed", False):
+        return False
+
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+            border-radius: 24px;
+            padding: 32px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        ">
+            <h2 style="text-align: center; margin-bottom: 8px;">🚀 Welcome to InstaSchool!</h2>
+            <p style="text-align: center; color: #64748b; margin-bottom: 24px;">
+                Create your first AI-powered curriculum in 60 seconds
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Step 1
+        st.markdown("### 1️⃣ Enter Your Topic")
+        st.markdown("In the **sidebar** on the left, type what you want to teach:")
+        st.code("Examples: Dinosaurs, Solar System, Fractions, World War II", language=None)
+
+        # Step 2
+        st.markdown("### 2️⃣ Configure the Basics")
+        st.markdown("""
+        | Setting | Recommendation |
+        |---------|---------------|
+        | **Grade Level** | Match your student's age |
+        | **Sections** | Start with **3-5** for a quick test |
+        | **Style** | Visual Learner works great |
+        """)
+
+        # Step 3
+        st.markdown("### 3️⃣ Click Generate!")
+        st.markdown("Hit the **🎓 Generate Curriculum** button and watch the AI create:")
+        st.success("✅ Lesson Content  ✅ Custom Illustrations  ✅ Quizzes  ✅ Learning Resources")
+
+        # Pro tip
+        st.info("💡 **Quick Test**: Try a 3-section curriculum on any topic. Takes ~2 minutes to generate. You can export to PDF, HTML, or Markdown!")
+
+        st.markdown("---")
+
+        # Dismiss buttons
+        if st.button("✨ Got it - Let's Create!", type="primary", use_container_width=True, key="quickstart_go"):
+            st.session_state["quickstart_dismissed"] = True
+            st.rerun()
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("⏭️ Skip (don't show again)", use_container_width=True, key="quickstart_never"):
+                st.session_state["quickstart_dismissed"] = True
+                st.session_state["quickstart_never_show"] = True
+                st.rerun()
+        with col_b:
+            if st.button("📖 Show Later", use_container_width=True, key="quickstart_later"):
+                st.session_state["quickstart_dismissed"] = True
+                st.rerun()
+
+    return True  # Guide was shown
+
+# Show quickstart for new users (first visit only, unless permanently dismissed)
+if not st.session_state.get("quickstart_never_show", False):
+    if not st.session_state.get("quickstart_dismissed", False):
+        if show_quickstart_guide():
+            st.stop()
+
 # Mobile layout detection
 # Note: True JS-based detection requires streamlit-js-eval dependency
 # Instead, we provide a manual toggle and use CSS media query hints

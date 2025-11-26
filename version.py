@@ -8,11 +8,23 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.5.1"
-VERSION_NAME = "Deployment Ready"
+VERSION = "1.5.2"
+VERSION_NAME = "Multi-Provider + Quickstart"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.5.2": {
+        "date": "2025-11-26",
+        "name": "Multi-Provider + Quickstart",
+        "changes": [
+            "NEW: Quickstart guide for new users after login",
+            "NEW: DeepSeek provider support (cheap reasoning models)",
+            "Cost optimization: OpenAI limited to gpt-4o-mini + images only",
+            "Kimi K2 recommended as default (FREE text generation)",
+            "Three-button quickstart: Go, Skip Forever, Show Later",
+            "Updated provider service with 4 providers: OpenAI, Kimi, DeepSeek, Ollama",
+        ]
+    },
     "1.5.1": {
         "date": "2025-11-26",
         "name": "Deployment Ready",
