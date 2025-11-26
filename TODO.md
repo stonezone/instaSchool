@@ -4,16 +4,18 @@ This file tracks open technical tasks for InstaSchool. It combines:
 - Internal review items (GPT-5.1 review while hosting on Streamlit)
 - Validated items from the Claude code review report
 
-Statuses are for tracking only (no code has been changed yet).
+Statuses are for tracking only.
 
 Status legend: `TODO` = not started, `PLANNED` = design agreed, `DONE` = implemented.
+
+**Last reviewed:** 2025-11-26 (v1.5.4)
 
 ---
 
 ## 1. Internal Review (GPT-5.1)
 
 ### 1.1 Parent mode – Reports & Certificates use wrong identifiers
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** High  
 - **Files:** `main.py`, `services/report_service.py`, `services/certificate_service.py`, `services/user_service.py`  
 - **Problem:**  
@@ -27,7 +29,7 @@ Status legend: `TODO` = not started, `PLANNED` = design agreed, `DONE` = impleme
   - Update `generate_child_report` and certificate calls to use IDs and pull consistent stats from DB.
 
 ### 1.2 Analytics dashboard uses legacy JSON instead of DB
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** High  
 - **Files:** `services/analytics_service.py`, `services/database_service.py`  
 - **Problem:**  
@@ -40,7 +42,7 @@ Status legend: `TODO` = not started, `PLANNED` = design agreed, `DONE` = impleme
   - Verify Parent dashboard and Analytics tab show the same underlying data.
 
 ### 1.3 AI provider config mismatch (config.yaml vs AIProviderService)
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** Medium  
 - **Files:** `services/provider_service.py`, `config.yaml`  
 - **Problem:**  
@@ -53,7 +55,7 @@ Status legend: `TODO` = not started, `PLANNED` = design agreed, `DONE` = impleme
   - Remove or clearly mark any unused config keys to avoid confusion.
 
 ### 1.4 Missing `requests` dependency
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** High (for clean deploys)  
 - **Files:** `requirements.txt`, `src/image_generator.py`, `main.py`  
 - **Problem:**  
@@ -65,21 +67,22 @@ Status legend: `TODO` = not started, `PLANNED` = design agreed, `DONE` = impleme
   - Optionally standardize on one HTTP client (either `requests` or `httpx`) long-term.
 
 ### 1.5 Model detection vs provider selection
-- **Status:** TODO  
-- **Priority:** Medium  
-- **Files:** `src/model_detector.py`, `main.py`, `services/provider_service.py`  
-- **Problem:**  
-  - `get_available_models()` always talks to the OpenAI API (using `OPENAI_API_KEY`) and populates the “Advanced AI Model Settings” sidebar.  
-  - When another provider (e.g. Kimi/Ollama) is active, the sidebar can still list OpenAI models that do not exist on that provider.  
+- **Status:** DONE (v1.5.3)
+- **Priority:** Medium
+- **Files:** `src/model_detector.py`, `main.py`, `services/provider_service.py`
+- **Problem:**
+  - `get_available_models()` always talks to the OpenAI API (using `OPENAI_API_KEY`) and populates the "Advanced AI Model Settings" sidebar.
+  - When another provider (e.g. Kimi/Ollama) is active, the sidebar can still list OpenAI models that do not exist on that provider.
   - UI allows selecting a model string that the active provider cannot handle, leading to potential API errors at generation time.
-- **Planned fix:**  
-  - Decide how to reconcile provider choice and model detection: either:  
-    - Only show OpenAI models when OpenAI is the active provider, **or**  
-    - Integrate provider-aware model lists (per provider) and validate selections before calling the client.  
-  - Add a lightweight validation step before generation that checks “selected model is valid for current provider” and surfaces a clear error if not.
+- **Resolution (v1.5.3):**
+  - Added per-provider model lists to `AIProviderService.PROVIDERS` (`text_models`, `image_models`).
+  - Added helper methods: `get_text_models()`, `get_image_models()`, `supports_images()`, `get_cost_tier()`.
+  - Updated "Advanced AI Model Settings" sidebar to show models from the **selected provider**, not always OpenAI.
+  - Added cost tier display (FREE / Low Cost / Paid) per provider.
+  - Image section now clearly states OpenAI is required for image generation.
 
-### 1.6 Parent “Curricula Overview” metadata
-- **Status:** TODO  
+### 1.6 Parent "Curricula Overview" metadata
+- **Status:** DONE (v1.5.4)  
 - **Priority:** Low  
 - **Files:** `main.py` (Parent tab 3)  
 - **Problem:**  
@@ -97,7 +100,7 @@ Status legend: `TODO` = not started, `PLANNED` = design agreed, `DONE` = impleme
 Below are Claude’s findings, re-checked against the current repo. Items are kept if they are valid and actionable in this codebase.
 
 ### 2.1 StateManager threading lock (anti-pattern vs Streamlit model)
-- **Status:** PLANNED (design decision needed, not urgent)  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** Medium  
 - **File:** `src/state_manager.py`  
 - **Observation:**  
@@ -112,7 +115,7 @@ Below are Claude’s findings, re-checked against the current repo. Items are ke
   - This is a design clean-up rather than a known crash bug.
 
 ### 2.2 Widget key collisions via `hash(...)` in UI components
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** High (potential for flaky behavior)  
 - **File:** `src/ui_components.py`  
 - **Confirmed code:**  
@@ -129,7 +132,7 @@ Below are Claude’s findings, re-checked against the current repo. Items are ke
   - Audit all custom components for similar `hash(...)` usage.
 
 ### 2.3 atexit cleanup for temp files
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** Medium  
 - **File:** `main.py` (`cleanup_on_exit`, `atexit.register`)  
 - **Observation:**  
@@ -141,7 +144,7 @@ Below are Claude’s findings, re-checked against the current repo. Items are ke
   - Optionally, add a periodic “temp file GC” on startup that clears old temp files from known temp directories.
 
 ### 2.4 Broad `except Exception` patterns with minimal logging
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** Medium  
 - **Files:** `main.py`, several `services/*.py` modules  
 - **Observation:**  
@@ -164,7 +167,7 @@ Below are Claude’s findings, re-checked against the current repo. Items are ke
   - This is purely UX polish; not a functional bug.
 
 ### 2.6 Duplicate/fragmented state initialization
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** Medium  
 - **Files:** `main.py`, `src/state_manager.py`  
 - **Observation:**  
@@ -222,7 +225,7 @@ Below are Claude’s findings, re-checked against the current repo. Items are ke
   - This is largely a UX improvement; the callback structure is already in place.
 
 ### 2.11 CSS fallback warning
-- **Status:** TODO  
+- **Status:** DONE (v1.5.4)  
 - **Priority:** Low  
 - **File:** `src/ui_components.py` (`ModernUI.load_css`)  
 - **Observation:**  
@@ -248,9 +251,24 @@ These were in Claude’s report but are either already handled, too generic, or 
 
 ## 4. Next Steps / Suggested Implementation Order
 
-1. Fix Parent Reports/Certificates child identification (1.1).  
-2. Migrate AnalyticsService to SQLite (1.2).  
-3. Address `hash()`-based widget keys and add `requests` to requirements (1.4, 2.2).  
-4. Clean up provider/model configuration and model validation (1.3, 1.5).  
-5. Gradually tackle logging, state init consolidation, and UX polish items (2.4, 2.6, 2.10).
+**Completed in v1.5.4:**
+- ✅ 1.1: Parent Reports/Certificates child identification
+- ✅ 1.2: Migrate AnalyticsService to SQLite
+- ✅ 1.3: Provider config mismatch
+- ✅ 1.4: Add `requests` to requirements.txt
+- ✅ 1.5: Model validation (v1.5.3)
+- ✅ 1.6: Parent Curricula metadata
+- ✅ 2.1: Remove StateManager threading lock
+- ✅ 2.2: Widget key collisions (`hash()` → `hashlib.md5`)
+- ✅ 2.3: Per-session temp file cleanup (startup GC added)
+- ✅ 2.4: Exception logging improvements
+- ✅ 2.6: State initialization consolidation
+- ✅ 2.11: CSS fallback warning
+
+**Remaining (planned for future):**
+- 2.5: Progress bar/status UI updates (UX polish)
+- 2.7: Input sanitization coverage
+- 2.8: Cost estimation duplication
+- 2.9: Hard-coded UI strings & magic numbers
+- 2.10: Loading states and feedback
 

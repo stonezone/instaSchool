@@ -281,9 +281,13 @@ class UserService:
         pass
 
     def list_users(self) -> list:
-        """List all usernames (for profile switching UI)."""
+        """List all users with metadata (for profile switching UI).
+
+        Returns:
+            List of dicts with username, has_pin, total_xp keys.
+        """
         db_users = self.db.list_users()
-        
+
         users = []
         for user in db_users:
             # Extract preferences
@@ -293,14 +297,26 @@ class UserService:
                     prefs = json.loads(prefs)
                 except json.JSONDecodeError:
                     prefs = {}
-            
+
             users.append({
                 "username": user.get("username"),
                 "has_pin": bool(user.get("pin_hash")) or prefs.get("has_pin", False),
                 "total_xp": user.get("total_xp", 0),
             })
-        
+
         return sorted(users, key=lambda x: x.get("username", "").lower())
+
+    def list_usernames(self) -> list:
+        """List all usernames as simple strings.
+
+        Use this for selectboxes where you need simple string options.
+
+        Returns:
+            List of username strings, sorted alphabetically.
+        """
+        db_users = self.db.list_users()
+        usernames = [user.get("username") for user in db_users if user.get("username")]
+        return sorted(usernames, key=str.lower)
 
     def _format_user_response(self, user: Dict) -> Dict:
         """Format database user record to match expected response structure."""

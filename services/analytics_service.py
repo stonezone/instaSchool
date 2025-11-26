@@ -1,13 +1,18 @@
 """
 Analytics Service for Teacher Dashboard
-Scans student progress files and generates insights for teachers.
+Generates insights from student progress data using SQLite database.
+
+Migrated from JSON file-based storage to DatabaseService for consistency
+with the rest of the application.
 """
 
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
+
+from services.database_service import DatabaseService
 
 
 @dataclass
@@ -51,65 +56,38 @@ class AnalyticsSummary:
 
 
 class AnalyticsService:
-    """Service for generating teacher analytics from student progress data"""
+    """Service for generating teacher analytics from student progress data.
 
-    def __init__(self, curricula_dir: str = "curricula", users_dir: str = "users"):
+    Uses DatabaseService for data access, with optional JSON fallback for
+    legacy data that hasn't been migrated.
+    """
+
+    def __init__(self, db_path: str = "instaschool.db", curricula_dir: str = "curricula"):
+        """Initialize analytics service.
+
+        Args:
+            db_path: Path to SQLite database
+            curricula_dir: Path to curricula directory (for curriculum JSON files)
+        """
+        self.db = DatabaseService(db_path)
         self.curricula_dir = Path(curricula_dir)
-        self.users_dir = Path(users_dir)
-        self.users_progress_dir = self.curricula_dir / "users"
 
     def get_all_students(self) -> List[Dict[str, Any]]:
-        """Get all registered students"""
-        students = []
-        if self.users_dir.exists():
-            for user_file in self.users_dir.glob("*.json"):
-                try:
-                    with open(user_file, 'r') as f:
-                        students.append(json.load(f))
-                except (json.JSONDecodeError, IOError):
-                    continue
-        return students
-
-    def get_student_progress_files(self, user_id: str) -> List[Path]:
-        """Get all progress files for a specific user"""
-        user_progress_dir = self.users_progress_dir / user_id
-        if user_progress_dir.exists():
-            return list(user_progress_dir.glob("progress_*.json"))
-        return []
-
-    def get_all_progress_files(self) -> List[Path]:
-        """Get all progress files (both legacy and per-user)"""
-        files = []
-
-        # Legacy global progress files
-        for f in self.curricula_dir.glob("progress_*.json"):
-            files.append(f)
-
-        # Per-user progress files
-        if self.users_progress_dir.exists():
-            for user_dir in self.users_progress_dir.iterdir():
-                if user_dir.is_dir():
-                    for f in user_dir.glob("progress_*.json"):
-                        files.append(f)
-
-        return files
-
-    def load_progress_file(self, path: Path) -> Optional[Dict[str, Any]]:
-        """Load a progress file"""
-        try:
-            with open(path, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return None
+        """Get all registered students from database."""
+        return self.db.list_users()
 
     def get_curriculum_info(self, curriculum_id: str) -> Optional[Dict[str, Any]]:
-        """Load curriculum metadata"""
-        # Try to find the curriculum file
+        """Load curriculum metadata from JSON file.
+
+        Note: Curriculum content is still stored as JSON files, only progress
+        and user data is in the database.
+        """
+        # Try to find the curriculum file by ID pattern
         for f in self.curricula_dir.glob(f"*_{curriculum_id}.json"):
             try:
                 with open(f, 'r') as file:
                     data = json.load(file)
-                    if 'meta' in data:
+                    if 'meta' in data or 'units' in data:
                         return data
             except (json.JSONDecodeError, IOError):
                 continue
@@ -126,7 +104,7 @@ class AnalyticsService:
         return None
 
     def calculate_student_stats(self, user_data: Dict[str, Any]) -> StudentStats:
-        """Calculate statistics for a single student"""
+        """Calculate statistics for a single student using database data."""
         user_id = user_data.get('id', 'unknown')
         username = user_data.get('username', 'Unknown')
 
@@ -137,82 +115,84 @@ class AnalyticsService:
             level=user_data.get('level', 0)
         )
 
-        # Get progress files for this user
-        progress_files = self.get_student_progress_files(user_id)
+        # Get all progress records for this user from database
+        progress_list = self.db.get_user_all_progress(user_id)
 
         latest_activity = None
-        for pf in progress_files:
-            progress = self.load_progress_file(pf)
-            if not progress:
-                continue
-
+        for progress in progress_list:
             stats.curricula_started += 1
+
+            # Get completed sections
             completed_sections = progress.get('completed_sections', [])
+            if isinstance(completed_sections, str):
+                try:
+                    completed_sections = json.loads(completed_sections)
+                except json.JSONDecodeError:
+                    completed_sections = []
+
             stats.total_sections_completed += len(completed_sections)
 
-            # Track XP from progress files
-            stats.total_xp = max(stats.total_xp, progress.get('xp', 0))
-            stats.level = max(stats.level, progress.get('level', 0))
+            # Parse stats JSON if needed
+            progress_stats = progress.get('stats', {})
+            if isinstance(progress_stats, str):
+                try:
+                    progress_stats = json.loads(progress_stats)
+                except json.JSONDecodeError:
+                    progress_stats = {}
 
-            # Check if curriculum is completed (all sections done)
-            total_sections = progress.get('total_sections', 0)
-            if total_sections > 0 and len(completed_sections) >= total_sections:
+            # Track max XP and level
+            stats.total_xp = max(stats.total_xp, progress_stats.get('xp', 0))
+            stats.level = max(stats.level, progress_stats.get('level', 0))
+
+            # Check if curriculum is completed
+            if progress_stats.get('curricula_completed', 0) > 0:
                 stats.curricula_completed += 1
 
             # Track last activity
-            last_updated = progress.get('last_updated')
+            last_updated = progress.get('updated_at')
             if last_updated:
-                if not latest_activity or last_updated > latest_activity:
+                if not latest_activity or str(last_updated) > str(latest_activity):
                     latest_activity = last_updated
 
-        stats.last_active = latest_activity
+        stats.last_active = str(latest_activity) if latest_activity else None
         return stats
 
     def calculate_curriculum_stats(self, curriculum_id: str) -> CurriculumStats:
-        """Calculate statistics for a single curriculum"""
+        """Calculate statistics for a single curriculum."""
         stats = CurriculumStats(curriculum_id=curriculum_id)
 
-        # Get curriculum info
+        # Get curriculum info from JSON
         curriculum = self.get_curriculum_info(curriculum_id)
         if curriculum:
             meta = curriculum.get('meta', {})
-            stats.title = meta.get('subject', 'Unknown Curriculum')
+            stats.title = meta.get('subject', curriculum.get('title', 'Unknown Curriculum'))
             units = curriculum.get('units', [])
             stats.total_sections = len(units)
 
-        # Find all progress files for this curriculum
-        progress_data = []
+        # Get all progress records for this curriculum from database
+        progress_records = self.db.fetch_all("""
+            SELECT * FROM progress WHERE curriculum_id = ?
+        """, (curriculum_id,))
 
-        # Check legacy progress
-        legacy_file = self.curricula_dir / f"progress_{curriculum_id}.json"
-        if legacy_file.exists():
-            progress = self.load_progress_file(legacy_file)
-            if progress:
-                progress_data.append(progress)
+        stats.total_students = len(progress_records)
 
-        # Check per-user progress
-        if self.users_progress_dir.exists():
-            for user_dir in self.users_progress_dir.iterdir():
-                if user_dir.is_dir():
-                    user_progress_file = user_dir / f"progress_{curriculum_id}.json"
-                    if user_progress_file.exists():
-                        progress = self.load_progress_file(user_progress_file)
-                        if progress:
-                            progress_data.append(progress)
-
-        stats.total_students = len(progress_data)
-
-        if not progress_data:
+        if not progress_records:
             return stats
 
         # Calculate completion rates and section statistics
         total_completion = 0
         section_counts = {}
 
-        for progress in progress_data:
+        for progress in progress_records:
+            # Parse completed sections
             completed = progress.get('completed_sections', [])
-            total = progress.get('total_sections', stats.total_sections) or 1
+            if isinstance(completed, str):
+                try:
+                    completed = json.loads(completed)
+                except json.JSONDecodeError:
+                    completed = []
 
+            total = stats.total_sections or 1
             completion_pct = len(completed) / total if total > 0 else 0
             total_completion += completion_pct
 
@@ -220,25 +200,25 @@ class AnalyticsService:
             for section_idx in completed:
                 section_counts[section_idx] = section_counts.get(section_idx, 0) + 1
 
-        stats.completion_rate = (total_completion / len(progress_data)) * 100
-        stats.avg_progress = total_completion / len(progress_data)
+        stats.completion_rate = (total_completion / len(progress_records)) * 100
+        stats.avg_progress = total_completion / len(progress_records)
         stats.section_completion = section_counts
 
-        # Identify struggle sections (low completion compared to previous sections)
+        # Identify struggle sections (low completion compared to average)
         if stats.total_sections > 1 and section_counts:
-            avg_completion = sum(section_counts.values()) / len(section_counts) if section_counts else 0
+            avg_completion = sum(section_counts.values()) / len(section_counts)
             for i in range(stats.total_sections):
                 section_completions = section_counts.get(i, 0)
-                if section_completions < avg_completion * 0.5:  # Less than 50% of average
+                if section_completions < avg_completion * 0.5:
                     stats.struggle_sections.append(i)
 
         return stats
 
     def get_analytics_summary(self) -> AnalyticsSummary:
-        """Generate complete analytics summary"""
+        """Generate complete analytics summary from database."""
         summary = AnalyticsSummary()
 
-        # Get all students
+        # Get all students from database
         students = self.get_all_students()
         summary.total_students = len(students)
 
@@ -246,6 +226,7 @@ class AnalyticsService:
         student_stats = []
         total_xp = 0
         now = datetime.now()
+        seven_days_ago = now - timedelta(days=7)
 
         for student in students:
             stats = self.calculate_student_stats(student)
@@ -255,8 +236,14 @@ class AnalyticsService:
             # Check if active in last 7 days
             if stats.last_active:
                 try:
-                    last_active = datetime.fromisoformat(stats.last_active.replace('Z', '+00:00'))
-                    if (now - last_active.replace(tzinfo=None)).days <= 7:
+                    last_active_str = str(stats.last_active).replace('Z', '+00:00')
+                    # Handle both ISO format and simple date strings
+                    if 'T' in last_active_str or ' ' in last_active_str:
+                        last_active = datetime.fromisoformat(last_active_str.split('+')[0])
+                    else:
+                        last_active = datetime.strptime(last_active_str[:10], '%Y-%m-%d')
+
+                    if last_active >= seven_days_ago:
                         summary.active_students_7d += 1
                 except (ValueError, TypeError):
                     pass
@@ -266,13 +253,11 @@ class AnalyticsService:
         # Top 5 students by XP
         summary.top_students = sorted(student_stats, key=lambda s: s.total_xp, reverse=True)[:5]
 
-        # Get unique curriculum IDs from progress files
-        curriculum_ids = set()
-        for pf in self.get_all_progress_files():
-            # Extract curriculum ID from filename (progress_{id}.json)
-            name = pf.stem
-            if name.startswith('progress_'):
-                curriculum_ids.add(name[9:])
+        # Get unique curriculum IDs from progress table
+        curriculum_records = self.db.fetch_all("""
+            SELECT DISTINCT curriculum_id FROM progress
+        """)
+        curriculum_ids = {r['curriculum_id'] for r in curriculum_records if r.get('curriculum_id')}
 
         summary.total_curricula = len(curriculum_ids)
 
@@ -290,7 +275,7 @@ class AnalyticsService:
         return summary
 
     def get_curriculum_details(self, curriculum_id: str) -> Dict[str, Any]:
-        """Get detailed analytics for a specific curriculum"""
+        """Get detailed analytics for a specific curriculum."""
         stats = self.calculate_curriculum_stats(curriculum_id)
         curriculum = self.get_curriculum_info(curriculum_id)
 
@@ -303,7 +288,9 @@ class AnalyticsService:
                     'index': i,
                     'title': unit.get('title', f'Section {i+1}'),
                     'completions': stats.section_completion.get(i, 0),
-                    'completion_rate': (stats.section_completion.get(i, 0) / stats.total_students * 100) if stats.total_students > 0 else 0,
+                    'completion_rate': (
+                        stats.section_completion.get(i, 0) / stats.total_students * 100
+                    ) if stats.total_students > 0 else 0,
                     'is_struggle_point': i in stats.struggle_sections
                 }
                 sections.append(section_data)

@@ -34,19 +34,25 @@ class FamilyService:
         """
         return self.user_service.list_users()
 
-    def get_child_summary(self, user_id: str) -> Dict[str, Any]:
+    def get_child_summary(self, user_id_or_username: str) -> Dict[str, Any]:
         """Get comprehensive summary for a single child
 
         Args:
-            user_id: Child's user ID
+            user_id_or_username: Child's user ID or username (both accepted)
 
         Returns:
             Dict with progress stats, streaks, due cards, etc.
         """
-        # Get user info
-        user = self.db.get_user(user_id)
+        # Get user info - try by ID first, then by username
+        user = self.db.get_user(user_id_or_username)
+        if not user:
+            # Try by username if ID lookup failed
+            user = self.db.get_user_by_username(user_id_or_username)
         if not user:
             return {}
+
+        # Use the actual user ID from the looked up record
+        user_id = user.get("id", user_id_or_username)
 
         # Get all progress records
         progress_list = self.db.get_user_all_progress(user_id)
@@ -173,15 +179,23 @@ class FamilyService:
 
         return result.get("count", 0) if result else 0
 
-    def get_child_curricula_progress(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_child_curricula_progress(self, user_id_or_username: str) -> List[Dict[str, Any]]:
         """Get detailed progress for each curriculum a child is working on
 
         Args:
-            user_id: Child's user ID
+            user_id_or_username: Child's user ID or username (both accepted)
 
         Returns:
             List of curriculum progress dicts with completion percentage
         """
+        # Resolve username to user ID if needed
+        user = self.db.get_user(user_id_or_username)
+        if not user:
+            user = self.db.get_user_by_username(user_id_or_username)
+        if not user:
+            return []
+        user_id = user.get("id", user_id_or_username)
+
         progress_list = self.db.get_user_all_progress(user_id)
         detailed = []
 

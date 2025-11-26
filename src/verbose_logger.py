@@ -140,23 +140,31 @@ class VerboseLogger:
             print(response_str)
             print("="*80 + "\n")
     
-    def log_error(self, error, model=None, context=None):
-        """Log an error
-        
+    def log_error(self, error, model=None, context=None, include_traceback=False):
+        """Log an error with optional traceback
+
         Args:
             error: The error that occurred
             model (str, optional): The AI model being used when the error occurred
             context (str, optional): Additional context about the error
+            include_traceback (bool): If True, include full traceback in log file
         """
+        import traceback as tb
         model_info = f" ({model})" if model else ""
         context_info = f" - Context: {context}" if context else ""
-        
+
         log_msg = f"ERROR{model_info}: {str(error)}{context_info}"
         self.logger.error(log_msg)
-        
+
+        # Log full traceback to file if requested
+        if include_traceback:
+            self.logger.error(f"Traceback:\n{tb.format_exc()}")
+
         # For console output in verbose mode, make it stand out
         if self.verbose:
             print(f"\033[91mERROR{model_info}: {str(error)}{context_info}\033[0m")
+            if include_traceback:
+                print(f"\033[91m{tb.format_exc()}\033[0m")
     
     def log_info(self, message):
         """Log an informational message

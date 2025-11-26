@@ -3,9 +3,22 @@ UI Components and Styling Helpers for InstaSchool
 Provides reusable UI components and modern styling utilities
 """
 
+import hashlib
+import logging
 import streamlit as st
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+
+logger = logging.getLogger(__name__)
+
+
+def _stable_hash(text: str) -> str:
+    """Generate a stable, deterministic hash for widget keys.
+
+    Unlike Python's built-in hash(), this is stable across processes
+    and won't cause Streamlit widget key collisions.
+    """
+    return hashlib.md5(text.encode()).hexdigest()[:12]
 
 class ModernUI:
     """Modern UI component system for InstaSchool"""
@@ -26,6 +39,10 @@ class ModernUI:
             """, unsafe_allow_html=True)
         else:
             # Fallback to inline CSS if file doesn't exist
+            logger.warning(
+                f"Design system CSS not found at {css_path}. "
+                "Using minimal fallback styles. Check deployment packaging."
+            )
             st.markdown("""
                 <style>
                 .modern-card {
@@ -54,7 +71,7 @@ class ModernUI:
             status: Status badge (success, warning, error, info)
             key: Unique key for the component
         """
-        card_id = key or f"card_{hash(title + content)}"
+        card_id = key or f"card_{_stable_hash(title + content)}"
 
         # Build header if title exists
         header_html = ""
@@ -112,7 +129,7 @@ class ModernUI:
             trend: Optional trend indicator
             key: Unique key for the component
         """
-        card_id = key or f"stats_{hash(value + label)}"
+        card_id = key or f"stats_{_stable_hash(value + label)}"
         
         st.markdown(f"""
             <div class="stats-card" id="{card_id}">
@@ -210,7 +227,7 @@ class ModernUI:
         Returns:
             bool: True if button was clicked
         """
-        button_id = action_key or f"action_{hash(title)}"
+        button_id = action_key or f"action_{_stable_hash(title)}"
         disabled_style = "opacity: 0.5; pointer-events: none;" if disabled else ""
         
         # Create the card content

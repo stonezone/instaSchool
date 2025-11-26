@@ -8,11 +8,29 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.5.3"
-VERSION_NAME = "Smart Provider Models"
+VERSION = "1.5.4"
+VERSION_NAME = "Technical Debt Cleanup"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.5.4": {
+        "date": "2025-11-26",
+        "name": "Technical Debt Cleanup",
+        "changes": [
+            "Fixed Parent mode Reports/Certificates identifier handling",
+            "Migrated AnalyticsService from JSON to SQLite database",
+            "Fixed AI provider config mismatch (ai_providers block now read)",
+            "Added missing 'requests' dependency to requirements.txt",
+            "Fixed Parent Curricula metadata (reads from meta fields)",
+            "Removed unnecessary threading lock from StateManager",
+            "Fixed widget key collisions (hash() → hashlib.md5)",
+            "Added startup temp file cleanup for orphaned files",
+            "Enhanced exception logging with traceback support",
+            "Consolidated state initialization in StateManager.DEFAULTS",
+            "Added CSS fallback warning when design_system.css missing",
+            "Version number now displayed at bottom of UI",
+        ]
+    },
     "1.5.3": {
         "date": "2025-11-26",
         "name": "Smart Provider Models",

@@ -96,11 +96,29 @@ class AIProviderService:
         self.defaults = config.get("defaults", {})
 
         # Override provider configs from config.yaml if present
+        # Check both config["providers"] and config["ai_providers"]["providers"]
+        # to support different config structures
         provider_config = config.get("providers", {})
+        if not provider_config:
+            # Also check ai_providers.providers (config.yaml structure)
+            ai_providers = config.get("ai_providers", {})
+            provider_config = ai_providers.get("providers", {})
+            # Also check for default provider override
+            if ai_providers.get("default"):
+                self.defaults["provider"] = ai_providers["default"]
+
         if provider_config:
             for provider_name, provider_data in provider_config.items():
                 if provider_name in self.PROVIDERS:
-                    self.PROVIDERS[provider_name].update(provider_data)
+                    # Only merge known keys to avoid breaking hardcoded structure
+                    if "settings" in provider_data:
+                        self.PROVIDERS[provider_name]["default_settings"].update(
+                            provider_data["settings"]
+                        )
+                    if "models" in provider_data:
+                        self.PROVIDERS[provider_name]["models"].update(
+                            provider_data["models"]
+                        )
 
         # Cache of available providers (lazy loaded)
         self._available_providers: Optional[List[str]] = None

@@ -66,6 +66,28 @@ except ImportError:
     args.verbose = False
     logger = None
 
+
+def log_exception(error: Exception, context: str = "", user_message: str = None):
+    """Standardized exception logging with traceback.
+
+    Logs full traceback to file/console via VerboseLogger if available,
+    falls back to sys.stderr. Optionally shows a friendly message to user.
+
+    Args:
+        error: The exception that occurred
+        context: Description of what was happening when the error occurred
+        user_message: Optional friendly message to show user via st.error()
+    """
+    if logger:
+        logger.log_error(error, context=context, include_traceback=True)
+    else:
+        sys.stderr.write(f"ERROR ({context}): {error}\n")
+        sys.stderr.write(traceback.format_exc() + "\n")
+
+    if user_message:
+        st.error(user_message)
+
+
 # Import the agent framework and image generator
 from src.agent_framework import OrchestratorAgent, OutlineAgent, ContentAgent, MediaAgent, ChartAgent, QuizAgent, SummaryAgent, ResourceAgent, AudioAgent
 from src.image_generator import ImageGenerator
@@ -92,6 +114,10 @@ st.set_page_config(page_title="Curriculum Generator", page_icon=":books:", layou
 
 # Load modern UI design system
 ModernUI.load_css()
+
+# Initialize all session state defaults early (before any state access)
+# Services are set to None here and initialized later with proper config
+StateManager.initialize_state()
 
 # =============================================================================
 # PASSWORD PROTECTION (for deployment)
@@ -329,29 +355,58 @@ if "available_models" not in st.session_state:
 
 # ========== Initialize session state and services ==========
 # Initialize session manager
-if "session_manager" not in st.session_state:
+if not StateManager.get_state("session_manager"):
     try:
         StateManager.set_state("session_manager", SessionManager())
     except Exception as e:
-        st.error(f"Failed to initialize session manager: {e}")
-        StateManager.set_state("session_manager", None)
+        log_exception(e, "session_manager_init", "Failed to initialize session manager")
 
-if "curriculum" not in st.session_state:
-    StateManager.set_state("curriculum", None)
-if "curriculum_id" not in st.session_state:
+# Generate unique curriculum_id if not set (special case: needs uuid generation)
+if not StateManager.get_state("curriculum_id"):
     StateManager.set_state("curriculum_id", uuid.uuid4().hex)
-# Initialize session state using StateManager
-StateManager.initialize_state()
-
-# Additional state initialization
-if "api_error" not in st.session_state:
-    StateManager.set_state("api_error", None)
-if "theme" not in st.session_state:
-    StateManager.set_state("theme", "Light")
 
 # Create directories if they don't exist
 Path("curricula").mkdir(exist_ok=True)
 Path("exports").mkdir(exist_ok=True)
+
+
+# ========== Startup Temp File Cleanup (runs once per session) ==========
+def cleanup_old_temp_files(max_age_hours: float = 1.0):
+    """Clean up old temp files on startup (best-effort, runs once per session).
+
+    This addresses the limitation that atexit cleanup may not run in Streamlit
+    server environments. Cleans files older than max_age_hours from system temp.
+    """
+    import glob
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.now() - timedelta(hours=max_age_hours)
+    temp_dir = tempfile.gettempdir()
+    patterns = ["tmp*.png", "tmp*.jpg", "tmp*.pdf", "tmp*.html"]
+    cleaned = 0
+
+    for pattern in patterns:
+        for filepath in glob.glob(os.path.join(temp_dir, pattern)):
+            try:
+                mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
+                if mtime < cutoff:
+                    os.unlink(filepath)
+                    cleaned += 1
+            except (OSError, IOError):
+                pass  # File may be in use or already deleted
+
+    if cleaned > 0:
+        sys.stderr.write(f"Startup cleanup: removed {cleaned} old temp file(s)\n")
+
+
+# Run startup cleanup once (track with session state to avoid repeating)
+if not StateManager.get_state("_startup_cleanup_done"):
+    try:
+        cleanup_old_temp_files()
+        StateManager.set_state("_startup_cleanup_done", True)
+    except Exception as e:
+        sys.stderr.write(f"Startup cleanup failed: {e}\n")
+
 
 # ========== Utility Functions for Session Management ==========
 def add_to_cleanup(file_path: Optional[str]):
@@ -567,14 +622,14 @@ if 'provider_service' not in st.session_state or 'current_provider' not in st.se
         
     except Exception as e:
         # Fallback to direct OpenAI client if provider service fails
-        sys.stderr.write(f"Warning: Provider service initialization failed: {e}\n")
+        log_exception(e, "provider_service_init")
         sys.stderr.write("Falling back to direct OpenAI client...\n")
-        
+
         if not OPENAI_API_KEY:
             st.error("OPENAI_API_KEY not set in environment variable or .env file")
             st.error("Please set your OpenAI API key to use this application.")
             st.stop()
-        
+
         try:
             # Direct OpenAI client initialization as fallback
             if 'OPENAI_NEW_API' in locals() and OPENAI_NEW_API:
@@ -586,8 +641,7 @@ if 'provider_service' not in st.session_state or 'current_provider' not in st.se
                 st.error("OpenAI client initialization failed. SDK version issue suspected.")
                 st.stop()
         except Exception as fallback_error:
-            st.error(f"Error initializing OpenAI client: {fallback_error}")
-            sys.stderr.write(traceback.format_exc() + "\n")
+            log_exception(fallback_error, "openai_client_fallback", "Error initializing OpenAI client")
             st.stop()
 else:
     # Use existing provider service from session state
@@ -599,7 +653,7 @@ else:
         try:
             client = provider_service.get_client(current_provider)
         except Exception as e:
-            sys.stderr.write(f"Warning: Failed to get client from provider service: {e}\n")
+            log_exception(e, "get_client_from_provider")
             # Fallback to direct OpenAI client
             if OPENAI_API_KEY and 'OPENAI_NEW_API' in locals() and OPENAI_NEW_API:
                 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -613,40 +667,28 @@ if client is None:
     st.stop()
 
 # Initialize curriculum service and template manager after config is loaded
-if "curriculum_service" not in st.session_state:
+if not StateManager.get_state("curriculum_service"):
     try:
         StateManager.set_state("curriculum_service", CurriculumService(client, config))
     except Exception as e:
-        st.error(f"Failed to initialize curriculum service: {e}")
-        sys.stderr.write(f"Curriculum service error: {e}\n")
-        sys.stderr.write(traceback.format_exc() + "\n")
-        StateManager.set_state("curriculum_service", None)
+        log_exception(e, "curriculum_service_init", "Failed to initialize curriculum service")
 
 # Initialize template manager
-if "template_manager" not in st.session_state:
+if not StateManager.get_state("template_manager"):
     try:
         from services.template_service import TemplateManager
         StateManager.set_state("template_manager", TemplateManager())
     except ImportError:
         sys.stderr.write("Warning: template_service not available\n")
-        StateManager.set_state("template_manager", None)
     except Exception as e:
-        st.error(f"Failed to initialize template manager: {e}")
-        StateManager.set_state("template_manager", None)
+        log_exception(e, "template_manager_init", "Failed to initialize template manager")
 
-# Initialize batch manager
-if "batch_manager" not in st.session_state:
+# Initialize batch manager (batch_polling/active_batch_id already set by StateManager.initialize_state())
+if not StateManager.get_state("batch_manager"):
     try:
         StateManager.set_state("batch_manager", BatchManager(max_concurrent=2))
     except Exception as e:
-        st.error(f"Failed to initialize batch manager: {e}")
-        StateManager.set_state("batch_manager", None)
-
-# Initialize batch state
-if "active_batch_id" not in st.session_state:
-    StateManager.set_state("active_batch_id", None)
-if "batch_polling" not in st.session_state:
-    StateManager.set_state("batch_polling", False)
+        log_exception(e, "batch_manager_init", "Failed to initialize batch manager")
 
 # ====================== Cleanup Function ======================
 def cleanup_tmp_files(fileset: set):
@@ -771,27 +813,20 @@ StateManager.update_state('current_mode', current_mode)
 
 st.sidebar.markdown("---")
 
-# Initialize user service and current user state
-if "user_service" not in st.session_state:
+# Initialize user service (current_user already set by StateManager.initialize_state())
+if not StateManager.get_state("user_service"):
     StateManager.set_state("user_service", UserService())
-if "current_user" not in st.session_state:
-    StateManager.set_state("current_user", None)
 
 # If student mode, show login + student interface and stop
 if current_mode == 'student':
     st.sidebar.markdown("### 👤 Student Login")
 
     user_service: UserService = StateManager.get_state("user_service")
-    current_user = StateManager.get_state("current_user", None)
+    current_user = StateManager.get_state("current_user")
 
-    # Check if we need to show PIN input for existing user
-    if not StateManager.has_state('login_needs_pin'):
-        StateManager.set_state('login_needs_pin', False)
-    if not StateManager.has_state('login_username'):
-        StateManager.set_state('login_username', '')
-
-    needs_pin = StateManager.get_state('login_needs_pin', False)
-    saved_username = StateManager.get_state('login_username', '')
+    # Login state (initialized by StateManager.initialize_state())
+    needs_pin = StateManager.get_state('login_needs_pin')
+    saved_username = StateManager.get_state('login_username')
 
     if not current_user:
         if needs_pin:
@@ -968,7 +1003,8 @@ if current_mode == 'parent':
         report_service = get_report_service()
         cert_service = get_certificate_service()
         user_service = UserService()
-        children = user_service.list_users()
+        # Use list_usernames() for simple string options in selectboxes
+        children = user_service.list_usernames()
 
         if not children:
             st.info("Add children in the Family Overview tab to generate reports.")
@@ -1056,15 +1092,23 @@ if current_mode == 'parent':
                     try:
                         with open(json_file) as f:
                             data = json.load(f)
-                        title = data.get('title', json_file.stem)
-                        subject = data.get('subject', 'Unknown')
+                        # Check for metadata in 'meta' block first (new format), fallback to top-level (legacy)
+                        meta = data.get('meta', {})
+                        title = meta.get('subject', data.get('title', json_file.stem))
+                        subject = meta.get('subject', data.get('subject', 'Unknown'))
+                        grade = meta.get('grade', data.get('grade', ''))
                         units = len(data.get('units', []))
+                        display_title = f"{subject} - Grade {grade}" if grade else title
 
-                        with st.expander(f"📖 {title}"):
+                        with st.expander(f"📖 {display_title}"):
                             st.write(f"**Subject:** {subject}")
+                            if grade:
+                                st.write(f"**Grade:** {grade}")
                             st.write(f"**Units:** {units}")
+                            if meta.get('style'):
+                                st.write(f"**Style:** {meta.get('style')}")
                             st.write(f"**File:** {json_file.name}")
-                    except:
+                    except Exception:
                         pass
             else:
                 st.info("No curricula created yet. Switch to Create mode to build your first curriculum!")
@@ -3440,10 +3484,10 @@ with tab6:
     ModernUI.section_header("Teacher Analytics Dashboard", "📊", "analytics")
 
     # Initialize analytics service
-    if "analytics_service" not in st.session_state:
-        st.session_state.analytics_service = AnalyticsService()
+    if not StateManager.get_state("analytics_service"):
+        StateManager.set_state("analytics_service", AnalyticsService())
 
-    analytics = st.session_state.analytics_service
+    analytics = StateManager.get_state("analytics_service")
 
     # Refresh button
     col_refresh, col_spacer = st.columns([1, 4])
@@ -3566,12 +3610,10 @@ with tab6:
 # =============================================================================
 # VERSION FOOTER - Always displayed at the bottom of the page
 # =============================================================================
-st.markdown("---")
 st.markdown(
     f"""
-    <div style="text-align: center; color: #888; font-size: 0.85rem; padding: 1rem 0;">
-        <strong>InstaSchool</strong> {get_version_display()}<br>
-        <span style="font-size: 0.75rem;">AI-Powered Curriculum Generator</span>
+    <div style="text-align: center; color: #666; font-size: 0.7rem; padding: 0.5rem 0; margin-top: 2rem; opacity: 0.7;">
+        InstaSchool {VERSION} • AI-Powered Curriculum Generator
     </div>
     """,
     unsafe_allow_html=True
