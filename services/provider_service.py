@@ -21,22 +21,36 @@ class AIProviderService:
                 "temperature": 0.7,
             },
             "models": {
-                "main": "gpt-4.1",
-                "worker": "gpt-4.1-mini",
-                "image": "gpt-image-1"
+                # OpenAI limited to cheap models + images only
+                "main": "gpt-4o-mini",
+                "worker": "gpt-4o-mini",
+                "image": "dall-e-3"
             }
         },
         "kimi": {
-            "base_url": "https://api.moonshot.ai/v1",
-            "api_key_env": "MOONSHOT_API_KEY",
+            "base_url": "https://api.moonshot.cn/v1",
+            "api_key_env": "KIMI_API_KEY",
             "requires_key": True,
             "default_settings": {
-                "temperature": 0.6,  # Kimi recommends 0.6
+                "temperature": 0.6,
             },
             "models": {
                 "main": "kimi-k2-0905-preview",
                 "worker": "kimi-k2-0905-preview",
                 "image": None  # Kimi doesn't support image generation
+            }
+        },
+        "deepseek": {
+            "base_url": "https://api.deepseek.com/v1",
+            "api_key_env": "DEEPSEEK_API_KEY",
+            "requires_key": True,
+            "default_settings": {
+                "temperature": 0.7,
+            },
+            "models": {
+                "main": "deepseek-chat",
+                "worker": "deepseek-chat",
+                "image": None  # DeepSeek doesn't support image generation
             }
         },
         "ollama": {
@@ -49,7 +63,7 @@ class AIProviderService:
             "models": {
                 "main": "llama3.1",
                 "worker": "llama3.1",
-                "image": None  # Ollama doesn't typically support image generation via OpenAI API
+                "image": None
             }
         }
     }

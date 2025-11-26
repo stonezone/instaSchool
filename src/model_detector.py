@@ -116,11 +116,13 @@ def get_available_models(
         response = client.models.list()
         all_models = [m.id for m in response.data]
         
-        # Filter for text models (GPT-5, GPT-4, GPT-3.5-turbo, O1, O3, O4 series)
-        text_prefixes = ['gpt-5', 'gpt-4', 'gpt-3.5-turbo', 'o1', 'o3', 'o4']
+        # Filter for text models - ONLY cheap variants (mini, nano)
+        # Expensive models (gpt-4o, gpt-4-turbo, o1, o3) excluded to save costs
+        # Use Kimi or DeepSeek for heavy text generation instead
+        cheap_text_patterns = ['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4-mini', 'nano']
         text_models = [
-            m for m in all_models 
-            if any(m.startswith(prefix) for prefix in text_prefixes)
+            m for m in all_models
+            if any(pattern in m.lower() for pattern in cheap_text_patterns)
         ]
         
         # Filter for image models (DALL-E, GPT-Image series)
@@ -168,10 +170,11 @@ def get_fallback_models(config: Optional[Dict] = None) -> Dict[str, List[str]]:
         Dictionary with 'text_models' and 'image_models' lists
     """
     if config is None:
-        # Return hardcoded fallbacks (GPT-5 series for production)
+        # Return hardcoded fallbacks - cheap OpenAI models only
+        # Use Kimi/DeepSeek for main text generation to save costs
         return {
-            'text_models': ['gpt-5.1', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4o', 'gpt-4o-mini'],
-            'image_models': ['gpt-image-1', 'gpt-image-1-mini', 'dall-e-3', 'dall-e-2']
+            'text_models': ['gpt-4o-mini', 'gpt-3.5-turbo'],
+            'image_models': ['dall-e-3', 'dall-e-2']
         }
     
     # Extract from config
