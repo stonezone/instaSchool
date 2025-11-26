@@ -29,6 +29,7 @@ class TutorAgent(BaseAgent):
         # Default persona settings
         self.persona_name = "a friendly tutor"
         self.persona_style = "an encouraging, supportive style"
+        self.difficulty_level = 3  # Default to standard (1-5 scale)
 
     def set_lesson_context(self, unit_content: str, unit_title: str, subject: str, grade: str,
                            persona_name: Optional[str] = None, persona_style: Optional[str] = None):

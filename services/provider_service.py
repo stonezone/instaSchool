@@ -328,6 +328,86 @@ class AIProviderService:
             for provider in self.PROVIDERS.keys()
         }
 
+    # Cross-provider orchestration support
+    def set_task_provider(self, task: str, provider: str) -> None:
+        """Set provider for a specific task (enables cross-provider orchestration)
+
+        Args:
+            task: Task type - 'main' (orchestration), 'worker', or 'image'
+            provider: Provider name to use for this task
+
+        Raises:
+            ValueError: If task or provider is invalid
+        """
+        if task not in ["main", "worker", "image"]:
+            raise ValueError(f"Invalid task '{task}'. Valid: 'main', 'worker', 'image'")
+
+        if provider not in self.get_available_providers():
+            raise ValueError(f"Provider '{provider}' not available")
+
+        if "task_providers" not in self.config:
+            self.config["task_providers"] = {}
+
+        self.config["task_providers"][task] = provider
+        print(f"Set {task} task to use provider: {provider}")
+
+    def get_task_provider(self, task: str) -> str:
+        """Get the provider assigned to a specific task
+
+        Args:
+            task: Task type - 'main', 'worker', or 'image'
+
+        Returns:
+            Provider name for this task
+        """
+        task_providers = self.config.get("task_providers", {})
+        return task_providers.get(task, self.get_default_provider())
+
+    def get_client_for_task(self, task: str) -> "OpenAI":
+        """Get client configured for a specific task
+
+        Args:
+            task: Task type - 'main', 'worker', or 'image'
+
+        Returns:
+            Configured OpenAI client for the task's provider
+        """
+        provider = self.get_task_provider(task)
+        return self.get_client(provider)
+
+    def get_model_and_client_for_task(self, task: str) -> tuple:
+        """Get both model name and client for a task (convenience method)
+
+        Args:
+            task: Task type - 'main', 'worker', or 'image'
+
+        Returns:
+            Tuple of (model_name, client)
+        """
+        provider = self.get_task_provider(task)
+        model = self.get_model_for_task(provider, task)
+        client = self.get_client(provider)
+        return model, client
+
+    def get_task_config_summary(self) -> Dict[str, Dict[str, str]]:
+        """Get summary of current task-to-provider configuration
+
+        Returns:
+            Dict mapping task names to provider and model info
+        """
+        summary = {}
+        for task in ["main", "worker", "image"]:
+            provider = self.get_task_provider(task)
+            try:
+                model = self.get_model_for_task(provider, task)
+            except ValueError:
+                model = "N/A"
+            summary[task] = {
+                "provider": provider,
+                "model": model
+            }
+        return summary
+
 
 # Convenience function for backward compatibility
 def get_provider_service(config: Dict[str, Any]) -> AIProviderService:

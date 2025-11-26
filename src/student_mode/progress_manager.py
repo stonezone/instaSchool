@@ -410,3 +410,66 @@ class StudentProgress:
     def _save(self):
         """Internal save method for quiz scores"""
         self.save_progress()
+
+    # =========================================================================
+    # ADAPTIVE DIFFICULTY SYSTEM
+    # =========================================================================
+
+    def record_question_result(self, correct: bool) -> None:
+        """Record a single question result for adaptive difficulty tracking
+        
+        Args:
+            correct: Whether the question was answered correctly
+        """
+        if 'question_history' not in self.data:
+            self.data['question_history'] = []
+        self.data['question_history'].append(1 if correct else 0)
+        # Keep only last 20 questions
+        self.data['question_history'] = self.data['question_history'][-20:]
+        self._save()
+
+    def get_success_rate(self, window: int = 10) -> float:
+        """Get success rate over last N questions (0.0-1.0)
+        
+        Args:
+            window: Number of recent questions to consider
+            
+        Returns:
+            Success rate as a float between 0.0 and 1.0
+        """
+        history = self.data.get('question_history', [])
+        if not history:
+            return 0.5  # Default to middle
+        recent = history[-window:]
+        return sum(recent) / len(recent) if recent else 0.5
+
+    def get_difficulty_level(self) -> int:
+        """Get current difficulty level (1-5) based on performance
+        
+        Returns:
+            1 = Very Easy (struggling, <50% success)
+            2 = Easy (below target, 50-65%)
+            3 = Standard (at target, 65-85%)
+            4 = Challenging (above target, 85-95%)
+            5 = Advanced (mastery, >95%)
+        """
+        rate = self.get_success_rate()
+        if rate < 0.50:
+            return 1
+        elif rate < 0.65:
+            return 2
+        elif rate < 0.85:
+            return 3
+        elif rate < 0.95:
+            return 4
+        else:
+            return 5
+
+    def get_difficulty_label(self) -> str:
+        """Get human-readable difficulty label
+        
+        Returns:
+            String label for current difficulty level
+        """
+        labels = {1: "Very Easy", 2: "Easy", 3: "Standard", 4: "Challenging", 5: "Advanced"}
+        return labels.get(self.get_difficulty_level(), "Standard")

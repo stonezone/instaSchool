@@ -3,9 +3,41 @@ Cost Estimator for InstaSchool
 Provides cost estimation for different model configurations
 """
 
-# Hypothetical costs per 1K tokens (you should update these with actual costs)
+# Costs per 1K tokens (updated Nov 2025)
 # Based on typical pricing patterns where nano < mini < full
 MODEL_COSTS = {
+    # Kimi K2 (Moonshot) - FREE tier available!
+    "kimi-k2-0905-preview": {
+        "input": 0.0,       # Free tier
+        "output": 0.0,      # Free tier
+        "name": "Kimi K2 (FREE)",
+        "relative_cost": "FREE"
+    },
+    # Image models
+    "gpt-image-1": {
+        "input": 0.0,       # Per-image pricing, not token-based
+        "output": 0.04,     # ~$0.04 per image (standard)
+        "name": "GPT Image 1",
+        "relative_cost": "$$"
+    },
+    "gpt-image-1-mini": {
+        "input": 0.0,       # Per-image pricing
+        "output": 0.02,     # ~$0.02 per image (mini)
+        "name": "GPT Image 1 Mini",
+        "relative_cost": "$"
+    },
+    "dall-e-3": {
+        "input": 0.0,
+        "output": 0.04,     # ~$0.04 per image
+        "name": "DALL-E 3",
+        "relative_cost": "$$"
+    },
+    "dall-e-2": {
+        "input": 0.0,
+        "output": 0.02,     # ~$0.02 per image
+        "name": "DALL-E 2",
+        "relative_cost": "$"
+    },
     # GPT-5 Series (Current)
     "gpt-5-nano": {
         "input": 0.00015,   # $0.15 per 1M tokens
@@ -184,7 +216,23 @@ def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     if model in MODEL_COSTS:
         costs = MODEL_COSTS[model]
 
-    # 2. GPT-5 series (newest)
+    # 2. Kimi / Moonshot models (FREE tier)
+    elif "kimi" in model_lower or "moonshot" in model_lower:
+        costs = MODEL_COSTS["kimi-k2-0905-preview"]
+
+    # 3. Image models
+    elif "dall-e" in model_lower or "dalle" in model_lower:
+        if "3" in model_lower:
+            costs = MODEL_COSTS["dall-e-3"]
+        else:
+            costs = MODEL_COSTS["dall-e-2"]
+    elif "gpt-image" in model_lower or "image" in model_lower:
+        if "mini" in model_lower:
+            costs = MODEL_COSTS["gpt-image-1-mini"]
+        else:
+            costs = MODEL_COSTS["gpt-image-1"]
+
+    # 4. GPT-5 series (newest)
     elif "gpt-5" in model_lower:
         if "nano" in model_lower:
             costs = MODEL_COSTS.get("gpt-5-nano", MODEL_COSTS["gpt-4.1-nano"])

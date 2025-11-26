@@ -8,11 +8,22 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.9.3"
-VERSION_NAME = "Mastery Gates"
+VERSION = "0.9.4"
+VERSION_NAME = "Cross-Provider & Fixes"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.9.4": {
+        "date": "2025-11-26",
+        "name": "Cross-Provider & Fixes",
+        "changes": [
+            "Cross-provider orchestration: Kimi for text + OpenAI for images",
+            "Fixed PDF export: handle quiz as list not dict",
+            "Fixed cost estimation: added Kimi (FREE) and image model costs",
+            "Per-task provider configuration (orchestrator, worker, image)",
+            "HTML and Markdown export fixes for quiz format",
+        ]
+    },
     "0.9.3": {
         "date": "2025-11-25",
         "name": "Mastery Gates",

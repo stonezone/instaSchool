@@ -165,8 +165,10 @@ class CurriculumExporter:
                     pdf.set_font('Arial', 'B', 12)
                     pdf.cell(0, 8, 'Assessment Questions', 0, 1)
                     quiz = unit['quiz']
-                    
-                    for q_idx, question in enumerate(quiz.get('questions', []), 1):
+
+                    # Handle both list format and dict format
+                    questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
+                    for q_idx, question in enumerate(questions, 1):
                         pdf.set_font('Arial', 'B', 11)
                         pdf.cell(0, 8, f"Question {q_idx}:", 0, 1)
                         pdf.set_font('Arial', '', 11)
@@ -287,7 +289,9 @@ class CurriculumExporter:
             
             if unit.get('quiz'):
                 html += '<div class="quiz">\n<h3>Assessment Questions</h3>\n'
-                for q_idx, question in enumerate(unit['quiz'].get('questions', []), 1):
+                quiz = unit['quiz']
+                questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
+                for q_idx, question in enumerate(questions, 1):
                     html += f'<div class="question">\n<strong>Question {q_idx}:</strong> {question.get("question", "")}<br>\n'
                     for opt_key in ['a', 'b', 'c', 'd']:
                         if opt_key in question:
@@ -343,7 +347,9 @@ class CurriculumExporter:
             
             if unit.get('quiz'):
                 md += "### Assessment Questions\n\n"
-                for q_idx, question in enumerate(unit['quiz'].get('questions', []), 1):
+                quiz = unit['quiz']
+                questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
+                for q_idx, question in enumerate(questions, 1):
                     md += f"**Question {q_idx}:** {question.get('question', '')}\n\n"
                     for opt_key in ['a', 'b', 'c', 'd']:
                         if opt_key in question:

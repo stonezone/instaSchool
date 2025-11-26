@@ -822,6 +822,59 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
         st.info("✓ Using OpenAI")
         st.caption("Premium AI - charges per API call")
 
+    # Cross-provider orchestration (advanced)
+    st.markdown("---")
+    st.markdown("**🔀 Cross-Provider Mode**")
+    st.caption("Use different providers for different tasks")
+
+    cross_provider_enabled = st.checkbox(
+        "Enable cross-provider",
+        value=StateManager.get_state("cross_provider_enabled", False),
+        key="cross_provider_toggle",
+        help="Use Kimi for text and OpenAI for images, etc."
+    )
+    StateManager.set_state("cross_provider_enabled", cross_provider_enabled)
+
+    if cross_provider_enabled:
+        col1, col2 = st.columns(2)
+        with col1:
+            orchestrator_provider = st.selectbox(
+                "Orchestrator",
+                options=available_providers,
+                format_func=lambda x: provider_names.get(x, x),
+                index=available_providers.index(StateManager.get_state("orchestrator_provider", selected_provider)) if StateManager.get_state("orchestrator_provider", selected_provider) in available_providers else 0,
+                key="orch_provider"
+            )
+            StateManager.set_state("orchestrator_provider", orchestrator_provider)
+            provider_service.set_task_provider("main", orchestrator_provider)
+
+        with col2:
+            worker_provider = st.selectbox(
+                "Workers",
+                options=available_providers,
+                format_func=lambda x: provider_names.get(x, x),
+                index=available_providers.index(StateManager.get_state("worker_provider", selected_provider)) if StateManager.get_state("worker_provider", selected_provider) in available_providers else 0,
+                key="worker_provider"
+            )
+            StateManager.set_state("worker_provider", worker_provider)
+            provider_service.set_task_provider("worker", worker_provider)
+
+        # Image provider (only OpenAI supports images)
+        image_providers = [p for p in available_providers if p == "openai"]
+        if image_providers:
+            image_provider = st.selectbox(
+                "Image Generation",
+                options=image_providers,
+                format_func=lambda x: provider_names.get(x, x),
+                key="image_provider"
+            )
+            provider_service.set_task_provider("image", image_provider)
+        else:
+            st.caption("⚠️ Image generation requires OpenAI")
+
+        # Show summary
+        st.caption(f"📊 Orchestrator: {orchestrator_provider} | Workers: {worker_provider}")
+
 # Advanced Settings Section  
 with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
     # Get available models from detection or fallback to config

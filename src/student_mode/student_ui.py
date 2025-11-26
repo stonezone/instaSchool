@@ -123,6 +123,12 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     if current_streak > 0:
         st.sidebar.markdown(f"🔥 **{current_streak} day streak!**")
 
+    # Adaptive difficulty indicator
+    difficulty_level = progress.get_difficulty_level()
+    difficulty_label = progress.get_difficulty_label()
+    difficulty_colors = {1: "🟢", 2: "🟡", 3: "🟠", 4: "🔴", 5: "⭐"}
+    st.sidebar.markdown(f"{difficulty_colors.get(difficulty_level, '🟠')} **Difficulty:** {difficulty_label}")
+
     # Trophy Case (collapsible)
     with st.sidebar.expander("🏆 Trophy Case", expanded=False):
         earned_badges = progress.get_badge_details()
@@ -526,11 +532,15 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                             user_answer = quiz_answers.get(i)
                             correct_answer = q.get('correct', '')
 
-                            if user_answer == correct_answer:
+                            is_correct = user_answer == correct_answer
+                            if is_correct:
                                 correct_count += 1
                                 st.success(f"✅ Question {i + 1}: Correct!")
                             else:
                                 st.error(f"❌ Question {i + 1}: Incorrect. The correct answer was: {correct_answer}")
+                            
+                            # Track each question for adaptive difficulty
+                            progress.record_question_result(is_correct)
 
                         total_mc = len(mc_questions)
                         
