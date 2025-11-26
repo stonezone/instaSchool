@@ -1212,7 +1212,7 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
                 options=available_providers,
                 format_func=lambda x: provider_names.get(x, x),
                 index=available_providers.index(StateManager.get_state("worker_provider", selected_provider)) if StateManager.get_state("worker_provider", selected_provider) in available_providers else 0,
-                key="worker_provider"
+                key="worker_prov_select"
             )
             StateManager.set_state("worker_provider", worker_provider)
             provider_service.set_task_provider("worker", worker_provider)
