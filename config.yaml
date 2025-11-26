@@ -278,6 +278,54 @@ defaults:
   days: 3
 
 
+# === AI Provider Configuration ===
+# Allows switching between different AI providers (OpenAI, Kimi, Ollama, etc.)
+ai_providers:
+  # Which provider to use by default
+  default: "openai"
+  
+  # Provider definitions
+  providers:
+    openai:
+      name: "OpenAI"
+      api_base: "https://api.openai.com/v1"
+      api_key_env: "OPENAI_API_KEY"
+      models:
+        main: "gpt-4.1"
+        worker: "gpt-4.1-mini"
+        cheap: "gpt-4.1-nano"
+        image: "gpt-image-1-mini"
+        tts: "tts-1"
+      settings:
+        temperature: 0.7
+    
+    kimi:
+      name: "Kimi K2 (Moonshot)"
+      api_base: "https://api.moonshot.ai/v1"
+      api_key_env: "MOONSHOT_API_KEY"
+      models:
+        main: "kimi-k2-0905-preview"
+        worker: "kimi-k2-0905-preview"
+        cheap: "kimi-k2-0905-preview"
+        image: null  # Kimi doesn't support image generation
+        tts: null    # Kimi doesn't support TTS
+      settings:
+        temperature: 0.6  # Recommended for Kimi K2
+    
+    ollama:
+      name: "Ollama (Local)"
+      api_base: "http://localhost:11434/v1"
+      api_key_env: null  # No API key needed
+      models:
+        main: "llama3.1:8b"
+        worker: "llama3.1:8b"
+        cheap: "llama3.1:8b"
+        image: null
+        tts: null
+      settings:
+        temperature: 0.7
+
+
 # --- Informational Texts ---
 # Text snippets displayed in the application UI.
 info_texts:

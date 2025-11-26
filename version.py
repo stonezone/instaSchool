@@ -8,11 +8,24 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "0.8.3"
-VERSION_NAME = "Production Refinement"
+VERSION = "0.9.0"
+VERSION_NAME = "Multi-Provider AI"
 
 # Changelog for reference
 CHANGELOG = {
+    "0.9.0": {
+        "date": "2025-11-25",
+        "name": "Multi-Provider AI",
+        "changes": [
+            "Multi-AI provider support: OpenAI, Kimi K2 (free!), Ollama (local)",
+            "Provider switcher in sidebar - switch AI backends on the fly",
+            "Kimi K2 integration with OpenAI-compatible API",
+            "Provider service abstraction for clean architecture",
+            "Revised ROADMAP for homeschool family focus",
+            "Local-first design philosophy",
+            "SQLite database schema ready (migration pending)",
+        ]
+    },
     "0.8.3": {
         "date": "2025-11-25",
         "name": "Production Refinement",

@@ -75,6 +75,7 @@ from services.session_service import SessionManager, QuizManager, InputValidator
 from services.batch_service import BatchManager
 from services.user_service import UserService
 from services.analytics_service import AnalyticsService
+from services.provider_service import AIProviderService
 from version import get_version_display, VERSION
 
 # Import modern UI components
@@ -142,41 +143,28 @@ except ImportError:
     class APIError(Exception): pass
     class RateLimitError(Exception): pass
 
-# ========== Load OpenAI Key and Client ==========
+# ========== Load API Keys and Initialize Client ==========
+# Note: This section now supports multi-provider AI services
+# Load environment variables first
 try:
     from dotenv import load_dotenv
     load_dotenv()
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    if not OPENAI_API_KEY:
-        st.error("OPENAI_API_KEY not set in environment variable or .env file")
-        st.stop()
+except ImportError:
+    sys.stderr.write("python-dotenv not installed, using system environment variables only\n")
 
-    # Initialize the client based on detected SDK version
-    if 'OPENAI_NEW_API' in locals() and OPENAI_NEW_API:
-        client = OpenAI(api_key=OPENAI_API_KEY)
-    else:
-        # Fallback logic (shouldn't be reached if import checks pass)
-        st.error("OpenAI client initialization failed. SDK version issue suspected.")
-        st.stop()
-except ImportError as e:
-    if 'dotenv' in str(e):
-        st.warning("python-dotenv not installed, falling back to environment variables.")
-        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        if not OPENAI_API_KEY:
-            st.error("OPENAI_API_KEY not set in environment variable")
-            st.stop()
-        if 'OPENAI_NEW_API' in locals() and OPENAI_NEW_API:
-            client = OpenAI(api_key=OPENAI_API_KEY)
-        else:
-            st.error("OpenAI client initialization failed. SDK version issue suspected.")
-            st.stop()
-    else:
-        st.error(f"Import error during OpenAI setup: {e}")
-        st.stop()
-except Exception as e:
-    st.error(f"Error initializing OpenAI client: {e}")
-    sys.stderr.write(traceback.format_exc() + "\\n")
-    st.stop()
+# Get OpenAI API key for backward compatibility
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Initialize client - will be set by provider service or fallback
+client = None
+provider_service = None
+current_provider = None
+
+# First, we need to load config to initialize provider service
+# (Config loading happens later, so we'll do initial client setup after config load)
+# For now, check if OpenAI key exists for backward compatibility
+if not OPENAI_API_KEY:
+    sys.stderr.write("Warning: OPENAI_API_KEY not set. Will attempt to use provider service after config loads.\n")
 
 # ========== Detect Available Models ==========
 # Initialize available models in session state
@@ -419,6 +407,72 @@ def load_config(path="config.yaml") -> Dict[str, Any]:
 
 # Load configuration
 config = load_config()
+
+# ========== Initialize AI Provider Service ==========
+# Initialize provider service for multi-provider support (OpenAI, Kimi, Ollama)
+if 'provider_service' not in st.session_state or 'current_provider' not in st.session_state:
+    try:
+        # Initialize provider service
+        provider_service = AIProviderService(config)
+        
+        # Get default provider
+        current_provider = provider_service.get_default_provider()
+        
+        # Get client from provider service
+        client = provider_service.get_client(current_provider)
+        
+        # Store in session state
+        StateManager.set_state('provider_service', provider_service)
+        StateManager.set_state('current_provider', current_provider)
+        
+        sys.stderr.write(f"✓ Initialized AI provider: {current_provider}\n")
+        
+    except Exception as e:
+        # Fallback to direct OpenAI client if provider service fails
+        sys.stderr.write(f"Warning: Provider service initialization failed: {e}\n")
+        sys.stderr.write("Falling back to direct OpenAI client...\n")
+        
+        if not OPENAI_API_KEY:
+            st.error("OPENAI_API_KEY not set in environment variable or .env file")
+            st.error("Please set your OpenAI API key to use this application.")
+            st.stop()
+        
+        try:
+            # Direct OpenAI client initialization as fallback
+            if 'OPENAI_NEW_API' in locals() and OPENAI_NEW_API:
+                client = OpenAI(api_key=OPENAI_API_KEY)
+                StateManager.set_state('provider_service', None)
+                StateManager.set_state('current_provider', 'openai')
+                sys.stderr.write("✓ Using direct OpenAI client (fallback mode)\n")
+            else:
+                st.error("OpenAI client initialization failed. SDK version issue suspected.")
+                st.stop()
+        except Exception as fallback_error:
+            st.error(f"Error initializing OpenAI client: {fallback_error}")
+            sys.stderr.write(traceback.format_exc() + "\n")
+            st.stop()
+else:
+    # Use existing provider service from session state
+    provider_service = StateManager.get_state('provider_service')
+    current_provider = StateManager.get_state('current_provider')
+    
+    # Get client from provider service or use direct client
+    if provider_service:
+        try:
+            client = provider_service.get_client(current_provider)
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to get client from provider service: {e}\n")
+            # Fallback to direct OpenAI client
+            if OPENAI_API_KEY and 'OPENAI_NEW_API' in locals() and OPENAI_NEW_API:
+                client = OpenAI(api_key=OPENAI_API_KEY)
+            else:
+                st.error("Failed to initialize AI client")
+                st.stop()
+
+# Ensure we have a valid client
+if client is None:
+    st.error("Failed to initialize AI client. Please check your API keys and configuration.")
+    st.stop()
 
 # Initialize curriculum service and template manager after config is loaded
 if "curriculum_service" not in st.session_state:
@@ -720,6 +774,53 @@ with st.sidebar.expander("📚 **Basic Settings**", expanded=True):
 
     # Language selection
     language = st.selectbox("Language", config["defaults"]["languages"], index=config["defaults"]["languages"].index(config["defaults"]["language"]) if config["defaults"]["language"] in config["defaults"]["languages"] else 0, key="sidebar_language")
+
+# AI Provider Selection Section
+with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
+    # Get provider service from session state
+    provider_service = StateManager.get_state("provider_service")
+    
+    # Get available providers
+    available_providers = provider_service.get_available_providers()
+    
+    # Provider display names
+    provider_names = {
+        "openai": "OpenAI (Paid)",
+        "kimi": "Kimi K2 (Free)",
+        "ollama": "Ollama (Local)"
+    }
+    
+    # Get current provider
+    current_provider = StateManager.get_state("current_provider", "openai")
+    
+    # Provider selection dropdown
+    selected_provider = st.selectbox(
+        "Select AI Provider",
+        options=available_providers,
+        format_func=lambda x: provider_names.get(x, x),
+        index=available_providers.index(current_provider) if current_provider in available_providers else 0,
+        help="Choose your AI provider. Kimi K2 is free! OpenAI costs money. Ollama runs locally.",
+        key="provider_selector"
+    )
+    
+    # Handle provider change
+    if selected_provider != current_provider:
+        StateManager.set_state("current_provider", selected_provider)
+        # Update the client
+        StateManager.set_state("client", provider_service.get_client(selected_provider))
+        st.rerun()
+    
+    # Show provider-specific info
+    provider_info = provider_service.get_provider_info(selected_provider)
+    if selected_provider == "kimi":
+        st.success("✓ Using Kimi K2 (Free tier)")
+        st.caption("Free AI with competitive performance")
+    elif selected_provider == "ollama":
+        st.info("✓ Using local Ollama")
+        st.caption("Runs completely offline on your machine")
+    elif selected_provider == "openai":
+        st.info("✓ Using OpenAI")
+        st.caption("Premium AI - charges per API call")
 
 # Advanced Settings Section  
 with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
