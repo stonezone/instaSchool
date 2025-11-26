@@ -1145,8 +1145,12 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
     provider_names = {
         "openai": "OpenAI (Paid)",
         "kimi": "Kimi K2 (Free)",
+        "deepseek": "DeepSeek (Cheap)",
         "ollama": "Ollama (Local)"
     }
+
+    # Debug: Show available providers
+    st.caption(f"Available: {', '.join(available_providers)}")
     
     # Get current provider
     current_provider = StateManager.get_state("current_provider", "openai")
@@ -1197,13 +1201,21 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
     StateManager.set_state("cross_provider_enabled", cross_provider_enabled)
 
     if cross_provider_enabled:
+        # Get saved cross-provider selections (default to main provider)
+        saved_orch = StateManager.get_state("orchestrator_provider", None)
+        saved_worker = StateManager.get_state("worker_provider", None)
+
+        # Calculate indices - use saved value if available, else use first provider
+        orch_default = saved_orch if saved_orch in available_providers else available_providers[0]
+        worker_default = saved_worker if saved_worker in available_providers else available_providers[0]
+
         col1, col2 = st.columns(2)
         with col1:
             orchestrator_provider = st.selectbox(
                 "Orchestrator",
                 options=available_providers,
                 format_func=lambda x: provider_names.get(x, x),
-                index=available_providers.index(StateManager.get_state("orchestrator_provider", selected_provider)) if StateManager.get_state("orchestrator_provider", selected_provider) in available_providers else 0,
+                index=available_providers.index(orch_default),
                 key="orch_provider"
             )
             StateManager.set_state("orchestrator_provider", orchestrator_provider)
@@ -1214,7 +1226,7 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
                 "Workers",
                 options=available_providers,
                 format_func=lambda x: provider_names.get(x, x),
-                index=available_providers.index(StateManager.get_state("worker_provider", selected_provider)) if StateManager.get_state("worker_provider", selected_provider) in available_providers else 0,
+                index=available_providers.index(worker_default),
                 key="worker_prov_select"
             )
             StateManager.set_state("worker_provider", worker_provider)
