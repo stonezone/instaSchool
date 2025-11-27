@@ -9,21 +9,19 @@ Format: MAJOR.MINOR.PATCH
 """
 
 VERSION = "1.5.5"
-VERSION_NAME = "Kimi Model Expansion"
+VERSION_NAME = "Kimi Thinking Model"
 
 # Changelog for reference
 CHANGELOG = {
     "1.5.5": {
         "date": "2025-11-26",
-        "name": "Kimi Model Expansion",
+        "name": "Kimi Thinking Model",
         "changes": [
-            "Added all Kimi/Moonshot models: text, thinking, and vision",
-            "Thinking models: kimi-k2-thinking, kimi-k2-thinking-turbo",
-            "Vision models: moonshot-v1-*-vision-preview (analyze images)",
+            "Kimi default main model: kimi-k2-thinking (smart reasoning)",
+            "Kimi worker model: kimi-k2-turbo-preview (fast processing)",
+            "Cross-provider: Kimi for text/reasoning, OpenAI for images",
             "Added MOONSHOT_API_KEY as fallback for KIMI_API_KEY",
-            "New helper methods: get_thinking_models(), get_vision_models()",
-            "Added supports_vision() to check image analysis capability",
-            "Clarified: supports_vision (analyze) vs supports_images (generate)",
+            "Simplified Kimi text_models list (removed vision models)",
         ]
     },
     "1.5.4": {

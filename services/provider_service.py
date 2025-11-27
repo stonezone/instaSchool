@@ -42,37 +42,28 @@ class AIProviderService:
                 "temperature": 0.6,
             },
             "models": {
-                "main": "kimi-k2-0905-preview",
+                # kimi-k2-thinking: Best for orchestration, curriculum content, image prompts
+                # Very smart reasoning - use for main/orchestrator tasks
+                "main": "kimi-k2-thinking",
+                # kimi-k2-turbo-preview: Fast worker for data processing and formatting
                 "worker": "kimi-k2-turbo-preview",
-                "image": None,  # Kimi doesn't support image generation
-                "thinking": "kimi-k2-thinking",  # For deep reasoning tasks
-                "vision": "moonshot-v1-32k-vision-preview"  # For image analysis
+                # Images: Use OpenAI (gpt-image-1/dall-e) via cross-provider routing
+                "image": None
             },
             # Available text models (ordered by capability)
             "text_models": [
+                "kimi-k2-thinking",         # Best reasoning (DEFAULT - orchestrator)
+                "kimi-k2-thinking-turbo",   # Fast reasoning
+                "kimi-k2-turbo-preview",    # Fast worker model
                 "kimi-latest",              # Latest stable
                 "kimi-k2-0905-preview",     # Newest preview
-                "kimi-k2-0711-preview",     # Older preview
-                "kimi-k2-turbo-preview",    # Fast turbo variant
                 "moonshot-v1-auto",         # Auto context selection
                 "moonshot-v1-128k",         # Large context
                 "moonshot-v1-32k",          # Medium context
                 "moonshot-v1-8k",           # Small context (cheapest)
             ],
-            # Thinking/reasoning models (show chain-of-thought)
-            "thinking_models": [
-                "kimi-k2-thinking",         # Full reasoning
-                "kimi-k2-thinking-turbo",   # Fast reasoning
-            ],
-            # Vision models (can analyze images)
-            "vision_models": [
-                "moonshot-v1-128k-vision-preview",
-                "moonshot-v1-32k-vision-preview",
-                "moonshot-v1-8k-vision-preview",
-            ],
             "image_models": [],
-            "supports_images": False,  # Can't GENERATE images
-            "supports_vision": True,   # CAN ANALYZE images
+            "supports_images": False,  # Use OpenAI for image generation
             "cost_tier": "free"
         },
         "deepseek": {
