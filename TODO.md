@@ -14,7 +14,7 @@ Use the status tags consistently:
 
 ## 1. Unify Student Progress Storage (JSON ↔ SQLite)
 
-**Status:** TODO  
+**Status:** IN PROGRESS (core wiring implemented in `StudentProgress` and DB; continue tightening analytics & docs)  
 **Priority:** 🔴 Critical  
 **Areas:** `src/student_mode/*`, `services/database_service.py`, `services/analytics_service.py`, `services/family_service.py`
 
@@ -56,8 +56,8 @@ Use the status tags consistently:
 
 ## 2. Fix SRS / Review Queue Functionality
 
-**Status:** TODO  
-**Priority:** 🔴 Critical (user‑visible feature currently ineffective)  
+**Status:** IN PROGRESS (quiz‑based SRS card creation and review queue are live; consider expanding triggers and AI‑generated cards)  
+**Priority:** 🔴 Critical (user‑visible feature)  
 **Areas:** `services/srs_service.py`, `src/student_mode/review_queue.py`, `src/student_mode/student_ui.py`, `services/database_service.py`
 
 ### 2.1 Wire flashcard creation into app flows
@@ -95,7 +95,7 @@ Use the status tags consistently:
 
 ## 3. Correct Grading Fallback Behavior
 
-**Status:** TODO  
+**Status:** IN PROGRESS (GradingAgent now distinguishes graded vs. fallback; confirm all XP paths respect `graded`)  
 **Priority:** 🟠 High (subtle but impactful on learning)  
 **Areas:** `src/grading_agent.py`, `src/student_mode/student_ui.py`, any XP logic tied to grading
 
@@ -120,7 +120,7 @@ Use the status tags consistently:
 
 ## 4. Model Detection & Provider Configuration Clean‑up
 
-**Status:** TODO  
+**Status:** IN PROGRESS (model detector now intentionally filters to cheap/mini models; review provider defaults and docstrings next)  
 **Priority:** 🟡 Medium  
 **Areas:** `src/model_detector.py`, `services/provider_service.py`, `config.yaml`
 
@@ -148,7 +148,7 @@ Use the status tags consistently:
 
 ## 5. Error Handling & Logging Consistency
 
-**Status:** TODO  
+**Status:** IN PROGRESS (image download now uses a bounded timeout; further exception tightening still needed)  
 **Priority:** 🟡 Medium  
 **Areas:** `src/error_handler.py`, `src/agent_framework.py`, `src/audio_agent.py`, `src/image_generator.py`, `src/verbose_logger.py`, `main.py`
 

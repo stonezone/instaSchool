@@ -209,7 +209,7 @@ class ImageGenerator:
                                         logger.log_debug(f"Downloading image from URL: {img_data.url[:30]}...")
                                     print(f"Downloading image from URL: {img_data.url[:50]}...")
                                     
-                                    img_response = requests.get(img_data.url)
+                                    img_response = requests.get(img_data.url, timeout=15)
                                     if img_response.status_code == 200:
                                         image_data = img_response.content
                                         b64_data = base64.b64encode(image_data).decode('utf-8')

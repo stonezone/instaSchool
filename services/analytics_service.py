@@ -140,9 +140,10 @@ class AnalyticsService:
                 except json.JSONDecodeError:
                     progress_stats = {}
 
-            # Track max XP and level
-            stats.total_xp = max(stats.total_xp, progress_stats.get('xp', 0))
-            stats.level = max(stats.level, progress_stats.get('level', 0))
+            # Track max XP and level based on XP column
+            progress_xp = progress.get('xp', 0) or 0
+            stats.total_xp = max(stats.total_xp, progress_xp)
+            stats.level = max(stats.level, progress_xp // 100)
 
             # Check if curriculum is completed
             if progress_stats.get('curricula_completed', 0) > 0:
