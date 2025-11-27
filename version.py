@@ -8,11 +8,21 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.4"
-VERSION_NAME = "Code Quality Cleanup"
+VERSION = "1.6.5"
+VERSION_NAME = "Constants & Configuration"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.5": {
+        "date": "2025-11-27",
+        "name": "Constants & Configuration",
+        "changes": [
+            "New src/constants.py with centralized magic numbers",
+            "XP, level, mastery, and content limit constants",
+            "progress_manager.py and review_queue.py now use constants",
+            "Easier configuration and maintenance",
+        ]
+    },
     "1.6.4": {
         "date": "2025-11-27",
         "name": "Code Quality Cleanup",
