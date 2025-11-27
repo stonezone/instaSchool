@@ -21,15 +21,25 @@ class AIProviderService:
                 "temperature": 0.7,
             },
             "models": {
-                # OpenAI limited to cheap models + images only
-                "main": "gpt-4o-mini",
-                "worker": "gpt-4o-mini",
-                "image": "dall-e-3"
+                "main": "gpt-4.1-mini",
+                "worker": "gpt-4.1-nano",
+                "image": "gpt-image-1"
             },
-            # Available text models (cheap only - use Kimi/DeepSeek for main work)
-            "text_models": ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5-mini"],
-            # Available image models
-            "image_models": ["dall-e-3", "dall-e-2", "gpt-image-1"],
+            # Available text models
+            "text_models": [
+                "gpt-4o",
+                "chatgpt-4o-latest",
+                "gpt-4o-mini",
+                "gpt-4o-nano",
+                "gpt-4.1",
+                "gpt-4.1-mini",
+                "gpt-4.1-nano",
+                "gpt-5",
+                "gpt-5-mini",
+                "gpt-5-nano",
+            ],
+            # Image models (ONLY these - used by all providers)
+            "image_models": ["gpt-image-1", "gpt-image-1-mini"],
             "supports_images": True,
             "cost_tier": "paid"
         },
@@ -42,25 +52,17 @@ class AIProviderService:
                 "temperature": 0.6,
             },
             "models": {
-                # kimi-k2-thinking: Best for orchestration, curriculum content, image prompts
-                # Very smart reasoning - use for main/orchestrator tasks
+                # kimi-k2-thinking: Smart reasoning for orchestration, content, prompts
                 "main": "kimi-k2-thinking",
-                # kimi-k2-turbo-preview: Fast worker for data processing and formatting
+                # kimi-k2-turbo-preview: Fast worker for data processing
                 "worker": "kimi-k2-turbo-preview",
-                # Images: Use OpenAI (gpt-image-1/dall-e) via cross-provider routing
+                # Images: Use OpenAI (gpt-image-1) via cross-provider routing
                 "image": None
             },
-            # Available text models (ordered by capability)
+            # Available text models
             "text_models": [
-                "kimi-k2-thinking",         # Best reasoning (DEFAULT - orchestrator)
-                "kimi-k2-thinking-turbo",   # Fast reasoning
-                "kimi-k2-turbo-preview",    # Fast worker model
-                "kimi-latest",              # Latest stable
-                "kimi-k2-0905-preview",     # Newest preview
-                "moonshot-v1-auto",         # Auto context selection
-                "moonshot-v1-128k",         # Large context
-                "moonshot-v1-32k",          # Medium context
-                "moonshot-v1-8k",           # Small context (cheapest)
+                "kimi-k2-thinking",         # Smart reasoning (DEFAULT)
+                "kimi-k2-turbo-preview",    # Fast worker
             ],
             "image_models": [],
             "supports_images": False,  # Use OpenAI for image generation

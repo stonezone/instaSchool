@@ -8,11 +8,22 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.5.5"
-VERSION_NAME = "Kimi Thinking Model"
+VERSION = "1.5.6"
+VERSION_NAME = "Model List Cleanup"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.5.6": {
+        "date": "2025-11-26",
+        "name": "Model List Cleanup",
+        "changes": [
+            "OpenAI text: gpt-4o, chatgpt-4o-latest, gpt-4o-mini/nano, gpt-4.1/mini/nano, gpt-5/mini/nano",
+            "Kimi text: kimi-k2-thinking (main), kimi-k2-turbo-preview (worker)",
+            "Image models: ONLY gpt-image-1 and gpt-image-1-mini (removed DALL-E)",
+            "Cross-provider routing: Any provider can use OpenAI for images",
+            "Updated all defaults and help text to use gpt-image-1",
+        ]
+    },
     "1.5.5": {
         "date": "2025-11-26",
         "name": "Kimi Thinking Model",

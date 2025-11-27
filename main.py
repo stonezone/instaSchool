@@ -571,7 +571,7 @@ def load_config(path="config.yaml") -> Dict[str, Any]:
     defaults.setdefault("worker_model", "gpt-4.1-mini") # Model for worker agents
     defaults.setdefault("image_model", "gpt-image-1") # Default to gpt-image-1 for better images
     # Set available image models if not defined
-    defaults.setdefault("image_models", ["gpt-image-1", "dall-e-3", "dall-e-2"])
+    defaults.setdefault("image_models", ["gpt-image-1", "gpt-image-1-mini"])
     defaults.setdefault("include_quizzes", True)
     defaults.setdefault("include_summary", True)
     defaults.setdefault("include_resources", True)
@@ -591,9 +591,8 @@ def load_config(path="config.yaml") -> Dict[str, Any]:
         - **Image Generator**: Creates educational illustrations
         
         Choose the image model that suits your needs:
-        - **GPT-Image-1**: Highest quality educational illustrations
-        - **DALL-E 3**: Good quality with creative elements
-        - **DALL-E 2**: Basic illustrations, faster generation
+        - **gpt-image-1**: Highest quality educational illustrations (recommended)
+        - **gpt-image-1-mini**: Faster generation, good quality
         """
 
     return config_data
@@ -1366,7 +1365,7 @@ with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
         st.caption(f"⚠️ {provider_display} doesn't support images. Using OpenAI for images.")
 
     if available_image_models:
-        default_image_model = "dall-e-3"
+        default_image_model = "gpt-image-1"
         if default_image_model not in available_image_models:
             default_image_model = available_image_models[0]
 
@@ -1376,7 +1375,7 @@ with st.sidebar.expander("🤖 **AI Model Settings**", expanded=False):
             "Image Model (OpenAI)",
             options=available_image_models,
             index=image_model_index,
-            help="Images always use OpenAI. DALL-E 3 recommended.",
+            help="Images always use OpenAI. gpt-image-1 recommended.",
             key="image_model_select"
         )
     else:

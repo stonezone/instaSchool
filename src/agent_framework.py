@@ -403,7 +403,7 @@ class MediaAgent:
         
         # Initialize ImageGenerator with proper model
         from src.image_generator import ImageGenerator
-        default_model = config["defaults"].get("image_model", "dall-e-3")
+        default_model = config["defaults"].get("image_model", "gpt-image-1")
         self.image_generator = ImageGenerator(client, default_model)
         
         # Try to import the logger

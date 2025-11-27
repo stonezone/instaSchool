@@ -174,18 +174,17 @@ def get_fallback_models(config: Optional[Dict] = None) -> Dict[str, List[str]]:
         Dictionary with 'text_models' and 'image_models' lists
     """
     if config is None:
-        # Return hardcoded fallbacks - cheap OpenAI models only
-        # GPT 3.x REMOVED - Use Kimi/DeepSeek for main text generation
+        # Return hardcoded fallbacks
         return {
-            'text_models': ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5-mini'],
-            'image_models': ['dall-e-3', 'dall-e-2', 'gpt-image-1']
+            'text_models': ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano'],
+            'image_models': ['gpt-image-1', 'gpt-image-1-mini']
         }
-    
+
     # Extract from config
     defaults = config.get('defaults', {})
     return {
-        'text_models': defaults.get('text_models', ['gpt-4o', 'gpt-4o-mini']),
-        'image_models': defaults.get('image_models', ['dall-e-3', 'dall-e-2'])
+        'text_models': defaults.get('text_models', ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1-mini']),
+        'image_models': defaults.get('image_models', ['gpt-image-1', 'gpt-image-1-mini'])
     }
 
 

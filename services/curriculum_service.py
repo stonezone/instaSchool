@@ -158,7 +158,7 @@ class CurriculumService:
         include_quizzes = params.get("include_quizzes", True)
         include_summary = params.get("include_summary", True)
         include_resources = params.get("include_resources", True)
-        image_model = params.get("image_model", "dall-e-3")
+        image_model = params.get("image_model", "gpt-image-1")
         text_model = params.get("text_model", "gpt-4o")
         
         # Base token estimates per topic
@@ -201,11 +201,10 @@ class CurriculumService:
         worker_input_cost = (input_tokens / 1000) * worker_model_cost["input"]
         worker_output_cost = (output_tokens / 1000) * worker_model_cost["output"]
         
-        # Image costs
+        # Image costs (only gpt-image models supported)
         image_costs = {
             "gpt-image-1": 0.02,
-            "dall-e-3": 0.04,
-            "dall-e-2": 0.02,
+            "gpt-image-1-mini": 0.01,
         }
         image_cost = image_count * topic_count * image_costs.get(image_model, 0.02)
         
