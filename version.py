@@ -8,11 +8,20 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.0"
-VERSION_NAME = "Student Progress & SRS Upgrade"
+VERSION = "1.6.1"
+VERSION_NAME = "Review Queue XP Rewards"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.1": {
+        "date": "2025-11-27",
+        "name": "Review Queue XP Rewards",
+        "changes": [
+            "Review Queue now awards +5 XP for successful flashcard reviews",
+            "XP feedback displayed in toast messages after each review",
+            "TODO.md consolidated with verified code status",
+        ]
+    },
     "1.6.0": {
         "date": "2025-11-27",
         "name": "Student Progress & SRS Upgrade",
