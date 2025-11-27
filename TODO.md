@@ -49,10 +49,11 @@ Status tags:
 
 ### 7. UI/UX Improvements
 
-**Status:** TODO
+**Status:** IN PROGRESS ✅ Partial
 **Priority:** 🟡 Medium
 
-- [ ] Group Teacher Mode advanced controls into `st.expander` blocks
+- [x] Teacher Mode sidebar already uses expanders for advanced controls
+- [x] Removed stale DeepSeek/Ollama provider references from UI
 - [ ] Mobile layout polish (card sizes, font sizes)
 - [ ] Progress bar flicker reduction
 

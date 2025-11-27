@@ -1184,12 +1184,10 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
     # Get available providers
     available_providers = provider_service.get_available_providers()
     
-    # Provider display names
+    # Provider display names (only OpenAI and Kimi as of v1.5.7)
     provider_names = {
         "openai": "OpenAI (Paid)",
         "kimi": "Kimi K2 (Free)",
-        "deepseek": "DeepSeek (Cheap)",
-        "ollama": "Ollama (Local)"
     }
 
     # Debug: Show available providers
@@ -1223,9 +1221,6 @@ with st.sidebar.expander("🔌 **AI Provider**", expanded=False):
     if selected_provider == "kimi":
         st.success("✓ Using Kimi K2 (Free tier)")
         st.caption("Free AI with competitive performance")
-    elif selected_provider == "ollama":
-        st.info("✓ Using local Ollama")
-        st.caption("Runs completely offline on your machine")
     elif selected_provider == "openai":
         st.info("✓ Using OpenAI")
         st.caption("Premium AI - charges per API call")
