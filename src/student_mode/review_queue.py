@@ -13,6 +13,13 @@ from services.srs_service import SRSService
 from src.state_manager import StateManager
 from .progress_manager import StudentProgress
 
+# Import logger
+try:
+    from src.verbose_logger import get_logger
+    _logger = get_logger()
+except ImportError:
+    _logger = None
+
 
 def render_review_queue(user_id: str, db: DatabaseService) -> None:
     """
@@ -258,7 +265,8 @@ def _process_review(
                         progress.add_xp(5)
                         xp_msg = " (+5 XP)"
                 except Exception as xp_err:
-                    print(f"Error awarding XP: {xp_err}")
+                    if _logger:
+                        _logger.log_event("WARNING", f"Error awarding XP: {xp_err}")
 
             # Update session state
             cards_reviewed = StateManager.get_state("cards_reviewed_today", 0) + 1
