@@ -38,12 +38,14 @@ Status tags:
 
 ### 6. Error Handling & Logging
 
-**Status:** TODO
+**Status:** IN PROGRESS ✅ Partial
 **Priority:** 🟡 Medium
 
-- [ ] Audit `except Exception` blocks in core files
-- [ ] Use specific exceptions: `APIError`, `RateLimitError`, `sqlite3.Error`
-- [ ] Standardize on `VerboseLogger` over ad-hoc `print()`
+- [x] grading_agent.py: Specific exceptions (APIError, RateLimitError, JSONDecodeError) + VerboseLogger
+- [x] progress_manager.py: Specific exceptions (sqlite3.Error) + VerboseLogger
+- [x] review_queue.py: VerboseLogger for XP award errors
+- [ ] agent_framework.py: ~18 exception blocks remaining
+- [ ] Additional service files as needed
 
 ### 7. UI/UX Improvements
 
