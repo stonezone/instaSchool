@@ -11,6 +11,7 @@ from datetime import datetime
 from services.database_service import DatabaseService
 from services.srs_service import SRSService
 from src.state_manager import StateManager
+from .progress_manager import StudentProgress
 
 
 def render_review_queue(user_id: str, db: DatabaseService) -> None:
@@ -247,6 +248,18 @@ def _process_review(
             # Submit review to SRS service
             srs_service.review_card(card_id, quality)
             
+            # Award XP for successful reviews (quality > 0)
+            xp_msg = ""
+            if quality > 0:
+                try:
+                    curriculum_id = card.get("curriculum_id")
+                    if curriculum_id:
+                        progress = StudentProgress(curriculum_id, user_id=user_id)
+                        progress.add_xp(5)
+                        xp_msg = " (+5 XP)"
+                except Exception as xp_err:
+                    print(f"Error awarding XP: {xp_err}")
+
             # Update session state
             cards_reviewed = StateManager.get_state("cards_reviewed_today", 0) + 1
             StateManager.set_state("cards_reviewed_today", cards_reviewed)
@@ -256,12 +269,12 @@ def _process_review(
             # Show feedback toast
             feedback_messages = {
                 0: "💪 Keep practicing! You'll get it!",
-                2: "📚 Getting there! Review it again soon.",
-                4: "✨ Great job! You're learning!",
-                5: "🌟 Excellent! You've mastered this!"
+                2: f"📚 Getting there! Review it again soon.{xp_msg}",
+                4: f"✨ Great job! You're learning!{xp_msg}",
+                5: f"🌟 Excellent! You've mastered this!{xp_msg}"
             }
             
-            st.toast(feedback_messages.get(quality, "Review recorded!"), icon="✅")
+            st.toast(feedback_messages.get(quality, f"Review recorded!{xp_msg}"), icon="✅")
             st.rerun()
         else:
             st.error("Card ID not found. Unable to process review.")
