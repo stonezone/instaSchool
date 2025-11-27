@@ -5,7 +5,6 @@ Provides contextual, lesson-focused help through guided questioning
 
 from typing import Dict, List, Optional, Any
 from src.core.types import BaseAgent
-import json
 
 
 class TutorAgent(BaseAgent):

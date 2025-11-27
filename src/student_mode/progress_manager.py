@@ -4,7 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
 from services.database_service import DatabaseService
 
 # Import logger

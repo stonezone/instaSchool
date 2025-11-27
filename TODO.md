@@ -59,11 +59,11 @@ Status tags:
 
 ### 8. Code Quality
 
-**Status:** TODO
+**Status:** IN PROGRESS ✅ Partial
 **Priority:** 🟢 Nice-to-have
 
 - [ ] Decompose main.py into `render_teacher_mode()`, `render_parent_mode()`
-- [ ] Clean up unused imports
+- [x] Clean up unused imports (tutor_agent, audio_agent, image_generator, progress_manager, review_queue)
 - [ ] Create `constants.py` for magic numbers
 
 ---

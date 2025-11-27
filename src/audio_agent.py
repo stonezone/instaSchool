@@ -3,9 +3,7 @@ Audio Agent for Text-to-Speech Generation
 Handles audio narration for curriculum content using OpenAI's TTS API
 """
 
-import os
 import hashlib
-import base64
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta

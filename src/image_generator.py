@@ -3,11 +3,8 @@ Enhanced Image Generation Module for Curriculum Generator
 Supports multiple image models including gpt-image-1, dall-e-3, and dall-e-2
 """
 
-import os
-import json
 import base64
-import httpx
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Dict, Any, List, Optional
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import traceback

@@ -5,7 +5,6 @@ Renders the spaced repetition review interface for students to practice flashcar
 """
 
 import streamlit as st
-from typing import Optional
 from datetime import datetime
 
 from services.database_service import DatabaseService
