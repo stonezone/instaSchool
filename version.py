@@ -22,6 +22,9 @@ CHANGELOG = {
             "SRS Review Queue now auto-creates flashcards from completed quizzes",
             "Grading agent now distinguishes graded vs fallback and never marks failed API calls as correct",
             "Model detector and provider defaults updated for modern GPT-4o/4.1/5 and gpt-image-1",
+            "Updated Streamlit to 1.51.0 (custom components v2, themes)",
+            "Updated OpenAI SDK to 2.8.1 (GPT-5.1 support)",
+            "Python 3.9+ now required (OpenAI SDK 2.x requirement)",
         ]
     },
     "1.5.7": {

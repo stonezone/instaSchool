@@ -3,7 +3,7 @@
 An AI-powered educational curriculum generator that creates complete, media-rich learning materials for students across multiple subjects and grade levels.
 
 ![InstaSchool](https://img.shields.io/badge/InstaSchool-Curriculum_Generator-blue)
-![Python](https://img.shields.io/badge/Python-3.7+-green)
+![Python](https://img.shields.io/badge/Python-3.9+-green)
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT_4.1-lightblue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
@@ -14,7 +14,7 @@ InstaSchool Curriculum Generator is a powerful tool that leverages advanced AI m
 ### Key Features
 
 - **Agentic AI Framework**: Coordinated AI agents collaborate to create cohesive curriculum components
-- **High-Quality Illustrations**: Advanced image generation with GPT-Imagegen, DALL-E 3, and DALL-E 2
+- **High-Quality Illustrations**: Advanced image generation with gpt-image-1 and gpt-image-1-mini
 - **Interactive Content**: Quizzes with automatic feedback for student assessment
 - **Data Visualization**: Relevant charts and graphs to support learning concepts
 - **Multi-Subject Support**: Science, Math, Language Arts, Social Studies, and more
@@ -27,15 +27,16 @@ InstaSchool Curriculum Generator is a powerful tool that leverages advanced AI m
 
 ### Prerequisites
 
-- Python 3.7 or higher
+- Python 3.9 or higher (required for OpenAI SDK 2.x)
 - OpenAI API key with access to GPT-4.1 and image generation models
+- Optional: Kimi/Moonshot API key for Kimi K2 models
 - pip (Python package manager)
 
 ### Required Packages
 
 ```
-streamlit>=1.24.0
-openai>=1.0.0
+streamlit>=1.51.0
+openai>=2.8.1
 pyyaml>=6.0
 matplotlib>=3.5.0
 pillow>=9.0.0
@@ -45,6 +46,7 @@ plotly>=5.15.0
 tenacity>=8.2.0
 httpx>=0.23.0
 markdown>=3.4.0
+requests>=2.28.0
 ```
 
 PDF export now uses the pure-Python `fpdf2` library and does not require any external OS binaries like `wkhtmltopdf`.

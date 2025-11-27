@@ -13,24 +13,24 @@ Status tags:
 
 ## 1. CRITICAL: Dependency Updates (Time-Aware Validation)
 
-**Status:** TODO
+**Status:** DONE ✅
 **Priority:** 🔴 Critical
 **File:** `requirements.txt`
 
 ### 1.1 Update Python package versions
 Current requirements.txt has outdated minimum versions that should be updated:
 
-- [ ] **Streamlit**: Update `streamlit>=1.24.0` → `streamlit>=1.51.0`
+- [x] **Streamlit**: Update `streamlit>=1.24.0` → `streamlit>=1.51.0`
   - Current: 1.51.0 (Oct 29, 2025)
   - New features: Custom components v2, frameless UI, bidirectional data flow, custom themes
 
-- [ ] **OpenAI SDK**: Update `openai>=1.0.0` → `openai>=2.8.1`
+- [x] **OpenAI SDK**: Update `openai>=1.0.0` → `openai>=2.8.1`
   - Current: 2.8.1 (Nov 17, 2025)
   - Required for: GPT-5.1 support, Realtime API, improved async clients
   - **Note:** Python 3.9+ now required (was 3.7+)
 
 ### 1.2 Update Python version requirement
-- [ ] Update CLAUDE.md and documentation to require Python 3.9+ (OpenAI SDK 2.x requirement)
+- [x] Update CLAUDE.md and documentation to require Python 3.9+ (OpenAI SDK 2.x requirement)
 
 ---
 
