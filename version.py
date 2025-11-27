@@ -8,11 +8,20 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.3"
-VERSION_NAME = "UI Cleanup"
+VERSION = "1.6.4"
+VERSION_NAME = "Code Quality Cleanup"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.4": {
+        "date": "2025-11-27",
+        "name": "Code Quality Cleanup",
+        "changes": [
+            "Removed unused imports from 5 core files",
+            "tutor_agent, audio_agent, image_generator, progress_manager, review_queue cleaned",
+            "Reduced code bloat and improved maintainability",
+        ]
+    },
     "1.6.3": {
         "date": "2025-11-27",
         "name": "UI Cleanup",
