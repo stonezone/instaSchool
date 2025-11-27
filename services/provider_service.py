@@ -35,19 +35,44 @@ class AIProviderService:
         },
         "kimi": {
             "base_url": "https://api.moonshot.cn/v1",
-            "api_key_env": "KIMI_API_KEY",
+            "api_key_env": "KIMI_API_KEY",  # Also checks MOONSHOT_API_KEY as fallback
+            "api_key_env_alt": "MOONSHOT_API_KEY",
             "requires_key": True,
             "default_settings": {
                 "temperature": 0.6,
             },
             "models": {
                 "main": "kimi-k2-0905-preview",
-                "worker": "kimi-k2-0905-preview",
-                "image": None  # Kimi doesn't support image generation
+                "worker": "kimi-k2-turbo-preview",
+                "image": None,  # Kimi doesn't support image generation
+                "thinking": "kimi-k2-thinking",  # For deep reasoning tasks
+                "vision": "moonshot-v1-32k-vision-preview"  # For image analysis
             },
-            "text_models": ["kimi-k2-0905-preview", "moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+            # Available text models (ordered by capability)
+            "text_models": [
+                "kimi-latest",              # Latest stable
+                "kimi-k2-0905-preview",     # Newest preview
+                "kimi-k2-0711-preview",     # Older preview
+                "kimi-k2-turbo-preview",    # Fast turbo variant
+                "moonshot-v1-auto",         # Auto context selection
+                "moonshot-v1-128k",         # Large context
+                "moonshot-v1-32k",          # Medium context
+                "moonshot-v1-8k",           # Small context (cheapest)
+            ],
+            # Thinking/reasoning models (show chain-of-thought)
+            "thinking_models": [
+                "kimi-k2-thinking",         # Full reasoning
+                "kimi-k2-thinking-turbo",   # Fast reasoning
+            ],
+            # Vision models (can analyze images)
+            "vision_models": [
+                "moonshot-v1-128k-vision-preview",
+                "moonshot-v1-32k-vision-preview",
+                "moonshot-v1-8k-vision-preview",
+            ],
             "image_models": [],
-            "supports_images": False,
+            "supports_images": False,  # Can't GENERATE images
+            "supports_vision": True,   # CAN ANALYZE images
             "cost_tier": "free"
         },
         "deepseek": {
@@ -142,9 +167,14 @@ class AIProviderService:
                 # No key required (e.g., Ollama)
                 available.append(provider_name)
             else:
-                # Check if API key is set
+                # Check if API key is set (primary or alt key)
                 api_key_env = provider_config["api_key_env"]
-                if api_key_env and os.getenv(api_key_env):
+                api_key_env_alt = provider_config.get("api_key_env_alt")
+                
+                has_key = (api_key_env and os.getenv(api_key_env)) or \
+                          (api_key_env_alt and os.getenv(api_key_env_alt))
+                
+                if has_key:
                     available.append(provider_name)
 
         self._available_providers = available
@@ -202,9 +232,11 @@ class AIProviderService:
             provider_config = self.PROVIDERS[provider]
             if provider_config["requires_key"]:
                 key_name = provider_config["api_key_env"]
+                alt_key = provider_config.get("api_key_env_alt", "")
+                key_hint = f"{key_name} (or {alt_key})" if alt_key else key_name
                 raise ValueError(
                     f"Provider '{provider}' is not available. "
-                    f"Please set {key_name} environment variable."
+                    f"Please set {key_hint} environment variable."
                 )
             else:
                 raise ValueError(
@@ -225,11 +257,20 @@ class AIProviderService:
 
         # Add API key if required
         if provider_config["requires_key"]:
+            # Try primary key first, then fallback to alt key
             api_key = os.getenv(provider_config["api_key_env"])
             if not api_key:
+                alt_key_env = provider_config.get("api_key_env_alt")
+                if alt_key_env:
+                    api_key = os.getenv(alt_key_env)
+            
+            if not api_key:
+                key_name = provider_config["api_key_env"]
+                alt_key = provider_config.get("api_key_env_alt", "")
+                key_hint = f"{key_name} (or {alt_key})" if alt_key else key_name
                 raise ValueError(
                     f"API key not found for provider '{provider}'. "
-                    f"Please set {provider_config['api_key_env']}."
+                    f"Please set {key_hint}."
                 )
             client_kwargs["api_key"] = api_key
         else:
@@ -434,6 +475,64 @@ class AIProviderService:
             return "unknown"
 
         return self.PROVIDERS[provider].get("cost_tier", "unknown")
+
+    def get_thinking_models(self, provider: Optional[str] = None) -> List[str]:
+        """Get available thinking/reasoning models for a provider
+
+        Thinking models show chain-of-thought reasoning in their responses.
+
+        Args:
+            provider: Provider name, uses default if None
+
+        Returns:
+            List of thinking model names (empty if provider doesn't support them)
+        """
+        if provider is None:
+            provider = self.get_default_provider()
+
+        if provider not in self.PROVIDERS:
+            return []
+
+        return self.PROVIDERS[provider].get("thinking_models", [])
+
+    def get_vision_models(self, provider: Optional[str] = None) -> List[str]:
+        """Get available vision models for a provider
+
+        Vision models can analyze and understand images.
+
+        Args:
+            provider: Provider name, uses default if None
+
+        Returns:
+            List of vision model names (empty if provider doesn't support vision)
+        """
+        if provider is None:
+            provider = self.get_default_provider()
+
+        if provider not in self.PROVIDERS:
+            return []
+
+        return self.PROVIDERS[provider].get("vision_models", [])
+
+    def supports_vision(self, provider: Optional[str] = None) -> bool:
+        """Check if provider supports image analysis (vision)
+
+        Note: This is different from image generation (supports_images).
+        Vision = can analyze images, Image = can generate images.
+
+        Args:
+            provider: Provider name, uses default if None
+
+        Returns:
+            True if provider has vision models available
+        """
+        if provider is None:
+            provider = self.get_default_provider()
+
+        if provider not in self.PROVIDERS:
+            return False
+
+        return self.PROVIDERS[provider].get("supports_vision", False)
 
     def list_all_providers(self) -> Dict[str, Dict[str, Any]]:
         """Get information about all configured providers

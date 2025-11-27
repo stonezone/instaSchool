@@ -8,11 +8,24 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.5.4"
-VERSION_NAME = "Technical Debt Cleanup"
+VERSION = "1.5.5"
+VERSION_NAME = "Kimi Model Expansion"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.5.5": {
+        "date": "2025-11-26",
+        "name": "Kimi Model Expansion",
+        "changes": [
+            "Added all Kimi/Moonshot models: text, thinking, and vision",
+            "Thinking models: kimi-k2-thinking, kimi-k2-thinking-turbo",
+            "Vision models: moonshot-v1-*-vision-preview (analyze images)",
+            "Added MOONSHOT_API_KEY as fallback for KIMI_API_KEY",
+            "New helper methods: get_thinking_models(), get_vision_models()",
+            "Added supports_vision() to check image analysis capability",
+            "Clarified: supports_vision (analyze) vs supports_images (generate)",
+        ]
+    },
     "1.5.4": {
         "date": "2025-11-26",
         "name": "Technical Debt Cleanup",
