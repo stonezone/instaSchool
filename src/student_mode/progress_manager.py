@@ -1,10 +1,27 @@
 """Student Progress Manager - Track student progress through curricula"""
 
 import json
+import sqlite3
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime, timedelta
 from services.database_service import DatabaseService
+
+# Import logger
+try:
+    from src.verbose_logger import get_logger
+    _logger = get_logger()
+except ImportError:
+    _logger = None
+
+
+def _log_warning(message: str) -> None:
+    """Log a warning message using VerboseLogger or stderr as fallback."""
+    if _logger:
+        _logger.log_event("WARNING", message)
+    else:
+        import sys
+        sys.stderr.write(f"Warning: {message}\n")
 
 
 def load_badges_config() -> Dict:
@@ -36,9 +53,11 @@ class StudentProgress:
         # Initialize database connection
         try:
             self.db = DatabaseService()
+        except sqlite3.Error as db_err:
+            _log_warning(f"Database unavailable for progress tracking: {db_err}")
+            self.db = None
         except Exception as e:
-            import sys
-            sys.stderr.write(f"Warning: Database unavailable for progress tracking: {e}\n")
+            _log_warning(f"Unexpected error initializing database: {e}")
             self.db = None
 
         base_dir = Path("curricula")
@@ -65,9 +84,10 @@ class StudentProgress:
                     db_progress.setdefault("stats", {})
                     db_progress.setdefault("completed_sections", [])
                     return db_progress
+            except sqlite3.Error as db_err:
+                _log_warning(f"Error loading progress from DB: {db_err}")
             except Exception as e:
-                import sys
-                sys.stderr.write(f"Error loading progress from DB: {e}\n")
+                _log_warning(f"Unexpected error loading progress: {e}")
 
         # 2. Fallback to local JSON file
         # Prefer user-scoped progress file if it exists
@@ -134,16 +154,16 @@ class StudentProgress:
             with open(self.progress_file, 'w') as f:
                 json.dump(self.data, f, indent=2)
         except IOError as e:
-            import sys
-            sys.stderr.write(f"Error saving progress to file: {e}\n")
-            
+            _log_warning(f"Error saving progress to file: {e}")
+
         # 2. Save to Database (Primary)
         if self.user_id and self.db:
             try:
                 self.db.save_progress(self.user_id, self.curriculum_id, self.data)
+            except sqlite3.Error as db_err:
+                _log_warning(f"Error saving progress to DB: {db_err}")
             except Exception as e:
-                import sys
-                sys.stderr.write(f"Error saving progress to DB: {e}\n")
+                _log_warning(f"Unexpected error saving to DB: {e}")
     
     def get_current_section(self) -> int:
         """Get current section index"""

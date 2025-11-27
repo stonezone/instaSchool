@@ -3,8 +3,18 @@ AI Grading Agent for InstaSchool
 Provides intelligent feedback on student short-answer responses.
 """
 
+import json
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+
+from openai import APIError, RateLimitError, APIConnectionError
+
+# Import logger
+try:
+    from src.verbose_logger import get_logger
+    _logger = get_logger()
+except ImportError:
+    _logger = None
 
 
 @dataclass
@@ -126,8 +136,6 @@ IMPORTANT:
             )
 
             result = response.choices[0].message.content
-
-            import json
             data = json.loads(result)
 
             return GradingResult(
@@ -140,11 +148,39 @@ IMPORTANT:
                 graded=True
             )
 
-        except Exception as e:
-            # Fallback if grading fails
+        except (APIError, RateLimitError, APIConnectionError) as api_err:
+            # API-specific errors - log and fallback
+            if _logger:
+                _logger.log_error(error=api_err, model=self.model, context="Grading API call")
             return GradingResult(
                 score=0.0,
-                feedback=f"System unable to grade answer at this time. Please try again or consult your teacher. ({str(e)[:50]})",
+                feedback="Grading service temporarily unavailable. Please try again.",
+                is_correct=False,
+                strengths=[],
+                improvements=["Grading service unavailable"],
+                model_answer=None,
+                graded=False
+            )
+        except json.JSONDecodeError as json_err:
+            # JSON parsing error - log and fallback
+            if _logger:
+                _logger.log_error(error=json_err, model=self.model, context="Grading response parsing")
+            return GradingResult(
+                score=0.0,
+                feedback="Unable to process grading response. Please try again.",
+                is_correct=False,
+                strengths=[],
+                improvements=["Response processing error"],
+                model_answer=None,
+                graded=False
+            )
+        except Exception as e:
+            # Unexpected errors - log with full context and fallback
+            if _logger:
+                _logger.log_error(error=e, model=self.model, context="Grading unexpected error", include_traceback=True)
+            return GradingResult(
+                score=0.0,
+                feedback="An unexpected error occurred during grading. Please try again.",
                 is_correct=False,
                 strengths=[],
                 improvements=["Grading service unavailable"],
@@ -209,16 +245,31 @@ Respond in JSON format:
             )
 
             result = response.choices[0].message.content
-            import json
             data = json.loads(result)
             return data.get('questions', [])
 
+        except (APIError, RateLimitError, APIConnectionError) as api_err:
+            # API-specific errors - log and return fallback
+            if _logger:
+                _logger.log_error(error=api_err, model=self.model, context="Question generation API call")
+            return self._fallback_questions(unit_title)
+        except json.JSONDecodeError as json_err:
+            # JSON parsing error - log and return fallback
+            if _logger:
+                _logger.log_error(error=json_err, model=self.model, context="Question generation parsing")
+            return self._fallback_questions(unit_title)
         except Exception as e:
-            # Fallback questions
-            return [{
-                "question": f"What did you learn about {unit_title}?",
-                "type": "short_answer",
-                "points": 10,
-                "criteria": "Shows understanding of key concepts",
-                "sample_answer": "A thoughtful summary of the main points."
-            }]
+            # Unexpected errors - log with traceback and return fallback
+            if _logger:
+                _logger.log_error(error=e, model=self.model, context="Question generation unexpected error", include_traceback=True)
+            return self._fallback_questions(unit_title)
+
+    def _fallback_questions(self, unit_title: str) -> List[Dict[str, Any]]:
+        """Return fallback questions when generation fails."""
+        return [{
+            "question": f"What did you learn about {unit_title}?",
+            "type": "short_answer",
+            "points": 10,
+            "criteria": "Shows understanding of key concepts",
+            "sample_answer": "A thoughtful summary of the main points."
+        }]
