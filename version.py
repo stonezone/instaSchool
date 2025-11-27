@@ -8,11 +8,21 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.1"
-VERSION_NAME = "Review Queue XP Rewards"
+VERSION = "1.6.2"
+VERSION_NAME = "Error Handling & Logging"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.2": {
+        "date": "2025-11-27",
+        "name": "Error Handling & Logging",
+        "changes": [
+            "grading_agent.py: Use specific exceptions (APIError, RateLimitError, JSONDecodeError)",
+            "progress_manager.py: Use sqlite3.Error for database operations",
+            "All updated files now use VerboseLogger instead of print()",
+            "Proper error logging with context for debugging",
+        ]
+    },
     "1.6.1": {
         "date": "2025-11-27",
         "name": "Review Queue XP Rewards",
