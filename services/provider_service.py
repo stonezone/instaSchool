@@ -21,8 +21,8 @@ class AIProviderService:
                 "temperature": 0.7,
             },
             "models": {
-                "main": "gpt-4.1-mini",
-                "worker": "gpt-4.1-nano",
+                "main": "gpt-4o",
+                "worker": "gpt-4o-mini",
                 "image": "gpt-image-1"
             },
             # Available text models

@@ -4,8 +4,8 @@ Detects available models from OpenAI API and filters for curriculum generation u
 
 This module provides functionality to query the OpenAI API for available models
 and filter them into categories useful for curriculum generation:
-- Text models: GPT-4, GPT-3.5-turbo, O1, O3 series
-- Image models: DALL-E and GPT-Image series
+- Text models: GPT-4o, GPT-4.1, GPT-5 families (including mini/nano variants)
+- Image models: gpt-image-1 series
 """
 
 import os
@@ -116,28 +116,27 @@ def get_available_models(
         response = client.models.list()
         all_models = [m.id for m in response.data]
         
-        # Filter for text models - ONLY cheap variants (mini, nano)
-        # Expensive models (gpt-4o, gpt-4-turbo, o1, o3) excluded to save costs
-        # GPT 3.x REMOVED - outdated
-        # Use Kimi or DeepSeek for heavy text generation instead
-        cheap_text_patterns = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5-mini', 'gpt-4-mini', 'nano']
-        # Exclude 3.x models explicitly
-        exclude_patterns = ['gpt-3', 'gpt-3.5']
+        # Filter for text models - User specified allowed list
+        allowed_text_models = {
+            'gpt-4o', 'chatgpt-4o-latest', 'gpt-4o-mini', 'gpt-4o-nano',
+            'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
+            'gpt-5', 'gpt-5-mini', 'gpt-5-nano'
+        }
+        
         text_models = [
             m for m in all_models
-            if any(pattern in m.lower() for pattern in cheap_text_patterns)
-            and not any(excl in m.lower() for excl in exclude_patterns)
+            if m in allowed_text_models
         ]
         
-        # Filter for image models (DALL-E, GPT-Image series)
-        image_prefixes = ['dall-e', 'gpt-image']
+        # Filter for image models - ONLY specific allowed models
+        allowed_image_models = {'gpt-image-1', 'gpt-image-1-mini'}
         image_models = [
             m for m in all_models 
-            if any(prefix in m.lower() for prefix in image_prefixes)
+            if m in allowed_image_models
         ]
         
         # Sort models for consistent ordering
-        text_models.sort(reverse=True)  # Reverse to get latest versions first
+        text_models.sort(reverse=True)
         image_models.sort(reverse=True)
         
         # Update cache
@@ -174,16 +173,16 @@ def get_fallback_models(config: Optional[Dict] = None) -> Dict[str, List[str]]:
         Dictionary with 'text_models' and 'image_models' lists
     """
     if config is None:
-        # Return hardcoded fallbacks
+        # Return hardcoded fallbacks matching allowed list
         return {
-            'text_models': ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano'],
+            'text_models': ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-5', 'gpt-5-mini'],
             'image_models': ['gpt-image-1', 'gpt-image-1-mini']
         }
 
     # Extract from config
     defaults = config.get('defaults', {})
     return {
-        'text_models': defaults.get('text_models', ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1-mini']),
+        'text_models': defaults.get('text_models', ['gpt-4o', 'gpt-4o-mini']),
         'image_models': defaults.get('image_models', ['gpt-image-1', 'gpt-image-1-mini'])
     }
 

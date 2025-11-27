@@ -361,6 +361,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                 progress.previous_section()
                 st.rerun()
     
+        # ... (inside render_student_mode) ...
     with col2:
         if can_advance:
             if st.button("✅ Complete & Continue", type="primary", use_container_width=True):
@@ -369,6 +370,12 @@ def render_student_mode(config: Dict[str, Any], client: Any):
 
                 # Mark section complete (updates streak and checks badges)
                 _, new_badges = progress.complete_section(section_idx)
+                
+                # TRIGGER SRS CARD CREATION (On Quiz Completion)
+                # Section 4 is Quiz. If we are completing it, we passed the gate.
+                if section_type_idx == 4 and user_id:
+                    _create_flashcards_from_quiz(unit, user_id, curriculum_id)
+
                 progress.advance_section()
 
                 if leveled_up:
@@ -382,6 +389,10 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                     StateManager.set_state('new_badges', new_badges)
 
                 st.rerun()
+# ... (rest of file) ...
+
+
+
         else:
             # Show locked state with mastery requirement
             st.error(f"🔒 {gate_message}")
@@ -880,3 +891,35 @@ def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
             StateManager.set_state('tutor_messages', tutor_messages)
 
         st.rerun()
+
+
+def _create_flashcards_from_quiz(unit: Dict[str, Any], user_id: str, curriculum_id: str):
+    """Create flashcards from quiz questions"""
+    try:
+        db = DatabaseService()
+        srs = SRSService(db)
+        quiz = unit.get('quiz', {})
+        questions = quiz.get('questions', [])
+        
+        count = 0
+        for q in questions:
+            front = q.get('question')
+            back = ""
+            
+            # Determine back of card based on question type
+            if q.get('type') == 'short_answer':
+                back = q.get('sample_answer')
+            else:
+                # Default to multiple choice style
+                back = q.get('correct')
+                
+            # Create card if valid
+            if front and back:
+                srs.create_card(user_id, curriculum_id, front, str(back))
+                count += 1
+        
+        if count > 0:
+            st.toast(f"📇 Created {count} flashcards for your review queue!", icon="🧠")
+            
+    except Exception as e:
+        print(f"Error creating flashcards: {e}")

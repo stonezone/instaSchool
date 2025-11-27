@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime, timedelta
+from services.database_service import DatabaseService
 
 
 def load_badges_config() -> Dict:
@@ -31,6 +32,14 @@ class StudentProgress:
         """
         self.curriculum_id = curriculum_id
         self.user_id = user_id
+        
+        # Initialize database connection
+        try:
+            self.db = DatabaseService()
+        except Exception as e:
+            import sys
+            sys.stderr.write(f"Warning: Database unavailable for progress tracking: {e}\n")
+            self.db = None
 
         base_dir = Path("curricula")
         # If a user_id is provided, store progress under curricula/users/{user_id}
@@ -44,18 +53,36 @@ class StudentProgress:
         self.data = self._load_progress()
     
     def _load_progress(self) -> Dict:
-        """Load progress from file or create new progress data"""
+        """Load progress from DB, file, or create new progress data"""
+        
+        # 1. Try loading from Database first (Single Source of Truth)
+        if self.user_id and self.db:
+            try:
+                db_progress = self.db.get_progress(self.user_id, self.curriculum_id)
+                if db_progress:
+                    # Ensure required fields exist in DB record
+                    db_progress.setdefault("badges", [])
+                    db_progress.setdefault("stats", {})
+                    db_progress.setdefault("completed_sections", [])
+                    return db_progress
+            except Exception as e:
+                import sys
+                sys.stderr.write(f"Error loading progress from DB: {e}\n")
+
+        # 2. Fallback to local JSON file
         # Prefer user-scoped progress file if it exists
         if self.progress_file.exists():
             try:
                 with open(self.progress_file, 'r') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    # If we successfully loaded from JSON but DB was empty/failed, 
+                    # we might want to sync back to DB later (save_progress will handle this)
+                    return data
             except (json.JSONDecodeError, IOError):
                 # If file is corrupted, start fresh
                 pass
 
-        # Backwards compatibility: if using per-user storage but a legacy
-        # global progress file exists, load it once as a starting point.
+        # 3. Backwards compatibility: legacy global progress file
         if self.user_id:
             legacy_file = Path("curricula") / f"progress_{self.curriculum_id}.json"
             if legacy_file.exists():
@@ -75,7 +102,7 @@ class StudentProgress:
                 except (json.JSONDecodeError, IOError):
                     pass
         
-        # Default progress structure with badge stats
+        # 4. Default new progress structure
         return {
             "curriculum_id": self.curriculum_id,
             "user_id": self.user_id,
@@ -99,14 +126,24 @@ class StudentProgress:
         }
     
     def save_progress(self):
-        """Persist progress data to file"""
+        """Persist progress data to file and database"""
         self.data["last_updated"] = datetime.now().isoformat()
+        
+        # 1. Save to JSON (Backup/Offline)
         try:
             with open(self.progress_file, 'w') as f:
                 json.dump(self.data, f, indent=2)
         except IOError as e:
             import sys
-            sys.stderr.write(f"Error saving progress: {e}\n")
+            sys.stderr.write(f"Error saving progress to file: {e}\n")
+            
+        # 2. Save to Database (Primary)
+        if self.user_id and self.db:
+            try:
+                self.db.save_progress(self.user_id, self.curriculum_id, self.data)
+            except Exception as e:
+                import sys
+                sys.stderr.write(f"Error saving progress to DB: {e}\n")
     
     def get_current_section(self) -> int:
         """Get current section index"""

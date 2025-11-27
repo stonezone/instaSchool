@@ -16,6 +16,7 @@ class GradingResult:
     strengths: List[str]  # What the student did well
     improvements: List[str]  # Areas to improve
     model_answer: Optional[str] = None  # Example correct answer
+    graded: bool = True  # Whether the answer was actually graded by AI
 
 
 class GradingAgent:
@@ -135,18 +136,20 @@ IMPORTANT:
                 is_correct=data.get('is_correct', False),
                 strengths=data.get('strengths', []),
                 improvements=data.get('improvements', []),
-                model_answer=data.get('model_answer')
+                model_answer=data.get('model_answer'),
+                graded=True
             )
 
         except Exception as e:
             # Fallback if grading fails
             return GradingResult(
-                score=0.5,
-                feedback=f"I had trouble grading your answer, but I appreciate your effort! ({str(e)[:50]})",
-                is_correct=True,  # Give benefit of doubt
-                strengths=["You attempted the question"],
-                improvements=["Try to be more specific in your answer"],
-                model_answer=None
+                score=0.0,
+                feedback=f"System unable to grade answer at this time. Please try again or consult your teacher. ({str(e)[:50]})",
+                is_correct=False,
+                strengths=[],
+                improvements=["Grading service unavailable"],
+                model_answer=None,
+                graded=False
             )
 
     def generate_short_answer_questions(
