@@ -173,3 +173,7 @@ desktop.ini
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local docs / notes (not essential to runtime)
+TODO.md
+notes/*.md
