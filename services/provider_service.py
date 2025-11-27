@@ -67,40 +67,6 @@ class AIProviderService:
             "image_models": [],
             "supports_images": False,  # Use OpenAI for image generation
             "cost_tier": "free"
-        },
-        "deepseek": {
-            "base_url": "https://api.deepseek.com/v1",
-            "api_key_env": "DEEPSEEK_API_KEY",
-            "requires_key": True,
-            "default_settings": {
-                "temperature": 0.7,
-            },
-            "models": {
-                "main": "deepseek-chat",
-                "worker": "deepseek-chat",
-                "image": None  # DeepSeek doesn't support image generation
-            },
-            "text_models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
-            "image_models": [],
-            "supports_images": False,
-            "cost_tier": "cheap"
-        },
-        "ollama": {
-            "base_url": "http://localhost:11434/v1",
-            "api_key_env": None,
-            "requires_key": False,
-            "default_settings": {
-                "temperature": 0.7,
-            },
-            "models": {
-                "main": "llama3.1",
-                "worker": "llama3.1",
-                "image": None
-            },
-            "text_models": ["llama3.1", "llama3.2", "mistral", "codellama", "phi3"],
-            "image_models": [],
-            "supports_images": False,
-            "cost_tier": "free"
         }
     }
 

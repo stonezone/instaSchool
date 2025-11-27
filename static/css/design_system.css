@@ -158,14 +158,46 @@ body::before {
 }
 
 /* =============================================================================
-   SIDEBAR - Premium Frosted Glass
+   SIDEBAR - Premium Frosted Glass with Wider Width
    ============================================================================= */
+/* Sidebar container - make it wider */
 .stApp [data-testid="stSidebar"] {
     background: var(--glass-bg-strong) !important;
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
     border-right: 1px solid var(--glass-border) !important;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.04) !important;
+    width: 360px !important;
+    min-width: 360px !important;
+}
+
+/* Sidebar inner content area */
+.stApp [data-testid="stSidebar"] > div:first-child {
+    width: 360px !important;
+    min-width: 360px !important;
+}
+
+/* Adjust main content when sidebar is open */
+.stApp [data-testid="stSidebarContent"] {
+    width: 360px !important;
+}
+
+/* Make collapse button more visible */
+.stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
+    background: var(--glass-bg-medium) !important;
+    border-radius: var(--radius-md) !important;
+    border: 1px solid var(--separator) !important;
+    padding: 8px !important;
+    transition: all var(--transition-fast) !important;
+}
+
+.stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
+    background: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+.stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover svg {
+    fill: white !important;
 }
 
 .stApp [data-testid="stSidebar"] > div {

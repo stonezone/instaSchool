@@ -249,20 +249,26 @@ defaults:
   worker_model: "gpt-5-nano"  # Nano model for content generation (testing)
   # Default image model
   image_model: "gpt-image-1-mini"  # Use mini for testing, gpt-image-1 for production
-  # Available image models (fallback if API detection fails)
+  # Available image models (ONLY gpt-image models)
   image_models:
     - "gpt-image-1"
     - "gpt-image-1-mini"
-    - "dall-e-3"
-    - "dall-e-2"
-  # Available text models (fallback if API detection fails)
+  # Available text models (OpenAI + Kimi)
   text_models:
-    - "gpt-5.1"
+    # OpenAI models
+    - "gpt-4o"
+    - "chatgpt-4o-latest"
+    - "gpt-4o-mini"
+    - "gpt-4o-nano"
+    - "gpt-4.1"
+    - "gpt-4.1-mini"
+    - "gpt-4.1-nano"
     - "gpt-5"
     - "gpt-5-mini"
     - "gpt-5-nano"
-    - "gpt-4o"
-    - "gpt-4o-mini"
+    # Kimi models
+    - "kimi-k2-thinking"
+    - "kimi-k2-turbo-preview"
 
   # Default states for the feature toggles.
   include_quizzes: true
@@ -279,51 +285,34 @@ defaults:
 
 
 # === AI Provider Configuration ===
-# Allows switching between different AI providers (OpenAI, Kimi, Ollama, etc.)
+# Only OpenAI and Kimi providers supported
 ai_providers:
   # Which provider to use by default
   default: "openai"
-  
-  # Provider definitions
+
+  # Provider definitions (OpenAI + Kimi only)
   providers:
     openai:
       name: "OpenAI"
       api_base: "https://api.openai.com/v1"
       api_key_env: "OPENAI_API_KEY"
       models:
-        main: "gpt-4.1"
-        worker: "gpt-4.1-mini"
-        cheap: "gpt-4.1-nano"
-        image: "gpt-image-1-mini"
-        tts: "tts-1"
+        main: "gpt-4.1-mini"
+        worker: "gpt-4.1-nano"
+        image: "gpt-image-1"
       settings:
         temperature: 0.7
-    
+
     kimi:
       name: "Kimi K2 (Moonshot)"
-      api_base: "https://api.moonshot.ai/v1"
+      api_base: "https://api.moonshot.cn/v1"
       api_key_env: "MOONSHOT_API_KEY"
       models:
-        main: "kimi-k2-0905-preview"
-        worker: "kimi-k2-0905-preview"
-        cheap: "kimi-k2-0905-preview"
-        image: null  # Kimi doesn't support image generation
-        tts: null    # Kimi doesn't support TTS
+        main: "kimi-k2-thinking"      # Smart reasoning (orchestrator)
+        worker: "kimi-k2-turbo-preview"  # Fast processing
+        image: null  # Use OpenAI for images
       settings:
-        temperature: 0.6  # Recommended for Kimi K2
-    
-    ollama:
-      name: "Ollama (Local)"
-      api_base: "http://localhost:11434/v1"
-      api_key_env: null  # No API key needed
-      models:
-        main: "llama3.1:8b"
-        worker: "llama3.1:8b"
-        cheap: "llama3.1:8b"
-        image: null
-        tts: null
-      settings:
-        temperature: 0.7
+        temperature: 1.0  # Recommended for kimi-k2-thinking
 
 
 # --- Informational Texts ---

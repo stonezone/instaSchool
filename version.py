@@ -8,11 +8,22 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.5.6"
-VERSION_NAME = "Model List Cleanup"
+VERSION = "1.5.7"
+VERSION_NAME = "Sidebar & Provider Cleanup"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.5.7": {
+        "date": "2025-11-26",
+        "name": "Sidebar & Provider Cleanup",
+        "changes": [
+            "Wider sidebar (360px) - all text now visible without cutoff",
+            "Collapse button highlighted with hover effect",
+            "REMOVED: DeepSeek and Ollama providers (only OpenAI + Kimi remain)",
+            "Fixed: Kimi models now validated correctly (kimi-k2-thinking, kimi-k2-turbo-preview)",
+            "Config.yaml text_models now includes Kimi models for validation",
+        ]
+    },
     "1.5.6": {
         "date": "2025-11-26",
         "name": "Model List Cleanup",
