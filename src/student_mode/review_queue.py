@@ -10,6 +10,7 @@ from datetime import datetime
 from services.database_service import DatabaseService
 from services.srs_service import SRSService
 from src.state_manager import StateManager
+from src.constants import XP_FLASHCARD_REVIEW
 from .progress_manager import StudentProgress
 
 # Import logger
@@ -261,8 +262,8 @@ def _process_review(
                     curriculum_id = card.get("curriculum_id")
                     if curriculum_id:
                         progress = StudentProgress(curriculum_id, user_id=user_id)
-                        progress.add_xp(5)
-                        xp_msg = " (+5 XP)"
+                        progress.add_xp(XP_FLASHCARD_REVIEW)
+                        xp_msg = f" (+{XP_FLASHCARD_REVIEW} XP)"
                 except Exception as xp_err:
                     if _logger:
                         _logger.log_event("WARNING", f"Error awarding XP: {xp_err}")

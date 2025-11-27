@@ -64,7 +64,7 @@ Status tags:
 
 - [ ] Decompose main.py into `render_teacher_mode()`, `render_parent_mode()`
 - [x] Clean up unused imports (tutor_agent, audio_agent, image_generator, progress_manager, review_queue)
-- [ ] Create `constants.py` for magic numbers
+- [x] Create `constants.py` for magic numbers (XP, levels, thresholds, limits)
 
 ---
 

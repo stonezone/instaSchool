@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 from services.database_service import DatabaseService
+from src.constants import XP_PER_LEVEL, MASTERY_THRESHOLD
 
 # Import logger
 try:
@@ -194,8 +195,8 @@ class StudentProgress:
     def add_xp(self, amount: int):
         """Add XP and check for level up"""
         self.data["xp"] += amount
-        # Simple level calculation: 100 XP per level
-        new_level = self.data["xp"] // 100
+        # Level calculation using constant
+        new_level = self.data["xp"] // XP_PER_LEVEL
         leveled_up = new_level > self.data.get("level", 0)
         self.data["level"] = new_level
         self.save_progress()
@@ -378,7 +379,7 @@ class StudentProgress:
                 xp_bonus = badge.get("xp_bonus", 0)
                 if xp_bonus > 0:
                     self.data["xp"] += xp_bonus
-                    self.data["level"] = self.data["xp"] // 100
+                    self.data["level"] = self.data["xp"] // XP_PER_LEVEL
 
         if newly_earned:
             self.save_progress()
@@ -428,7 +429,7 @@ class StudentProgress:
         """Get quiz score for a unit"""
         return self.data.get('quiz_scores', {}).get(str(unit_idx))
 
-    def is_unit_mastered(self, unit_idx: int, threshold: float = 0.8) -> bool:
+    def is_unit_mastered(self, unit_idx: int, threshold: float = MASTERY_THRESHOLD) -> bool:
         """Check if unit quiz meets mastery threshold"""
         score_data = self.get_quiz_score(unit_idx)
         if not score_data:
