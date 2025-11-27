@@ -3612,7 +3612,7 @@ with tab6:
 st.markdown(
     f"""
     <div style="text-align: center; color: #666; font-size: 0.7rem; padding: 0.5rem 0; margin-top: 2rem; opacity: 0.7;">
-        InstaSchool {VERSION} • AI-Powered Curriculum Generator
+        InstaSchool {get_version_display()} • AI-Powered Curriculum Generator
     </div>
     """,
     unsafe_allow_html=True

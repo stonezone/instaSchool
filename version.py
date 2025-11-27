@@ -8,11 +8,22 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.5.7"
-VERSION_NAME = "Sidebar & Provider Cleanup"
+VERSION = "1.6.0"
+VERSION_NAME = "Student Progress & SRS Upgrade"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.0": {
+        "date": "2025-11-27",
+        "name": "Student Progress & SRS Upgrade",
+        "changes": [
+            "Unified student progress between JSON files and SQLite database",
+            "Student Mode progress now powers Parent and Teacher analytics dashboards",
+            "SRS Review Queue now auto-creates flashcards from completed quizzes",
+            "Grading agent now distinguishes graded vs fallback and never marks failed API calls as correct",
+            "Model detector and provider defaults updated for modern GPT-4o/4.1/5 and gpt-image-1",
+        ]
+    },
     "1.5.7": {
         "date": "2025-11-26",
         "name": "Sidebar & Provider Cleanup",
