@@ -8,11 +8,20 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.2"
-VERSION_NAME = "Error Handling & Logging"
+VERSION = "1.6.3"
+VERSION_NAME = "UI Cleanup"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.3": {
+        "date": "2025-11-27",
+        "name": "UI Cleanup",
+        "changes": [
+            "Removed stale DeepSeek/Ollama provider references from UI",
+            "Provider selector now only shows OpenAI and Kimi options",
+            "Code cleanup for consistency with v1.5.7 provider changes",
+        ]
+    },
     "1.6.2": {
         "date": "2025-11-27",
         "name": "Error Handling & Logging",
