@@ -8,7 +8,11 @@ Core modules for the InstaSchool curriculum generation application.
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for headless environments
 
-# Export BaseAgent from core for convenience
-from src.core.types import BaseAgent
+# Lazy export to prevent module caching issues on Streamlit Cloud reloads
+# Import BaseAgent directly when needed: from src.core.types import BaseAgent
+__all__ = []
 
-__all__ = ['BaseAgent']
+def get_base_agent():
+    """Lazy loader for BaseAgent to avoid module import crashes"""
+    from src.core.types import BaseAgent
+    return BaseAgent

@@ -1,6 +1,18 @@
 import os
 import sys
 
+# CRITICAL: Clear stale module references before imports
+# This fixes KeyError crashes on Streamlit Cloud hot reloads (Python 3.13)
+# The module cache can get corrupted when code updates trigger app reloads
+_modules_to_clear = [k for k in sys.modules.keys()
+                     if k.startswith(('src.', 'services.', 'utils.'))
+                     and k in sys.modules]
+for _mod in _modules_to_clear:
+    try:
+        del sys.modules[_mod]
+    except KeyError:
+        pass
+
 # CRITICAL: Set matplotlib backend BEFORE any other imports that might use it
 import matplotlib
 matplotlib.use('Agg')  # Use Agg backend for matplotlib

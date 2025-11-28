@@ -8,11 +8,21 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.9"
-VERSION_NAME = "Streaming Content Generation"
+VERSION = "1.7.0"
+VERSION_NAME = "Streamlit Cloud Stability"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.7.0": {
+        "date": "2025-11-28",
+        "name": "Streamlit Cloud Stability",
+        "changes": [
+            "Fixed KeyError crashes on Streamlit Cloud hot reloads (Python 3.13)",
+            "Module cache cleanup at startup prevents stale module references",
+            "Removed module-level exports from __init__.py files",
+            "Lazy imports in src/ and src/core/ packages",
+        ]
+    },
     "1.6.9": {
         "date": "2025-11-28",
         "name": "Streaming Content Generation",
