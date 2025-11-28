@@ -20,6 +20,7 @@ This repository contains a Streamlit curriculum generator application (main.py) 
 - Test logger functionality: `python test_logger.py --verbose`
 - Run test suite: `python -m pytest tests/`
 - Run specific test: `python tests/test_comprehensive.py`
+- Test streaming functionality: `python test_streaming.py`
 - Lint code: `flake8 *.py`
 - Clean up temporary files: Files in temp directories are auto-cleaned on exit
 
@@ -44,7 +45,7 @@ source venv/bin/activate
 The application uses an agent framework where specialized workers collaborate:
 - OrchestratorAgent: Manages the curriculum generation process
 - OutlineAgent: Creates curriculum structure and topics
-- ContentAgent: Creates lesson content
+- ContentAgent: Creates lesson content (supports streaming for real-time generation)
 - MediaAgent: Generates educational illustrations
 - ChartAgent: Creates data visualizations
 - QuizAgent: Generates assessments
@@ -58,6 +59,7 @@ The application uses an agent framework where specialized workers collaborate:
 - **Intelligent Retry**: Exponential backoff with error classification
 - **Graceful Degradation**: Fallback content when generation fails
 - **Progress Tracking**: Real-time updates via Streamlit session state
+- **Streaming Support**: Real-time content generation with immediate feedback (ContentAgent)
 
 ## Code Style Guidelines
 - **Python**: Follow PEP 8 conventions
@@ -76,6 +78,7 @@ The application uses an agent framework where specialized workers collaborate:
 - `config.yaml`: Central configuration for prompts, models, and defaults
 - `verbose_logger.py`: API call logging system for debugging
 - `image_generator.py`: Standalone image generation utilities
+- `src/core/types.py`: Core type definitions including BaseAgent with streaming support
 - `services/`: Service modules for enhanced functionality
   - `batch_service.py`: Batch processing for multiple curricula
   - `cache_service.py`: Smart caching for API responses
@@ -84,6 +87,10 @@ The application uses an agent framework where specialized workers collaborate:
   - `session_service.py`: Session state management
   - `template_service.py`: Template management for curricula
 - `tests/`: Test suite for all components
+- `test_streaming.py`: Test suite for streaming functionality
+- `docs/`: Documentation files
+  - `STREAMING.md`: Comprehensive streaming documentation
+  - `STREAMING_QUICK_START.md`: Quick reference for streaming
 - `curricula/`: Generated curriculum files (JSON format with timestamps)
 - `exports/`: Exported curriculum files (HTML/PDF/Markdown)
 - `logs/`: Application logs from verbose mode
@@ -106,11 +113,44 @@ Config changes should be made in `config.yaml`, which controls:
 
 ## Development Guidelines
 - **Testing**: Run tests before commits with `python -m pytest tests/`
+- **Streaming**: Use `test_streaming.py` to verify streaming functionality
 - **Error Handling**: Use RetryHandler for API calls with appropriate error classification
 - **Caching**: Leverage SmartCache for expensive operations
 - **Model Selection**: Use worker_model (gpt-4.1-mini) for agents, main model (gpt-4.1) for orchestration
 - **Progress Updates**: Update session state for long-running operations
+- **Streaming Content**: Use `stream=True` parameter in ContentAgent.generate_content() for real-time feedback
 - Python 3.9 or higher required
+
+## Streaming Support (New Feature)
+InstaSchool now supports real-time streaming for content generation:
+
+### Quick Usage
+```python
+# Enable streaming for real-time content display
+for chunk in content_agent.generate_content(..., stream=True):
+    print(chunk, end='', flush=True)
+
+# Default behavior (backward compatible)
+content = content_agent.generate_content(...)  # Returns complete string
+```
+
+### Key Features
+- **Real-time Feedback**: Content appears as it's generated
+- **Backward Compatible**: Existing code works unchanged (stream defaults to False)
+- **Cache-Aware**: Checks cache before streaming, simulates chunks for cached content
+- **Error Handling**: Uses typed OpenAI exceptions, errors yielded as chunks
+- **Logging**: All streaming calls logged for debugging
+
+### Documentation
+- Quick Start: `docs/STREAMING_QUICK_START.md`
+- Full Documentation: `docs/STREAMING.md`
+- Test Suite: `python test_streaming.py`
+
+### Implementation Details
+- `BaseAgent._call_model_streaming()`: Low-level streaming method for all agents
+- `ContentAgent.generate_content(stream=True)`: High-level streaming interface
+- Supports all OpenAI models that support streaming
+- Integrates with existing SmartCache and RetryHandler systems
 
 ## Model Recommendations
 - **Text Content**: GPT-4.1 for high-quality content (GPT-4o as alternative)

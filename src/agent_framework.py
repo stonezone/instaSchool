@@ -349,12 +349,29 @@ class OutlineAgent(BaseAgent):
 
 class ContentAgent(BaseAgent):
     """Agent responsible for generating the main lesson content"""
-    
+
     def __init__(self, client, model, config):
         super().__init__(client, model)
         self.prompt_template = config["prompts"].get("content", "")
-    
-    def generate_content(self, topic, subject, grade, style, extra, language, include_keypoints) -> str:
+
+    def generate_content(self, topic, subject, grade, style, extra, language, include_keypoints, stream: bool = False):
+        """Generate lesson content with optional streaming support.
+
+        Args:
+            topic: The topic to generate content for
+            subject: The subject area
+            grade: The grade level
+            style: The teaching style
+            extra: Additional requirements/guidelines
+            language: The language for content
+            include_keypoints: Whether to include key takeaways
+            stream: If True, yields content chunks as they arrive (generator mode)
+                   If False, returns complete content (default behavior)
+
+        Returns:
+            str: Complete content (when stream=False)
+            Generator[str, None, str]: Content chunks generator (when stream=True)
+        """
         # Create cache parameters
         cache_params = {
             'topic': topic,
@@ -365,9 +382,9 @@ class ContentAgent(BaseAgent):
             'language': language,
             'include_keypoints': include_keypoints
         }
-        
+
         keypoints_instruction = "Include a concise list of key takeaways or learning points at the end, formatted with Markdown bullet points." if include_keypoints else ""
-        
+
         sys_prompt = self.prompt_template.format(
             topic=topic or "[Topic Missing]",
             subject=subject or "[Subject Missing]",
@@ -377,21 +394,70 @@ class ContentAgent(BaseAgent):
             language=language or "English",
             include_keypoints_instruction=keypoints_instruction
         )
-        
+
+        messages = [{"role": "system", "content": sys_prompt}]
+
+        # If streaming is requested, use the streaming method
+        if stream:
+            return self._generate_content_streaming(messages, cache_params)
+
+        # Otherwise, use standard cached generation (backward compatible)
         try:
             response = self._call_model_cached(
                 "content",
                 cache_params,
-                [{"role": "system", "content": sys_prompt}],
+                messages,
                 temperature=0.7
             )
-            
+
             if response and response.choices:
                 return response.choices[0].message.content
             return ""
         except Exception as e:
             print(f"Content generation error: {e}")
             return f"[Error: Content generation failed - {str(e)}]"
+
+    def _generate_content_streaming(self, messages, cache_params):
+        """Internal method for streaming content generation.
+
+        Args:
+            messages: Messages for the API call
+            cache_params: Parameters for cache lookup
+
+        Yields:
+            str: Content chunks as they arrive
+
+        Returns:
+            str: Complete content after streaming
+        """
+        # Check cache first
+        if self.cache:
+            cached_content = self.cache.get_similar_content("content", cache_params)
+            if cached_content:
+                # Yield cached content in simulated chunks for consistent behavior
+                chunk_size = 50  # Characters per chunk
+                for i in range(0, len(cached_content), chunk_size):
+                    yield cached_content[i:i + chunk_size]
+                return cached_content
+
+        # If no cache hit, stream from API
+        try:
+            full_response = ""
+            for chunk in self._call_model_streaming(messages, temperature=0.7):
+                full_response += chunk
+                yield chunk
+
+            # Cache the complete response
+            if full_response and self.cache:
+                self.cache.content_cache.cache_content("content", cache_params, full_response)
+
+            return full_response
+
+        except Exception as e:
+            error_msg = f"[Error: Streaming content generation failed - {str(e)}]"
+            print(f"Streaming content generation error: {e}")
+            yield error_msg
+            return error_msg
 
 
 class MediaAgent:

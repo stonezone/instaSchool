@@ -8,11 +8,22 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.8"
-VERSION_NAME = "Performance & Code Quality"
+VERSION = "1.6.9"
+VERSION_NAME = "Streaming Content Generation"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.9": {
+        "date": "2025-11-28",
+        "name": "Streaming Content Generation",
+        "changes": [
+            "Added BaseAgent._call_model_streaming() for real-time content output",
+            "ContentAgent.generate_content() now supports stream=True parameter",
+            "Streaming integrates with SmartCache (cached content simulates chunks)",
+            "Full error handling with typed OpenAI exceptions in streaming",
+            "Added docs/STREAMING.md and test_streaming.py",
+        ]
+    },
     "1.6.8": {
         "date": "2025-11-28",
         "name": "Performance & Code Quality",

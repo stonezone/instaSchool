@@ -132,7 +132,7 @@ class BaseAgent:
 
         if response_format:
             params["response_format"] = response_format
-        
+
         # Create a safe copy of params for logging
         if self.logger:
             log_params = params.copy()
@@ -145,20 +145,20 @@ class BaseAgent:
                         truncated_msg['content'] = truncated_msg['content'][:500] + "... [content truncated]"
                     truncated_messages.append(truncated_msg)
                 log_params['messages'] = truncated_messages
-            
+
             # Log the API request
             self.logger.log_api_request(model=self.model, endpoint="chat.completions", params=log_params)
-        
+
         # Define the API call function for retry
         def make_api_call():
             response = self.client.chat.completions.create(**params)
-            
+
             # Log the response if logger is available
             if self.logger:
                 self.logger.log_api_response(model=self.model, response=response)
-                
+
             return response
-        
+
         try:
             # Use retry handler if available
             if self.retry_handler:
@@ -225,4 +225,131 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Unexpected error in API call")
             print(f"Unexpected error: {e}")
+            return None
+
+    def _call_model_streaming(self, messages, response_format=None, temperature: float = 0.7):
+        """Call the model with streaming enabled for real-time output.
+
+        Args:
+            messages: List of message dictionaries for the API
+            response_format: Optional response format specification (note: streaming may not support all formats)
+            temperature: Temperature parameter for generation
+
+        Yields:
+            str: Content chunks as they arrive from the API
+
+        Returns:
+            str: The complete response text after streaming completes, or None on error
+        """
+        params = {
+            "model": self.model,
+            "messages": messages,
+            "stream": True,
+        }
+
+        # Only add temperature if model supports it
+        model_lower = self.model.lower()
+        supports_temperature = not any(
+            model_lower.startswith(prefix) for prefix in self.NO_TEMPERATURE_MODELS
+        )
+        if supports_temperature:
+            params["temperature"] = temperature
+
+        # Note: response_format may not be supported with streaming for all models
+        if response_format:
+            params["response_format"] = response_format
+
+        # Log the streaming request
+        if self.logger:
+            log_params = params.copy()
+            if 'messages' in log_params and isinstance(log_params['messages'], list):
+                truncated_messages = []
+                for msg in log_params['messages']:
+                    truncated_msg = msg.copy()
+                    if 'content' in truncated_msg and isinstance(truncated_msg['content'], str) and len(truncated_msg['content']) > 500:
+                        truncated_msg['content'] = truncated_msg['content'][:500] + "... [content truncated]"
+                    truncated_messages.append(truncated_msg)
+                log_params['messages'] = truncated_messages
+
+            self.logger.log_api_request(model=self.model, endpoint="chat.completions (streaming)", params=log_params)
+
+        try:
+            # Create the streaming request
+            stream = self.client.chat.completions.create(**params)
+
+            full_response = ""
+            for chunk in stream:
+                # Check if we have content in the delta
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content:
+                        content = delta.content
+                        full_response += content
+                        yield content  # Yield each chunk for real-time display
+
+            # Log the complete response
+            if self.logger:
+                # Create a mock response object for logging
+                class StreamingResponse:
+                    def __init__(self, content):
+                        self.choices = [
+                            type('obj', (object,), {
+                                'message': type('obj', (object,), {'content': content})()
+                            })
+                        ]
+
+                self.logger.log_api_response(model=self.model, response=StreamingResponse(full_response))
+
+            return full_response
+
+        except RateLimitError as e:
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Rate limit exceeded (streaming)")
+            yield f"[Error: Rate limit exceeded - {str(e)}]"
+            return None
+
+        except AuthenticationError as e:
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Authentication failed (streaming)")
+            yield f"[Error: Authentication failed - {str(e)}]"
+            try:
+                import streamlit as st
+                st.error("⚠️ OpenAI API authentication failed. Please check your API key.")
+            except ImportError:
+                pass
+            return None
+
+        except APIConnectionError as e:
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Connection error (streaming)")
+            yield f"[Error: Connection error - {str(e)}]"
+            return None
+
+        except BadRequestError as e:
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Bad request (streaming)")
+            yield f"[Error: Bad request - {str(e)}]"
+            return None
+
+        except APIError as e:
+            error_msg = str(e)
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="API error (streaming)")
+
+            if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
+                yield f"[Error: API quota exceeded - {str(e)}]"
+                try:
+                    import streamlit as st
+                    st.error("⚠️ OpenAI API quota exceeded. Please check your billing details or try again later.")
+                except ImportError:
+                    pass
+                return None
+
+            yield f"[Error: API error - {str(e)}]"
+            return None
+
+        except Exception as e:
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Unexpected error in streaming call")
+            yield f"[Error: Unexpected error - {str(e)}]"
             return None
