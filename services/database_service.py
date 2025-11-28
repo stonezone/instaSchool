@@ -13,6 +13,12 @@ from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 from contextlib import contextmanager
 
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    HAS_STREAMLIT = False
+
 
 class DatabaseService:
     """Manages SQLite database operations for InstaSchool"""
@@ -1030,3 +1036,20 @@ class DatabaseService:
         except sqlite3.Error as e:
             print(f"Error vacuuming database: {e}")
             return False
+
+
+# ========== Cached Singleton Factory ==========
+if HAS_STREAMLIT:
+    @st.cache_resource
+    def get_database_service():
+        """Get cached DatabaseService singleton"""
+        return DatabaseService()
+else:
+    # Fallback for non-Streamlit contexts
+    _db_instance = None
+    def get_database_service():
+        """Get DatabaseService singleton (non-cached fallback)"""
+        global _db_instance
+        if _db_instance is None:
+            _db_instance = DatabaseService()
+        return _db_instance

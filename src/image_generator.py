@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import traceback
+from openai import APIError, RateLimitError, APIConnectionError, AuthenticationError, BadRequestError
 
 # Import the verbose logger
 try:
@@ -245,19 +246,56 @@ class ImageGenerator:
                     # If we got at least one result, break out of the loop
                     if success:
                         break
-            
-            except Exception as e:
+
+            except RateLimitError as e:
+                # Rate limit - retryable but try next model for now
+                last_error = e
+                if logger:
+                    logger.log_error(error=e, model=current_model, context="Image generation rate limit")
+                print(f"Rate limit exceeded with {current_model}: {e} - Trying next model if available.")
+                continue
+
+            except AuthenticationError as e:
+                # Authentication error - non-retryable, fail fast
+                last_error = e
+                if logger:
+                    logger.log_error(error=e, model=current_model, context="Image generation authentication")
+                print(f"Authentication error with {current_model}: {e}")
+                break  # No point trying other models with auth error
+
+            except APIConnectionError as e:
+                # Connection error - retryable but try next model for now
+                last_error = e
+                if logger:
+                    logger.log_error(error=e, model=current_model, context="Image generation connection error")
+                print(f"Connection error with {current_model}: {e} - Trying next model if available.")
+                continue
+
+            except BadRequestError as e:
+                # Bad request - might be model-specific, try next model
+                last_error = e
+                if logger:
+                    logger.log_error(error=e, model=current_model, context="Image generation bad request")
+                print(f"Bad request with {current_model}: {e} - Trying next model if available.")
+                continue
+
+            except APIError as e:
+                # Generic API error - try next model
                 error_msg = str(e)
                 last_error = e
-                
-                # Log the error with the logger if available
                 if logger:
-                    logger.log_error(error=e, model=current_model, context="Image generation")
+                    logger.log_error(error=e, model=current_model, context="Image generation API error")
+                print(f"API error with {current_model}: {error_msg} - Trying next model if available.")
+                continue
+
+            except Exception as e:
+                # Unexpected error
+                error_msg = str(e)
+                last_error = e
+                if logger:
+                    logger.log_error(error=e, model=current_model, context="Image generation unexpected error")
                     logger.log_debug(traceback.format_exc())
-                
-                print(f"Error with model {current_model}: {error_msg} - Trying next model if available.")
-                
-                # Skip showing UI errors until we've tried all models
+                print(f"Unexpected error with {current_model}: {error_msg} - Trying next model if available.")
                 continue
         
         # If we've tried all models and still no success, show error and create placeholder

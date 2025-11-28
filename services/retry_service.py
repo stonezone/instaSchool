@@ -10,6 +10,8 @@ from typing import Callable, Any, Optional, Dict, List
 from functools import wraps
 from enum import Enum
 
+from openai import APIError, RateLimitError, APIConnectionError, AuthenticationError, BadRequestError
+
 
 class RetryError(Exception):
     """Custom exception for retry-related errors"""
@@ -54,43 +56,76 @@ class RetryConfig:
 
 class ErrorClassifier:
     """Classifies errors and determines retry strategies"""
-    
+
     @staticmethod
     def classify_error(error: Exception) -> ErrorType:
         """Classify an error to determine retry strategy
-        
+
+        Uses isinstance() checks for OpenAI exceptions, falls back to string matching
+        for other error types and backward compatibility.
+
         Args:
             error: The exception to classify
-            
+
         Returns:
             ErrorType classification
         """
+        # Use isinstance() for OpenAI-specific exceptions (most reliable)
+        if isinstance(error, RateLimitError):
+            return ErrorType.RATE_LIMIT
+
+        if isinstance(error, AuthenticationError):
+            return ErrorType.AUTHENTICATION
+
+        if isinstance(error, APIConnectionError):
+            return ErrorType.NETWORK
+
+        if isinstance(error, BadRequestError):
+            # BadRequestError could be content filter or other issues
+            error_msg = str(error).lower()
+            if any(term in error_msg for term in ['content_filter', 'safety', 'policy', 'moderation']):
+                return ErrorType.CONTENT_FILTER
+            # Otherwise treat as unknown (non-retryable via should_retry logic)
+            return ErrorType.UNKNOWN
+
+        if isinstance(error, APIError):
+            # Check if it's a quota error specifically
+            error_msg = str(error).lower()
+            if any(term in error_msg for term in ['quota', 'insufficient_quota', 'billing']):
+                return ErrorType.QUOTA_EXCEEDED
+            # Check for server errors in API errors
+            if any(term in error_msg for term in ['500', '502', '503', '504']):
+                return ErrorType.SERVER_ERROR
+            # Generic API error - retryable
+            return ErrorType.SERVER_ERROR
+
+        # Fallback to string matching for non-OpenAI exceptions or older code
         error_msg = str(error).lower()
-        
-        # Rate limiting errors
+
+        # Rate limiting errors (fallback)
         if any(term in error_msg for term in ['rate limit', 'too many requests', '429']):
             return ErrorType.RATE_LIMIT
-            
-        # Network errors
+
+        # Network errors (fallback)
         if any(term in error_msg for term in ['connection', 'timeout', 'network', 'dns']):
             return ErrorType.NETWORK
-            
-        # Server errors (5xx)
+
+        # Server errors (5xx) (fallback)
         if any(term in error_msg for term in ['server error', '500', '502', '503', '504']):
             return ErrorType.SERVER_ERROR
-            
-        # Authentication errors
+
+        # Authentication errors (fallback)
         if any(term in error_msg for term in ['unauthorized', '401', 'api key', 'authentication']):
             return ErrorType.AUTHENTICATION
-            
-        # Quota errors
+
+        # Quota errors (fallback)
         if any(term in error_msg for term in ['quota', 'insufficient_quota', 'billing']):
             return ErrorType.QUOTA_EXCEEDED
-            
-        # Content filtering
+
+        # Content filtering (fallback)
         if any(term in error_msg for term in ['content_filter', 'safety', 'policy', 'moderation']):
             return ErrorType.CONTENT_FILTER
-            
+
         return ErrorType.UNKNOWN
     
     @staticmethod

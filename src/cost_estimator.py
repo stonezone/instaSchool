@@ -3,6 +3,12 @@ Cost Estimator for InstaSchool
 Provides cost estimation for different model configurations
 """
 
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    HAS_STREAMLIT = False
+
 # Costs per 1K tokens (updated Nov 2025)
 # Based on typical pricing patterns where nano < mini < full
 MODEL_COSTS = {
@@ -108,7 +114,7 @@ ESTIMATED_TOKENS = {
     "image_prompt": {"input": 1000, "output": 200}
 }
 
-def estimate_curriculum_cost(orchestrator_model: str, worker_model: str, 
+def _estimate_curriculum_cost_impl(orchestrator_model: str, worker_model: str,
                            num_units: int = 4, include_quizzes: bool = True,
                            include_summary: bool = True, include_resources: bool = True) -> dict:
     """
@@ -130,52 +136,52 @@ def estimate_curriculum_cost(orchestrator_model: str, worker_model: str,
     
     # Orchestrator costs
     orch_tokens = ESTIMATED_TOKENS["orchestrator"]
-    orch_cost = calculate_cost(orchestrator_model, orch_tokens["input"], orch_tokens["output"])
+    orch_cost = _calculate_cost_impl(orchestrator_model, orch_tokens["input"], orch_tokens["output"])
     breakdown["orchestration"] = orch_cost
     total_cost += orch_cost
-    
+
     # Outline generation
     outline_tokens = ESTIMATED_TOKENS["outline"]
-    outline_cost = calculate_cost(worker_model, outline_tokens["input"], outline_tokens["output"])
+    outline_cost = _calculate_cost_impl(worker_model, outline_tokens["input"], outline_tokens["output"])
     breakdown["outline"] = outline_cost
     total_cost += outline_cost
-    
+
     # Content generation per unit
     content_tokens = ESTIMATED_TOKENS["content_per_unit"]
-    content_cost = calculate_cost(worker_model, 
-                                 content_tokens["input"] * num_units, 
+    content_cost = _calculate_cost_impl(worker_model,
+                                 content_tokens["input"] * num_units,
                                  content_tokens["output"] * num_units)
     breakdown["content"] = content_cost
     total_cost += content_cost
-    
+
     # Optional components
     if include_quizzes:
         quiz_tokens = ESTIMATED_TOKENS["quiz_per_unit"]
-        quiz_cost = calculate_cost(worker_model,
+        quiz_cost = _calculate_cost_impl(worker_model,
                                   quiz_tokens["input"] * num_units,
                                   quiz_tokens["output"] * num_units)
         breakdown["quizzes"] = quiz_cost
         total_cost += quiz_cost
-    
+
     if include_summary:
         summary_tokens = ESTIMATED_TOKENS["summary_per_unit"]
-        summary_cost = calculate_cost(worker_model,
+        summary_cost = _calculate_cost_impl(worker_model,
                                      summary_tokens["input"] * num_units,
                                      summary_tokens["output"] * num_units)
         breakdown["summaries"] = summary_cost
         total_cost += summary_cost
-    
+
     if include_resources:
         resources_tokens = ESTIMATED_TOKENS["resources_per_unit"]
-        resources_cost = calculate_cost(worker_model,
+        resources_cost = _calculate_cost_impl(worker_model,
                                        resources_tokens["input"] * num_units,
                                        resources_tokens["output"] * num_units)
         breakdown["resources"] = resources_cost
         total_cost += resources_cost
-    
+
     # Image prompt generation (if images are included)
     image_tokens = ESTIMATED_TOKENS["image_prompt"]
-    image_cost = calculate_cost(worker_model,
+    image_cost = _calculate_cost_impl(worker_model,
                                image_tokens["input"] * num_units,
                                image_tokens["output"] * num_units)
     breakdown["image_prompts"] = image_cost
@@ -206,7 +212,7 @@ def estimate_curriculum_cost(orchestrator_model: str, worker_model: str,
         "savings_vs_full": calculate_savings(orchestrator_model, worker_model, total_cost)
     }
 
-def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+def _calculate_cost_impl(model: str, input_tokens: int, output_tokens: int) -> float:
     """Calculate cost with dynamic fallback and robust model matching"""
 
     # Normalize model name for matching
@@ -285,8 +291,8 @@ def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 def calculate_savings(orchestrator_model: str, worker_model: str, actual_cost: float) -> float:
     """Calculate savings compared to using full model for everything"""
     # Calculate what it would cost with full model (without recursive call to calculate_savings)
-    full_orch_cost = calculate_cost("gpt-4.1", 2000, 1500)  # Orchestrator usage
-    full_worker_cost = calculate_cost("gpt-4.1", 8000, 6000) * 6  # 6 workers
+    full_orch_cost = _calculate_cost_impl("gpt-4.1", 2000, 1500)  # Orchestrator usage
+    full_worker_cost = _calculate_cost_impl("gpt-4.1", 8000, 6000) * 6  # 6 workers
     full_cost = full_orch_cost + full_worker_cost
     
     savings_percent = ((full_cost - actual_cost) / full_cost) * 100 if full_cost > 0 else 0
@@ -303,3 +309,31 @@ def get_model_info(model: str) -> dict:
         "name": model,
         "relative_cost": "?"
     })
+
+
+# ========== Cached Wrapper Functions ==========
+if HAS_STREAMLIT:
+    @st.cache_data
+    def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+        """Calculate cost with caching (Streamlit version)"""
+        return _calculate_cost_impl(model, input_tokens, output_tokens)
+
+    @st.cache_data
+    def estimate_curriculum_cost(orchestrator_model: str, worker_model: str,
+                               num_units: int = 4, include_quizzes: bool = True,
+                               include_summary: bool = True, include_resources: bool = True) -> dict:
+        """Estimate curriculum cost with caching (Streamlit version)"""
+        return _estimate_curriculum_cost_impl(orchestrator_model, worker_model, num_units,
+                                             include_quizzes, include_summary, include_resources)
+else:
+    # Non-cached versions for non-Streamlit contexts
+    def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+        """Calculate cost (non-cached fallback)"""
+        return _calculate_cost_impl(model, input_tokens, output_tokens)
+
+    def estimate_curriculum_cost(orchestrator_model: str, worker_model: str,
+                               num_units: int = 4, include_quizzes: bool = True,
+                               include_summary: bool = True, include_resources: bool = True) -> dict:
+        """Estimate curriculum cost (non-cached fallback)"""
+        return _estimate_curriculum_cost_impl(orchestrator_model, worker_model, num_units,
+                                             include_quizzes, include_summary, include_resources)

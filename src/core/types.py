@@ -5,6 +5,7 @@ This module should have minimal dependencies to serve as a foundation.
 """
 
 from typing import Dict, Any, List, Optional
+from openai import APIError, RateLimitError, APIConnectionError, AuthenticationError, BadRequestError
 
 
 class BaseAgent:
@@ -167,21 +168,61 @@ class BaseAgent:
                 )
             else:
                 return make_api_call()
-                
-        except Exception as e:
-            error_msg = str(e)
-            print(f"Model call error: {e}")
-            
-            # Log the error if logger is available
+
+        except RateLimitError as e:
+            # Rate limit exceeded - retryable
             if self.logger:
-                self.logger.log_error(error=e, model=self.model, context="API call")
-            
-            # Check for quota error and display in UI
-            if "insufficient_quota" in error_msg or "quota" in error_msg.lower():
+                self.logger.log_error(error=e, model=self.model, context="Rate limit exceeded")
+            print(f"Rate limit exceeded: {e}")
+            raise  # Let retry handler deal with this
+
+        except AuthenticationError as e:
+            # Authentication failed - non-retryable
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Authentication failed")
+            print(f"Authentication error: {e}")
+            try:
+                import streamlit as st
+                st.error("⚠️ OpenAI API authentication failed. Please check your API key.")
+            except ImportError:
+                pass
+            return None
+
+        except APIConnectionError as e:
+            # Connection error - retryable
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Connection error")
+            print(f"Connection error: {e}")
+            raise  # Let retry handler deal with this
+
+        except BadRequestError as e:
+            # Bad request - non-retryable
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Bad request")
+            print(f"Bad request error: {e}")
+            return None
+
+        except APIError as e:
+            # Generic API error - retryable
+            error_msg = str(e)
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="API error")
+            print(f"API error: {e}")
+
+            # Check for quota error specifically
+            if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
                 try:
                     import streamlit as st
                     st.error("⚠️ OpenAI API quota exceeded. Please check your billing details or try again later.")
                 except ImportError:
                     pass
-            
+                return None  # Don't retry quota errors
+
+            raise  # Let retry handler deal with other API errors
+
+        except Exception as e:
+            # Unexpected error - non-retryable
+            if self.logger:
+                self.logger.log_error(error=e, model=self.model, context="Unexpected error in API call")
+            print(f"Unexpected error: {e}")
             return None

@@ -15,6 +15,7 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 # Import BaseAgent from core.types to prevent circular dependencies
 from src.core.types import BaseAgent
 from src.audio_agent import AudioAgent
+from src.constants import LLM_TEMPERATURE_DEFAULT
 
 # Try to import matplotlib, but provide a fallback for testing
 try:
@@ -329,7 +330,7 @@ class OutlineAgent(BaseAgent):
                 cache_params,
                 [{"role": "system", "content": sys_prompt}],
                 response_format={"type": "json_object"},
-                temperature=0.7
+                temperature=LLM_TEMPERATURE_DEFAULT
             )
             
             if response and response.choices:

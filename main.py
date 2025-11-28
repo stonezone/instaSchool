@@ -109,6 +109,29 @@ from services.customization_service import get_customization_service, Customizat
 # Import model detector for dynamic model detection
 from src.model_detector import get_available_models, get_fallback_models, get_recommended_models
 
+# ========== Cached Service Wrappers ==========
+@st.cache_resource
+def get_openai_client(api_key: str, org_id: str = None):
+    """Get cached OpenAI client"""
+    from openai import OpenAI
+    return OpenAI(api_key=api_key, organization=org_id)
+
+@st.cache_resource
+def get_curriculum_service():
+    """Get cached CurriculumService"""
+    return CurriculumService()
+
+@st.cache_resource
+def get_batch_manager():
+    """Get cached BatchManager"""
+    return BatchManager()
+
+@st.cache_resource
+def get_template_manager():
+    """Get cached TemplateManager"""
+    from services.template_service import TemplateManager
+    return TemplateManager()
+
 # Setup page config for wider layout
 st.set_page_config(page_title="Curriculum Generator", page_icon=":books:", layout="wide")
 
@@ -521,6 +544,7 @@ def load_session(filename: str) -> Optional[dict]:
         return None
 
 # ========== Load Config (Robust Version) ==========
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_config(path="config.yaml") -> Dict[str, Any]:
     config_data = {}
     try:

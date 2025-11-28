@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 
+from openai import APIError, RateLimitError, APIConnectionError, AuthenticationError, BadRequestError
+
 from src.core.types import BaseAgent
 
 
@@ -233,25 +235,62 @@ class AudioAgent(BaseAgent):
                 "created_at": datetime.now().isoformat()
             }
 
-        except Exception as e:
-            error_msg = f"Audio generation error: {e}"
-            self._log(error_msg, "error")
-
+        except RateLimitError as e:
+            # Rate limit exceeded - retryable
+            self._log(f"Rate limit exceeded: {e}", "error")
             if self.logger:
-                self.logger.log_error(
-                    error=e,
-                    model=self.tts_model,
-                    context=f"TTS generation for '{unit_title or 'content'}'"
-                )
+                self.logger.log_error(error=e, model=self.tts_model, context=f"TTS rate limit for '{unit_title or 'content'}'")
+            return None  # Could implement retry logic here
 
-            # Check for quota errors
-            if "insufficient_quota" in str(e).lower() or "quota" in str(e).lower():
+        except AuthenticationError as e:
+            # Authentication failed - non-retryable
+            self._log(f"Authentication failed: {e}", "error")
+            if self.logger:
+                self.logger.log_error(error=e, model=self.tts_model, context=f"TTS authentication for '{unit_title or 'content'}'")
+            try:
+                import streamlit as st
+                st.error("⚠️ OpenAI API authentication failed. Please check your API key.")
+            except ImportError:
+                pass
+            return None
+
+        except APIConnectionError as e:
+            # Connection error - retryable
+            self._log(f"Connection error: {e}", "error")
+            if self.logger:
+                self.logger.log_error(error=e, model=self.tts_model, context=f"TTS connection error for '{unit_title or 'content'}'")
+            return None  # Could implement retry logic here
+
+        except BadRequestError as e:
+            # Bad request - non-retryable
+            self._log(f"Bad request: {e}", "error")
+            if self.logger:
+                self.logger.log_error(error=e, model=self.tts_model, context=f"TTS bad request for '{unit_title or 'content'}'")
+            return None
+
+        except APIError as e:
+            # Generic API error
+            error_msg = str(e)
+            self._log(f"API error: {error_msg}", "error")
+            if self.logger:
+                self.logger.log_error(error=e, model=self.tts_model, context=f"TTS API error for '{unit_title or 'content'}'")
+
+            # Check for quota errors specifically
+            if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
                 try:
                     import streamlit as st
                     st.error("⚠️ OpenAI API quota exceeded. Please check your billing details.")
                 except ImportError:
                     pass
 
+            return None
+
+        except Exception as e:
+            # Unexpected error
+            error_msg = f"Unexpected audio generation error: {e}"
+            self._log(error_msg, "error")
+            if self.logger:
+                self.logger.log_error(error=e, model=self.tts_model, context=f"TTS unexpected error for '{unit_title or 'content'}'")
             return None
 
     def _generate_cache_key(self, content: str, voice: str) -> str:

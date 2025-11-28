@@ -8,11 +8,23 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.7"
-VERSION_NAME = "Cross-Provider Images Fix"
+VERSION = "1.6.8"
+VERSION_NAME = "Performance & Code Quality"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.8": {
+        "date": "2025-11-28",
+        "name": "Performance & Code Quality",
+        "changes": [
+            "Added @st.cache_resource for OpenAI clients and services (performance boost)",
+            "Added @st.cache_data for config loading and cost calculations",
+            "Standardized OpenAI typed exceptions (RateLimitError, AuthenticationError, etc.)",
+            "Centralized 26 magic numbers in src/constants.py",
+            "Better error handling with retryable vs non-retryable classification",
+            "Created CACHING_GUIDE.md for developer reference",
+        ]
+    },
     "1.6.7": {
         "date": "2025-11-27",
         "name": "Cross-Provider Images Fix",
