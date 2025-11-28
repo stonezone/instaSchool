@@ -8,11 +8,23 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.7.0"
-VERSION_NAME = "Streamlit Cloud Stability"
+VERSION = "1.7.1"
+VERSION_NAME = "Multi-Page App Structure"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.7.1": {
+        "date": "2025-11-28",
+        "name": "Multi-Page App Structure",
+        "changes": [
+            "Created pages/ directory with multi-page Streamlit app structure",
+            "pages/1_Student.py - Standalone student learning interface",
+            "pages/2_Create.py - Curriculum creation interface (transitional)",
+            "pages/3_Parent.py - Family dashboard and reports",
+            "src/shared_init.py - Shared initialization for all pages",
+            "Fixed shared_init.py import issue (removed self-deleting module cleanup)",
+        ]
+    },
     "1.7.0": {
         "date": "2025-11-28",
         "name": "Streamlit Cloud Stability",

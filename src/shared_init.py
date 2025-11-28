@@ -6,15 +6,9 @@ Contains all common setup, config loading, and service initialization.
 import os
 import sys
 
-# Clear stale module references (fixes Streamlit Cloud hot reload crashes)
-_modules_to_clear = [k for k in list(sys.modules.keys())
-                     if k.startswith(('src.', 'services.', 'utils.'))
-                     and k in sys.modules]
-for _mod in _modules_to_clear:
-    try:
-        del sys.modules[_mod]
-    except KeyError:
-        pass
+# NOTE: Module cache cleanup is handled at the page level (pages/*.py)
+# Each page clears stale modules before importing shared_init
+# This prevents shared_init from deleting itself during import
 
 import matplotlib
 matplotlib.use('Agg')
