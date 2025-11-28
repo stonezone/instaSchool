@@ -395,23 +395,45 @@ class ContentAgent(BaseAgent):
 
 class MediaAgent:
     """Agent responsible for generating images using ImageGenerator"""
-    
+
     def __init__(self, client, config):
         self.config = config  # Store full config to access defaults
         self.prompt_template = config["prompts"].get("image", "")
         self.client = client
-        
-        # Initialize ImageGenerator with proper model
-        from src.image_generator import ImageGenerator
-        default_model = config["defaults"].get("image_model", "gpt-image-1")
-        self.image_generator = ImageGenerator(client, default_model)
-        
-        # Try to import the logger
+
+        # Try to import the logger early
         try:
             from src.verbose_logger import get_logger
             self.logger = get_logger()
         except ImportError:
             self.logger = None
+
+        # Initialize ImageGenerator with proper model
+        # IMPORTANT: Images require OpenAI - use dedicated client if main client is different provider
+        from src.image_generator import ImageGenerator
+        import os
+
+        default_model = config["defaults"].get("image_model", "gpt-image-1")
+        image_client = client  # Default to main client
+
+        # Check if main client is NOT OpenAI (e.g., Kimi) - need separate OpenAI client for images
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        client_base_url = getattr(client, '_base_url', None) or getattr(client, 'base_url', None)
+        is_openai_client = client_base_url is None or 'api.openai.com' in str(client_base_url)
+
+        if not is_openai_client and openai_api_key:
+            try:
+                from openai import OpenAI
+                image_client = OpenAI(api_key=openai_api_key)
+                if self.logger:
+                    self.logger.log_event("INFO", "MediaAgent using dedicated OpenAI client for images")
+            except Exception as e:
+                if self.logger:
+                    self.logger.log_error(error=e, context="MediaAgent image client creation")
+                # Fall back to main client (may fail but graceful degradation)
+                image_client = client
+
+        self.image_generator = ImageGenerator(image_client, default_model)
 
     def create_images(self, topic, subject, grade, style="educational", language="English", n=1, 
                       model_name=None, custom_prompt=None) -> List[Dict[str, Optional[str]]]:

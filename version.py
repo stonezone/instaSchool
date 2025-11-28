@@ -8,11 +8,21 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.6"
-VERSION_NAME = "Cross-Provider Images"
+VERSION = "1.6.7"
+VERSION_NAME = "Cross-Provider Images Fix"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.7": {
+        "date": "2025-11-27",
+        "name": "Cross-Provider Images Fix",
+        "changes": [
+            "Fixed MediaAgent to use dedicated OpenAI client for images when using Kimi/other providers",
+            "Auto-detects non-OpenAI clients and creates separate OpenAI image client",
+            "Images now work correctly with Kimi text + OpenAI images",
+            "Added MOONSHOT_API_KEY to .env template",
+        ]
+    },
     "1.6.6": {
         "date": "2025-11-27",
         "name": "Cross-Provider Images",

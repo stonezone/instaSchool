@@ -781,6 +781,7 @@ sys.stderr.write(f"Using default image model: {default_image_model}\n")
 
 # Images always require OpenAI - create separate client if using different provider for text
 image_client = client  # Default to main client
+sys.stderr.write(f"[DEBUG] Image client setup: provider={current_provider}, has_openai_key={bool(OPENAI_API_KEY)}\n")
 if current_provider != 'openai' and OPENAI_API_KEY:
     # Create dedicated OpenAI client for image generation
     try:
@@ -790,6 +791,10 @@ if current_provider != 'openai' and OPENAI_API_KEY:
         sys.stderr.write(f"⚠ Could not create image client: {img_client_err}\n")
         # Fall back to main client (may fail for images but graceful degradation)
         image_client = client
+elif current_provider == 'openai':
+    sys.stderr.write("✓ Using main OpenAI client for images (same as text)\n")
+else:
+    sys.stderr.write(f"⚠ No OPENAI_API_KEY available for images with {current_provider} provider\n")
 
 image_generator = ImageGenerator(image_client, default_image_model)
 
