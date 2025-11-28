@@ -8,11 +8,21 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.6.5"
-VERSION_NAME = "Constants & Configuration"
+VERSION = "1.6.6"
+VERSION_NAME = "Cross-Provider Images"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.6.6": {
+        "date": "2025-11-27",
+        "name": "Cross-Provider Images",
+        "changes": [
+            "Fixed image generation when using Kimi for text",
+            "Dedicated OpenAI client for images (separate from text provider)",
+            "Refresh Estimate button now provides visual feedback",
+            "Images work with any text provider if OPENAI_API_KEY is set",
+        ]
+    },
     "1.6.5": {
         "date": "2025-11-27",
         "name": "Constants & Configuration",

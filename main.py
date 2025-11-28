@@ -778,7 +778,20 @@ def base64_to_file(base64_str: str, file_path: str) -> Optional[str]:
 default_image_model = config["defaults"].get("image_model", "gpt-imagegen-1")
 # Use stderr to avoid Streamlit capturing this output
 sys.stderr.write(f"Using default image model: {default_image_model}\n")
-image_generator = ImageGenerator(client, default_image_model)
+
+# Images always require OpenAI - create separate client if using different provider for text
+image_client = client  # Default to main client
+if current_provider != 'openai' and OPENAI_API_KEY:
+    # Create dedicated OpenAI client for image generation
+    try:
+        image_client = OpenAI(api_key=OPENAI_API_KEY)
+        sys.stderr.write("✓ Using dedicated OpenAI client for image generation\n")
+    except Exception as img_client_err:
+        sys.stderr.write(f"⚠ Could not create image client: {img_client_err}\n")
+        # Fall back to main client (may fail for images but graceful degradation)
+        image_client = client
+
+image_generator = ImageGenerator(image_client, default_image_model)
 
 # ====================== Initialize Orchestrator and Worker Agents ======================
 orchestrator = OrchestratorAgent(
@@ -1656,10 +1669,13 @@ with tab1:
         st.caption("Note: These are rough estimates. Actual usage and costs may vary.")
         
         # Add refresh button for recalculating with current settings
-        if st.button("Refresh Estimate", key="refresh_cost_estimate"):
-            # Don't use st.rerun() as it stops ongoing generation
-            # Instead, just recalculate values here
-            pass  # The estimates will be refreshed automatically when this section renders
+        # Note: Clicking this button triggers a Streamlit rerun which recalculates all values
+        if st.button("🔄 Refresh Estimate", key="refresh_cost_estimate"):
+            # Increment counter to force UI update and provide feedback
+            if 'estimate_refresh_count' not in st.session_state:
+                st.session_state.estimate_refresh_count = 0
+            st.session_state.estimate_refresh_count += 1
+            st.toast(f"Estimate refreshed with current model settings!", icon="✅")
 
     # If generation is already in progress, show cancel button
     if st.session_state.generating:
