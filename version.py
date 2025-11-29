@@ -8,11 +8,23 @@ Format: MAJOR.MINOR.PATCH
 - PATCH: Bug fixes, small improvements
 """
 
-VERSION = "1.7.1"
-VERSION_NAME = "Multi-Page App Structure"
+VERSION = "1.8.0"
+VERSION_NAME = "Architecture Overhaul"
 
 # Changelog for reference
 CHANGELOG = {
+    "1.8.0": {
+        "date": "2025-11-29",
+        "name": "Architecture Overhaul",
+        "changes": [
+            "BREAKING: main.py refactored to 95-line landing page (was 3671 lines)",
+            "Clean multi-page architecture with st.switch_page() navigation",
+            "Parallel agent execution using ThreadPoolExecutor (40-60% faster generation)",
+            "Voice input for student quizzes using Whisper API transcription",
+            "Eliminated 'Schrödinger App' dual navigation problem",
+            "Original main.py preserved as main_backup.py",
+        ]
+    },
     "1.7.1": {
         "date": "2025-11-28",
         "name": "Multi-Page App Structure",

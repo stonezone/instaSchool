@@ -636,6 +636,41 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                             placeholder="Type your answer here..."
                         )
 
+                        # Voice input option
+                        audio_val = st.audio_input(f"🎤 Or speak your answer", key=f"audio_{q_key}")
+
+                        if audio_val:
+                            with st.spinner("Transcribing your answer..."):
+                                try:
+                                    from openai import OpenAI
+
+                                    api_key = os.getenv("OPENAI_API_KEY")
+                                    if api_key:
+                                        whisper_client = OpenAI(api_key=api_key)
+                                        transcription = whisper_client.audio.transcriptions.create(
+                                            model="whisper-1",
+                                            file=audio_val
+                                        )
+
+                                        if transcription.text:
+                                            st.success(f"✅ Heard: {transcription.text}")
+                                            # Update the answer variable for grading
+                                            answer = transcription.text
+
+                                            # Store in session state so it persists
+                                            if 'transcribed_answers' not in st.session_state:
+                                                st.session_state.transcribed_answers = {}
+                                            st.session_state.transcribed_answers[q_key] = transcription.text
+                                    else:
+                                        st.warning("⚠️ Voice input requires OpenAI API key in your .env file")
+
+                                except Exception as e:
+                                    st.error(f"Transcription failed: {str(e)}")
+
+                        # Use transcribed answer if available
+                        if hasattr(st.session_state, 'transcribed_answers') and q_key in st.session_state.transcribed_answers:
+                            answer = st.session_state.transcribed_answers[q_key]
+
                         # Grade button for each short answer
                         if st.button(f"📊 Get AI Feedback", key=f"grade_{q_key}"):
                             if answer and answer.strip():
@@ -739,6 +774,9 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                         StateManager.set_state('quiz_submitted', False)
                         StateManager.set_state('quiz_answers', {})
                         StateManager.set_state('grading_results', {})
+                        # Clear transcribed answers when resetting quiz
+                        if 'transcribed_answers' in st.session_state:
+                            st.session_state.transcribed_answers = {}
                         st.rerun()
             else:
                 st.info("No quiz questions available.")
