@@ -361,8 +361,6 @@ info_texts:
 
     This collaborative approach ensures each component is optimized for educational quality while maintaining a cohesive learning experience.
 
-    This collaborative approach ensures each component is optimized for educational quality while maintaining a cohesive learning experience.
-
 # --- Text-to-Speech (TTS) Configuration ---
 tts:
   # Enable or disable TTS functionality

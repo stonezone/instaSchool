@@ -79,22 +79,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Install wkhtmltopdf** (optional, for PDF export)
-
-- **macOS**:
-  ```bash
-  brew install wkhtmltopdf
-  ```
-
-- **Windows**:
-  Download from [wkhtmltopdf.org](https://wkhtmltopdf.org/downloads.html) and add to PATH
-
-- **Linux**:
-  ```bash
-  sudo apt-get install wkhtmltopdf
-  ```
-
-5. **Set up your OpenAI API key**
+4. **Set up your OpenAI API key**
 
 Create a `.env` file in the root directory:
 ```
