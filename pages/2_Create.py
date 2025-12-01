@@ -10,16 +10,6 @@ import streamlit as st
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Clear stale modules to ensure fresh imports
-_modules_to_clear = [k for k in list(sys.modules.keys())
-                     if k.startswith(('src.', 'services.', 'utils.'))
-                     and k in sys.modules]
-for _mod in _modules_to_clear:
-    try:
-        del sys.modules[_mod]
-    except KeyError:
-        pass
-
 load_dotenv()
 
 # Imports
@@ -40,9 +30,16 @@ setup_page(title="InstaSchool - Create", icon="✨")
 config = load_config()
 StateManager.initialize_state()
 
-# Services
-provider_service = StateManager.get_state("provider_service", get_provider_service())
-curriculum_service = get_curriculum_service()
+# Services (lazy-init into StateManager to avoid None defaults)
+provider_service = StateManager.get_state("provider_service")
+if provider_service is None:
+    provider_service = get_provider_service()
+    StateManager.set_state("provider_service", provider_service)
+
+curriculum_service = StateManager.get_state("curriculum_service")
+if curriculum_service is None:
+    curriculum_service = get_curriculum_service()
+    StateManager.set_state("curriculum_service", curriculum_service)
 
 # --- SIDEBAR: Configuration ---
 st.sidebar.markdown("## ⚙️ Settings")
