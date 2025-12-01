@@ -10,17 +10,8 @@ import streamlit as st
 from pathlib import Path
 from dotenv import load_dotenv
 
-# CRITICAL: Clear stale module references before imports
-# Note: Preserve 'src.core' to avoid KeyError on nested imports (Python 3.13 issue)
-_modules_to_clear = [k for k in list(sys.modules.keys())
-                     if k.startswith(('src.', 'services.', 'utils.'))
-                     and not k.startswith('src.core')  # Preserve core module hierarchy
-                     and k in sys.modules]
-for _mod in _modules_to_clear:
-    try:
-        del sys.modules[_mod]
-    except KeyError:
-        pass
+# NOTE: Module cleanup removed - causes KeyError crashes on Python 3.13/Streamlit Cloud
+# The previous approach of clearing sys.modules broke nested imports
 
 load_dotenv()
 

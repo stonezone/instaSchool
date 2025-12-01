@@ -5,21 +5,8 @@ InstaSchool multi-page app
 import os
 import sys
 
-# CRITICAL: Clear stale module references before imports
-# Note: Preserve 'src.core' to avoid KeyError on nested imports (Python 3.13 issue)
-_modules_to_clear = [k for k in list(sys.modules.keys())
-                     if k.startswith(('src.', 'services.', 'utils.'))
-                     and not k.startswith('src.core')  # Preserve core module hierarchy
-                     and k in sys.modules]
-for _mod in _modules_to_clear:
-    try:
-        del sys.modules[_mod]
-    except KeyError:
-        pass
-
-# Explicitly clear problematic entries that may be left as None by failed imports
-sys.modules.pop("services.report_service", None)
-sys.modules.pop("services.certificate_service", None)
+# NOTE: Module cleanup removed - causes KeyError crashes on Python 3.13/Streamlit Cloud
+# The previous approach of clearing sys.modules broke nested imports
 
 import json
 import streamlit as st
