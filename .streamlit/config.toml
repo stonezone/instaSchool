@@ -1,9 +1,9 @@
 [theme]
-# Light theme as default - matches InstaSchool design system
-primaryColor = "#3b82f6"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f8fafc"
-textColor = "#0f172a"
+# Warm Scholar theme - distinctive educational aesthetic
+primaryColor = "#2D5A3D"
+backgroundColor = "#FFFEF5"
+secondaryBackgroundColor = "#F5F0E1"
+textColor = "#3D3A33"
 font = "sans serif"
 
 [server]
