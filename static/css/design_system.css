@@ -1,8 +1,8 @@
 /* InstaSchool Design System - Warm Scholar Theme */
 /* A distinctive educational aesthetic: warm, inviting, scholarly */
 
-/* Typography - Lora for elegance, Source Sans 3 for readability */
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+/* Typography - System fonts with elegant fallbacks for reliability */
+/* NOTE: External fonts (Lora, Source Sans 3) removed due to rendering issues on Streamlit Cloud */
 
 /* =============================================================================
    CSS VARIABLES - Warm Scholar Theme
@@ -99,9 +99,9 @@
     --space-10: 40px;
     --space-12: 48px;
 
-    /* Typography - Dual Font System */
-    --font-display: 'Lora', Georgia, 'Times New Roman', serif;
-    --font-body: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* Typography - System Font Stack (reliable cross-platform) */
+    --font-display: Georgia, 'Times New Roman', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
     --font-family: var(--font-body);
 
     --text-xs: 11px;
@@ -157,19 +157,7 @@
     min-height: 100vh !important;
 }
 
-/* Subtle paper texture overlay */
-.stApp::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    opacity: 0.018;
-    pointer-events: none;
-    z-index: 0;
-}
+/* Paper texture overlay removed for compatibility with Streamlit Cloud */
 
 /* =============================================================================
    SIDEBAR - Warm Parchment Style
@@ -418,35 +406,31 @@
 
 /* =============================================================================
    EXPANDERS - Accordion with Gold Accent
+   NOTE: Minimal styling to avoid interference with Streamlit's label rendering
    ============================================================================= */
-.stApp .streamlit-expanderHeader {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(20px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
+.stApp [data-testid="stExpander"] {
     border: 1px solid var(--separator) !important;
     border-left: 3px solid var(--scholar-gold) !important;
     border-radius: var(--radius-lg) !important;
-    padding: 18px 22px !important;
-    font-family: var(--font-display) !important;
-    font-weight: var(--weight-medium) !important;
-    color: var(--text-primary) !important;
-    transition: all var(--transition-fast) !important;
-    box-shadow: var(--shadow-xs) !important;
+    background: var(--glass-bg-medium) !important;
+    overflow: hidden !important;
+    margin-bottom: var(--space-3) !important;
 }
 
-.stApp .streamlit-expanderHeader:hover {
+.stApp [data-testid="stExpander"] summary {
+    padding: 14px 18px !important;
+    cursor: pointer !important;
+    transition: background var(--transition-fast) !important;
+}
+
+.stApp [data-testid="stExpander"] summary:hover {
     background: var(--glass-bg-strong) !important;
-    border-color: var(--scholar-gold-light) !important;
-    box-shadow: var(--shadow-sm), var(--shadow-glow-gold) !important;
 }
 
-.stApp .streamlit-expanderContent {
+.stApp [data-testid="stExpander"] > div[data-testid="stExpanderDetails"] {
     background: var(--surface-primary) !important;
-    border: 1px solid var(--separator) !important;
-    border-top: none !important;
-    border-left: 3px solid var(--scholar-gold-light) !important;
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
-    padding: 22px !important;
+    border-top: 1px solid var(--separator) !important;
+    padding: 18px !important;
 }
 
 /* =============================================================================
