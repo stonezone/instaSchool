@@ -15,6 +15,10 @@ for _mod in _modules_to_clear:
     except KeyError:
         pass
 
+# Explicitly clear problematic entries that may be left as None by failed imports
+sys.modules.pop("services.report_service", None)
+sys.modules.pop("services.certificate_service", None)
+
 import json
 import streamlit as st
 from datetime import datetime
