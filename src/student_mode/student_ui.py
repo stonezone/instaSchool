@@ -64,10 +64,22 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     
     # Curriculum selector in sidebar
     st.sidebar.markdown("**📚 Choose Your Lesson**")
+
+    # If a preferred curriculum file was set (e.g., from Parent dashboard),
+    # use it as the default selection.
+    preferred_file = StateManager.get_state("preferred_curriculum_file", None)
+    default_index = 0
+    if preferred_file:
+        for i, opt in enumerate(curriculum_options):
+            if opt["file"].name == preferred_file or str(opt["file"]) == preferred_file:
+                default_index = i
+                break
+
     selected_idx = st.sidebar.selectbox(
         "Select curriculum",
         range(len(curriculum_options)),
         format_func=lambda i: curriculum_options[i]['title'],
+        index=default_index,
         label_visibility="collapsed",
         key="student_curriculum_selector"
     )

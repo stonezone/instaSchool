@@ -27,6 +27,7 @@ from pathlib import Path
 # Import shared initialization
 from src.shared_init import setup_page, init_session_state, load_config
 from src.ui_components import ThemeManager, FamilyDashboard
+from src.state_manager import StateManager
 from services.user_service import UserService
 from services.family_service import get_family_service
 from services.report_service import get_report_service
@@ -204,6 +205,10 @@ with parent_tab3:
                         if meta.get('style'):
                             st.write(f"**Style:** {meta.get('style')}")
                         st.write(f"**File:** {json_file.name}")
+                        if st.button("👀 Open in Student Mode", key=f"open_student_{json_file.stem}"):
+                            # Remember this curriculum for the student page and switch
+                            StateManager.set_state("preferred_curriculum_file", json_file.name)
+                            st.switch_page("pages/1_Student.py")
                 except Exception:
                     pass
         else:
