@@ -31,10 +31,55 @@ class UserService:
         self.db = DatabaseService(db_path)
         self._migrate_existing_users()
 
-    def _hash_pin(self, username: str, pin: str) -> str:
-        """Hash PIN with username as salt for storage (backward compatibility)."""
+    def _hash_pin_legacy(self, username: str, pin: str) -> str:
+        """Legacy PIN hash using simple SHA-256 with username salt."""
         combined = f"{username.lower()}:{pin}"
         return hashlib.sha256(combined.encode()).hexdigest()
+
+    def _hash_pin(self, username: str, pin: str) -> str:
+        """Hash PIN using PBKDF2 with a random salt.
+
+        Returns a hex-encoded 'salt:hash' string.
+        """
+        combined = f"{username.lower()}:{pin}".encode()
+        salt = secrets.token_bytes(32)
+        key = hashlib.pbkdf2_hmac("sha256", combined, salt, 100_000)
+        return f"{salt.hex()}:{key.hex()}"
+
+    def _verify_and_maybe_upgrade_pin(self, user: Dict, pin: str) -> bool:
+        """Verify PIN against stored hash and upgrade legacy hashes to PBKDF2."""
+        stored_hash = user.get("pin_hash")
+        if not stored_hash or pin is None:
+            return False
+
+        username = user.get("username", "")
+
+        # New format: 'salt:hash'
+        if ":" in stored_hash:
+            try:
+                salt_hex, key_hex = stored_hash.split(":", 1)
+                salt = bytes.fromhex(salt_hex)
+                stored_key = bytes.fromhex(key_hex)
+            except (ValueError, TypeError):
+                # Malformed hash: treat as failure
+                return False
+
+            combined = f"{username.lower()}:{pin}".encode()
+            computed_key = hashlib.pbkdf2_hmac("sha256", combined, salt, 100_000)
+            return secrets.compare_digest(computed_key, stored_key)
+
+        # Legacy SHA-256 format
+        if self._hash_pin_legacy(username, pin) == stored_hash:
+            # Migrate to PBKDF2 format on successful verification
+            try:
+                new_hash = self._hash_pin(username, pin)
+                self.db.update_user(user["id"], pin_hash=new_hash)
+            except Exception:
+                # Migration failure should not block a successful login
+                pass
+            return True
+
+        return False
 
     def _generate_user_id(self, username: str) -> str:
         """Generate a unique user ID from username."""
@@ -124,9 +169,8 @@ class UserService:
                 if pin is None:
                     return None, "pin_required"
 
-                # Verify PIN using username-salted hash (backward compatibility)
-                pin_hash = self._hash_pin(username, pin)
-                if pin_hash != user["pin_hash"]:
+                # Verify PIN (supports legacy + PBKDF2 formats, migrates on success)
+                if not self._verify_and_maybe_upgrade_pin(user, pin):
                     return None, "invalid_pin"
 
             # Update last login
@@ -157,7 +201,7 @@ class UserService:
         if existing_user:
             return {}, "user_exists"
 
-        # Create PIN hash if provided (using username-salted hash)
+        # Create PIN hash if provided (secure PBKDF2 with per-user salt)
         pin_hash = self._hash_pin(username, pin) if pin else None
 
         # Create user in database
@@ -200,7 +244,7 @@ class UserService:
 
         # Verify old PIN if one exists
         if user.get("pin_hash") and old_pin:
-            if self._hash_pin(username, old_pin) != user["pin_hash"]:
+            if not self._verify_and_maybe_upgrade_pin(user, old_pin):
                 return False, "invalid_pin"
         elif user.get("pin_hash") and not old_pin:
             return False, "old_pin_required"
@@ -211,7 +255,7 @@ class UserService:
         if not new_pin.isdigit():
             return False, "pin_must_be_digits"
 
-        # Set new PIN (username-salted hash)
+        # Set new PIN (secure hash)
         new_pin_hash = self._hash_pin(username, new_pin)
         
         # Update user in database
@@ -236,7 +280,7 @@ class UserService:
 
         # Verify current PIN
         if user.get("pin_hash"):
-            if self._hash_pin(username, current_pin) != user["pin_hash"]:
+            if not self._verify_and_maybe_upgrade_pin(user, current_pin):
                 return False, "invalid_pin"
 
         # Remove PIN from database

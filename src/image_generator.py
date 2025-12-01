@@ -8,6 +8,9 @@ from typing import Dict, Any, List, Optional
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import traceback
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from openai import APIError, RateLimitError, APIConnectionError, AuthenticationError, BadRequestError
 
 # Import the verbose logger
@@ -49,6 +52,31 @@ class ImageGenerator:
             "dall-e-2": 1000,
             "dall-e-3": 4000
         }
+
+    def _download_image_with_retry(
+        self, url: str, max_retries: int = 3, timeout: float = 30.0
+    ) -> Optional[bytes]:
+        """Download an image with retry and backoff."""
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=max_retries,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+
+        try:
+            resp = session.get(url, timeout=timeout)
+            resp.raise_for_status()
+            return resp.content
+        except Exception as e:
+            msg = f"Failed to download image after {max_retries} retries: {e}"
+            print(msg)
+            if logger:
+                logger.log_error(error=e, model="image_download", context=msg)
+            return None
     
     def create_image(self, prompt: str, model: str = None, size: str = None, n: int = 1, 
                    topic: str = None, subject: str = None, grade: str = None, 
@@ -200,16 +228,12 @@ class ImageGenerator:
                             if hasattr(img_data, 'url') and img_data.url:
                                 try:
                                     # Download image from URL and convert to base64
-                                    import requests
-                                    from io import BytesIO
-                                    
                                     if logger:
                                         logger.log_debug(f"Downloading image from URL: {img_data.url[:30]}...")
                                     print(f"Downloading image from URL: {img_data.url[:50]}...")
-                                    
-                                    img_response = requests.get(img_data.url, timeout=15)
-                                    if img_response.status_code == 200:
-                                        image_data = img_response.content
+
+                                    image_data = self._download_image_with_retry(img_data.url)
+                                    if image_data:
                                         b64_data = base64.b64encode(image_data).decode('utf-8')
                                         results.append({
                                             "b64": b64_data,
@@ -220,7 +244,7 @@ class ImageGenerator:
                                         print(f"Successfully downloaded and encoded image from URL using {current_model}")
                                         success = True
                                     else:
-                                        print(f"Failed to download image from URL: {img_response.status_code}")
+                                        print("Failed to download image from URL after retries")
                                 except Exception as e:
                                     print(f"Error downloading image from URL: {e}")
                             

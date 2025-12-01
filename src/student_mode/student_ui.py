@@ -10,7 +10,13 @@ from .review_queue import render_review_queue
 from src.tutor_agent import TutorAgent
 from src.state_manager import StateManager
 from src.grading_agent import GradingAgent, GradingResult
-from services.database_service import DatabaseService
+from src.shared_init import get_database_service
+from src.constants import (
+    XP_PER_LEVEL,
+    XP_SECTION_COMPLETE,
+    XP_QUIZ_PERFECT,
+    XP_SHORT_ANSWER_MAX,
+)
 from services.srs_service import SRSService
 
 
@@ -110,12 +116,14 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     # Display progress in sidebar
     current_level = progress.get_level()
     current_xp = progress.get_xp()
-    xp_in_level = current_xp % 100
-    xp_to_next = 100 - xp_in_level
+    xp_in_level = current_xp % XP_PER_LEVEL
+    xp_to_next = XP_PER_LEVEL - xp_in_level
     
     st.sidebar.markdown(f"⭐ **Level {current_level}**")
-    st.sidebar.markdown(f"🎯 {current_xp} XP ({xp_in_level}/100 to Level {current_level + 1})")
-    st.sidebar.progress(xp_in_level / 100.0)
+    st.sidebar.markdown(
+        f"🎯 {current_xp} XP ({xp_in_level}/{XP_PER_LEVEL} to Level {current_level + 1})"
+    )
+    st.sidebar.progress(xp_in_level / float(XP_PER_LEVEL))
 
     # Streak display
     stats = progress.get_stats()
@@ -190,7 +198,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     st.sidebar.markdown("---")
 
     # Review Queue section in sidebar
-    db = DatabaseService()
+    db = get_database_service()
     srs = SRSService(db)
     due_count = srs.get_due_count(user_id) if user_id else 0
     
@@ -213,7 +221,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     
     if current_view == 'review':
         if user_id:
-            db = DatabaseService()
+            db = get_database_service()
             render_review_queue(user_id, db)
             if st.button("← Back to Learning"):
                 StateManager.set_state('student_view', 'learn')
@@ -365,8 +373,8 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     with col2:
         if can_advance:
             if st.button("✅ Complete & Continue", type="primary", use_container_width=True):
-                # Award XP
-                leveled_up = progress.add_xp(10)
+                # Award XP for completing the section
+                leveled_up = progress.add_xp(XP_SECTION_COMPLETE)
 
                 # Mark section complete (updates streak and checks badges)
                 _, new_badges = progress.complete_section(section_idx)
@@ -382,7 +390,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                     st.success(f"🎉 Level Up! You're now Level {progress.get_level()}!")
                     st.balloons()
                 else:
-                    st.success("+10 XP!")
+                    st.success(f"+{XP_SECTION_COMPLETE} XP!")
 
                 # Store new badges for display
                 if new_badges:
@@ -424,6 +432,35 @@ def render_student_mode(config: Dict[str, Any], client: Any):
         # Only show chat interface for content sections
         if current_section_type in ['content', 'quiz', 'summary']:
             _render_tutor_chat(config, unit)
+
+
+def _validate_quiz_state(quiz_data: Dict[str, Any]) -> bool:
+    """Validate persisted quiz state against current quiz structure.
+
+    This helps detect stale state when switching units or after errors.
+    """
+    quiz_answers = StateManager.get_state('quiz_answers', {})
+    if not isinstance(quiz_answers, dict):
+        return False
+
+    questions = quiz_data.get('questions', [])
+    mc_questions = [
+        q for q in questions
+        if q.get('type', 'multiple_choice') == 'multiple_choice' or 'options' in q
+    ]
+    expected_mc_count = len(mc_questions)
+
+    # Multiple choice answers are stored with integer keys
+    mc_keys = [k for k in quiz_answers.keys() if isinstance(k, int)]
+    if not mc_keys:
+        return True  # No answers yet – always valid
+
+    if len(mc_keys) > expected_mc_count:
+        return False
+    if any(k < 0 or k >= expected_mc_count for k in mc_keys):
+        return False
+
+    return True
 
 
 def _render_section_content(unit: Dict[str, Any], section_type: str):
@@ -527,6 +564,13 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
         if quiz_data and isinstance(quiz_data, dict):
             questions = quiz_data.get('questions', [])
 
+            # Validate existing quiz state to avoid stale answers when switching units
+            if not _validate_quiz_state(quiz_data):
+                StateManager.set_state('quiz_submitted', False)
+                StateManager.set_state('quiz_answers', {})
+                StateManager.set_state('grading_results', {})
+                st.info("Quiz state reset due to unit change.")
+
             if questions:
                 # Separate multiple choice and short answer questions
                 mc_questions = [q for q in questions if q.get('type', 'multiple_choice') == 'multiple_choice' or 'options' in q]
@@ -570,6 +614,12 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                         correct_count = 0
                         quiz_answers = StateManager.get_state('quiz_answers', {})
 
+                        # Initialize progress for adaptive difficulty and mastery tracking
+                        current_user = StateManager.get_state("current_user", None)
+                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                        curriculum_id = StateManager.get_state('last_curriculum_id')
+                        progress = StudentProgress(curriculum_id, user_id=user_id)
+
                         for i, q in enumerate(mc_questions):
                             user_answer = quiz_answers.get(i)
                             correct_answer = q.get('correct', '')
@@ -588,32 +638,28 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                         
                         # Record quiz score for mastery tracking
                         score_pct = correct_count / total_mc if total_mc > 0 else 0
-                        current_user = StateManager.get_state("current_user", None)
-                        user_id = current_user.get("id") if isinstance(current_user, dict) else None
-                        curriculum_id = StateManager.get_state('last_curriculum_id')
-                        
+
                         # Get unit_idx from section_idx
                         section_idx = StateManager.get_state('current_section_idx', 0)
                         unit_idx = section_idx // 6
                         
-                        # Get progress instance and record score
-                        progress = StudentProgress(curriculum_id, user_id=user_id)
+                        # Record quiz score for this unit
                         progress.record_quiz_score(unit_idx, score_pct, total_mc, correct_count)
                         
                         if correct_count == total_mc:
                             st.success(f"🌟 Perfect score! {correct_count}/{total_mc} correct!")
-                            progress.add_xp(50)
+                            progress.add_xp(XP_QUIZ_PERFECT)
                             # Record perfect quiz for badge tracking
                             new_badges = progress.record_perfect_quiz()
-                            st.info("🎁 Bonus: +50 XP for perfect score!")
+                            st.info(f"🎁 Bonus: +{XP_QUIZ_PERFECT} XP for perfect score!")
                             # Show badge notifications
                             for badge in new_badges:
                                 st.balloons()
                                 st.success(f"🏆 **New Badge Earned!** {badge['icon']} {badge['name']} - {badge['description']}")
                         elif correct_count > 0:
                             st.info(f"📊 You got {correct_count}/{total_mc} correct!")
-                            progress.add_xp(10)
-                            st.info("⭐ +10 XP for completing the quiz!")
+                            progress.add_xp(XP_SECTION_COMPLETE)
+                            st.info(f"⭐ +{XP_SECTION_COMPLETE} XP for completing the quiz!")
                         else:
                             st.warning(f"Keep trying! You got {correct_count}/{total_mc} correct.")
 
@@ -710,7 +756,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                                         user_id = current_user.get("id") if isinstance(current_user, dict) else None
                                         progress = StudentProgress(StateManager.get_state('last_curriculum_id'), user_id=user_id)
 
-                                        xp_earned = int(result.score * 20)  # Up to 20 XP per short answer
+                                        xp_earned = int(result.score * XP_SHORT_ANSWER_MAX)
                                         if xp_earned > 0:
                                             progress.add_xp(xp_earned)
 
@@ -934,7 +980,7 @@ def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
 def _create_flashcards_from_quiz(unit: Dict[str, Any], user_id: str, curriculum_id: str):
     """Create flashcards from quiz questions"""
     try:
-        db = DatabaseService()
+        db = get_database_service()
         srs = SRSService(db)
         quiz = unit.get('quiz', {})
         questions = quiz.get('questions', [])

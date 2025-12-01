@@ -113,12 +113,21 @@ tab_gen, tab_view = st.tabs(["🚀 Generate", "📂 Library"])
 
 # === TAB 1: GENERATE ===
 with tab_gen:
+    is_generating = StateManager.get_state("generating", False)
+
     # Cost Estimation
-    est_cost = estimate_curriculum_cost(
-        main_model, worker_model,
-        media_richness,
-        len(valid_subjects) * 3, # Approx topics
-        config.get('model_costs', {})
+    est_cost_data = estimate_curriculum_cost(
+        orchestrator_model=main_model,
+        worker_model=worker_model,
+        num_units=len(valid_subjects) * 3,  # Approx topics
+        include_quizzes=inc_quiz,
+        include_summary=inc_sum,
+        include_resources=inc_res,
+    )
+    est_cost = (
+        est_cost_data.get("total", 0.0)
+        if isinstance(est_cost_data, dict)
+        else float(est_cost_data or 0.0)
     )
 
     if est_cost > 0.5:
@@ -133,8 +142,14 @@ with tab_gen:
         help="These instructions will guide the Orchestrator."
     )
 
-    # Generation Button
-    if st.button("🚀 Start Generation", type="primary", use_container_width=True):
+    if is_generating:
+        st.info("⚙️ Curriculum generation is currently in progress.")
+        if st.button("❌ Cancel Generation", type="secondary", use_container_width=True):
+            StateManager.update_state("generating", False)
+            st.info("Generation cancellation requested. The process will stop at the next safe point.")
+
+    # Generation Button (only when not already generating)
+    if (not is_generating) and st.button("🚀 Start Generation", type="primary", use_container_width=True):
         if not valid_subjects:
             st.error("Please select at least one subject.")
             st.stop()
@@ -162,7 +177,7 @@ with tab_gen:
         status_area = st.empty()
 
         start_time = time.time()
-        st.session_state["generating"] = True
+        StateManager.update_state("generating", True)
 
         try:
             # Generate!
@@ -173,7 +188,7 @@ with tab_gen:
                     style=style,
                     language=language,
                     extra=extra_instructions,
-                    config=run_config
+                    config=run_config,
                 )
 
             # Save
@@ -203,7 +218,7 @@ with tab_gen:
             st.error(f"Generation failed: {str(e)}")
             st.exception(e)
         finally:
-            st.session_state["generating"] = False
+            StateManager.update_state("generating", False)
 
 # === TAB 2: LIBRARY ===
 with tab_view:

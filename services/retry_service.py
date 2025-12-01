@@ -15,7 +15,19 @@ from openai import APIError, RateLimitError, APIConnectionError, AuthenticationE
 
 class RetryError(Exception):
     """Custom exception for retry-related errors"""
-    pass
+
+    def __init__(self, message: str, errors: Optional[List[Exception]] = None):
+        super().__init__(message)
+        self.errors = errors or []
+
+    def __str__(self) -> str:
+        base = super().__str__()
+        if not self.errors:
+            return base
+        error_details = "\n".join(
+            f"  Attempt {i + 1}: {e}" for i, e in enumerate(self.errors)
+        )
+        return f"{base}\nPrevious errors:\n{error_details}"
 
 
 class ErrorType(Enum):
@@ -229,7 +241,8 @@ class RetryHandler:
         if config is None:
             config = RetryConfig()
         
-        last_error = None
+        last_error: Optional[Exception] = None
+        errors: List[Exception] = []
         
         for attempt in range(config.max_retries + 1):
             try:
@@ -245,6 +258,7 @@ class RetryHandler:
                 
             except Exception as e:
                 last_error = e
+                errors.append(e)
                 error_type = ErrorClassifier.classify_error(e)
                 
                 # Log the error
@@ -283,9 +297,9 @@ class RetryHandler:
             error_msg += f". Last error: {last_error}"
         
         if self.logger:
-            self.logger.log_error(error=RetryError(error_msg), context=context)
+            self.logger.log_error(error=RetryError(error_msg, errors=errors), context=context)
         
-        raise RetryError(error_msg) from last_error
+        raise RetryError(error_msg, errors=errors) from last_error
 
 
 def with_retry(config: Optional[RetryConfig] = None, context: str = "operation"):

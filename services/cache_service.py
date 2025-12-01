@@ -11,13 +11,20 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-# Import file locking utilities
+# Import POSIX file locking utilities (best-effort)
 try:
     import fcntl
+    FCNTL_AVAILABLE = True
+except ImportError:
+    FCNTL_AVAILABLE = False
+    print("Warning: fcntl not available, POSIX file locking disabled on this platform")
+
+# Cross-platform file locking with filelock (preferred when available)
+try:
+    from filelock import FileLock
     FILE_LOCKING_AVAILABLE = True
 except ImportError:
     FILE_LOCKING_AVAILABLE = False
-    print("Warning: fcntl not available, file locking disabled on this platform")
 
 
 class ContentCache:
@@ -144,21 +151,29 @@ class ContentCache:
         try:
             cache_key = self._generate_cache_key(content_type, params)
             cache_file = self._get_cache_file_path(content_type, cache_key)
-            
+            lock_file = cache_file.with_suffix('.lock')
+
             if not self._is_cache_valid(cache_file):
                 return None
-                
-            # Use file locking to prevent race conditions
-            with open(cache_file, 'r', encoding='utf-8') as f:
-                if FILE_LOCKING_AVAILABLE:
-                    try:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
+
+            # Use cross-platform file locking when available
+            if FILE_LOCKING_AVAILABLE:
+                lock = FileLock(str(lock_file), timeout=10)
+                with lock:
+                    with open(cache_file, 'r', encoding='utf-8') as f:
                         cached_data = json.load(f)
-                    finally:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Unlock
-                else:
-                    cached_data = json.load(f)
-                
+            else:
+                # Fallback: POSIX advisory locking if available, otherwise no locking
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    if FCNTL_AVAILABLE:
+                        try:
+                            fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
+                            cached_data = json.load(f)
+                        finally:
+                            fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Unlock
+                    else:
+                        cached_data = json.load(f)
+
             # Update access time safely
             self._safe_touch_file(cache_file)
             
@@ -186,7 +201,8 @@ class ContentCache:
         try:
             cache_key = self._generate_cache_key(content_type, params)
             cache_file = self._get_cache_file_path(content_type, cache_key)
-            
+            lock_file = cache_file.with_suffix('.lock')
+
             cache_data = {
                 'content': content,
                 'params': params,
@@ -194,18 +210,25 @@ class ContentCache:
                 'content_type': content_type,
                 'cache_key': cache_key
             }
-            
-            # Use file locking for writing to prevent race conditions
-            with open(cache_file, 'w', encoding='utf-8') as f:
-                if FILE_LOCKING_AVAILABLE:
-                    try:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock for writing
+
+            # Use cross-platform file locking when available
+            if FILE_LOCKING_AVAILABLE:
+                lock = FileLock(str(lock_file), timeout=10)
+                with lock:
+                    with open(cache_file, 'w', encoding='utf-8') as f:
                         json.dump(cache_data, f, indent=2, default=str)
-                    finally:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Unlock
-                else:
-                    json.dump(cache_data, f, indent=2, default=str)
-                
+            else:
+                # Fallback: POSIX advisory locking if available, otherwise no locking
+                with open(cache_file, 'w', encoding='utf-8') as f:
+                    if FCNTL_AVAILABLE:
+                        try:
+                            fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock for writing
+                            json.dump(cache_data, f, indent=2, default=str)
+                        finally:
+                            fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Unlock
+                    else:
+                        json.dump(cache_data, f, indent=2, default=str)
+
             print(f"Cached {content_type}: {cache_key[:8]}...")
             return True
             

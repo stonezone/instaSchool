@@ -8,6 +8,7 @@ import os
 import json
 import sqlite3
 import hashlib
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
@@ -22,7 +23,9 @@ except ImportError:
 
 class DatabaseService:
     """Manages SQLite database operations for InstaSchool"""
-    
+
+    _local = threading.local()
+
     def __init__(self, db_path: str = "instaschool.db"):
         """Initialize database service and create tables
         
@@ -134,28 +137,54 @@ class DatabaseService:
             
     @contextmanager
     def get_connection(self):
-        """Get thread-safe database connection
-        
+        """Get thread-local database connection with connection reuse.
+
         Yields:
             sqlite3.Connection: Database connection
         """
-        conn = None
+        conn = getattr(self._local, "connection", None)
+
+        if conn is None:
+            try:
+                conn = sqlite3.connect(
+                    self.db_path,
+                    check_same_thread=False,
+                    timeout=30.0,
+                    isolation_level=None,  # Autocommit mode
+                )
+                conn.row_factory = sqlite3.Row
+                # Enable WAL and busy timeout for better concurrency
+                try:
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    conn.execute("PRAGMA busy_timeout=30000")
+                except sqlite3.Error:
+                    # Pragmas may fail on some SQLite builds; ignore
+                    pass
+                self._local.connection = conn
+            except sqlite3.Error as e:
+                print(f"Database connection error: {e}")
+                raise
+
         try:
-            conn = sqlite3.connect(
-                self.db_path,
-                check_same_thread=False,
-                timeout=10.0
-            )
-            conn.row_factory = sqlite3.Row
             yield conn
         except sqlite3.Error as e:
             print(f"Database connection error: {e}")
-            if conn:
+            try:
                 conn.rollback()
+            except sqlite3.Error:
+                pass
             raise
-        finally:
-            if conn:
+
+    def close_connection(self) -> None:
+        """Explicitly close the thread-local database connection."""
+        conn = getattr(self._local, "connection", None)
+        if conn is not None:
+            try:
                 conn.close()
+            except sqlite3.Error as e:
+                print(f"Error closing database connection: {e}")
+            finally:
+                self._local.connection = None
                 
     def execute(self, sql: str, params: tuple = ()) -> bool:
         """Execute SQL statement with error handling

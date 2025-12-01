@@ -9,6 +9,7 @@ import time
 import base64
 import httpx
 import concurrent.futures
+import threading
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Union
@@ -81,24 +82,54 @@ class OrchestratorAgent(BaseAgent):
                 return persona
 
         return self.PERSONA_MAP["default"]
-        
-    def create_curriculum(self, subject, grade, style, language, extra, config):
-        """Main entry point for curriculum generation"""
-        # Try to access the streamlit session state to check for cancellation
-        try:
-            import streamlit as st
-            has_cancellation_check = True
-        except ImportError:
-            has_cancellation_check = False
-        
+
+    def create_curriculum(
+        self,
+        subject,
+        grade,
+        style,
+        language,
+        extra,
+        config,
+        cancellation_event: Optional[threading.Event] = None,
+    ):
+        """Main entry point for curriculum generation.
+
+        The optional ``cancellation_event`` allows cooperative cancellation from
+        the caller or UI layer without touching Streamlit session state from
+        background threads.
+        """
+
+        def is_cancelled() -> bool:
+            """Check whether generation has been cancelled.
+
+            Priority: explicit cancellation_event → StateManager.generating flag.
+            """
+            # Explicit cancellation token from caller takes precedence
+            if cancellation_event is not None and cancellation_event.is_set():
+                return True
+
+            # Fallback to StateManager flag (main thread only)
+            try:
+                from src.state_manager import StateManager  # Local import to avoid cycles
+
+                generating = StateManager.get_state("generating", True)
+            except Exception:
+                generating = True
+
+            if not generating and cancellation_event is not None:
+                # Propagate cancellation to worker tasks
+                cancellation_event.set()
+            return not generating
+
         # Create a plan for curriculum generation
         plan = self._create_generation_plan(subject, grade, style, language, extra)
-        
+
         # Check for cancellation
-        if has_cancellation_check and not st.session_state.get("generating", True):
+        if is_cancelled():
             print("Generation cancelled during planning phase")
             return {"meta": {"cancelled": True}, "units": []}
-        
+
         # Initialize worker agents with appropriate models
         outline_agent = OutlineAgent(self.client, self.worker_model, config)
         content_agent = ContentAgent(self.client, self.worker_model, config)
@@ -110,14 +141,17 @@ class OrchestratorAgent(BaseAgent):
         
         # Step 1: Generate outline
         topics = outline_agent.generate_outline(
-            subject, grade, style, extra, 
-            config["defaults"]["min_topics"], 
-            config["defaults"]["max_topics"], 
-            language
+            subject,
+            grade,
+            style,
+            extra,
+            config["defaults"]["min_topics"],
+            config["defaults"]["max_topics"],
+            language,
         )
-        
+
         # Check for cancellation
-        if has_cancellation_check and not st.session_state.get("generating", True):
+        if is_cancelled():
             print("Generation cancelled after outline phase")
             return {"meta": {"cancelled": True}, "units": []}
         
@@ -146,26 +180,43 @@ class OrchestratorAgent(BaseAgent):
         # Process each topic concurrently or sequentially as needed
         for i, topic in enumerate(topics):
             # Check for cancellation
-            if has_cancellation_check and not st.session_state.get("generating", True):
+            if is_cancelled():
                 print(f"Generation cancelled after processing {i} of {len(topics)} topics")
                 return curriculum  # Return what we have so far
-            
+
             # Provide detailed instructions to content agent based on plan
             unit = self._process_topic(
-                topic, subject, grade, style, language, extra, 
-                content_agent, media_agent, chart_agent, quiz_agent, 
-                summary_agent, resource_agent, config
+                topic,
+                subject,
+                grade,
+                style,
+                language,
+                extra,
+                content_agent,
+                media_agent,
+                chart_agent,
+                quiz_agent,
+                summary_agent,
+                resource_agent,
+                config,
+                cancellation_event=cancellation_event,
             )
             curriculum["units"].append(unit)
-            
-            # Update progress in session state after each unit
-            if has_cancellation_check:
-                # Calculate total progress (planning + outline = 0.3, each topic = (0.9-0.3)/num_topics)
-                topic_progress = 0.6 / len(topics)
-                st.session_state.progress = 0.3 + (i + 1) * topic_progress
-        
+
+            # Update progress in session state after each unit (best-effort)
+            try:
+                from src.state_manager import StateManager  # Local import
+
+                topic_progress = 0.6 / max(len(topics), 1)
+                StateManager.update_state(
+                    "progress", 0.3 + (i + 1) * topic_progress
+                )
+            except Exception:
+                # If StateManager or Streamlit are unavailable, skip UI progress updates
+                pass
+
         # Check for cancellation before refinement
-        if has_cancellation_check and not st.session_state.get("generating", True):
+        if is_cancelled():
             print("Generation cancelled before refinement")
             return curriculum
             
@@ -191,9 +242,23 @@ class OrchestratorAgent(BaseAgent):
             return response.choices[0].message.content
         return "Standard curriculum generation plan"
     
-    def _process_topic(self, topic, subject, grade, style, language, extra,
-                      content_agent, media_agent, chart_agent, quiz_agent,
-                      summary_agent, resource_agent, config):
+    def _process_topic(
+        self,
+        topic,
+        subject,
+        grade,
+        style,
+        language,
+        extra,
+        content_agent,
+        media_agent,
+        chart_agent,
+        quiz_agent,
+        summary_agent,
+        resource_agent,
+        config,
+        cancellation_event: Optional[threading.Event] = None,
+    ):
         """Process a single topic with parallel execution of auxiliary agents.
 
         Performance optimization: After generating core content (blocking),
@@ -230,6 +295,8 @@ class OrchestratorAgent(BaseAgent):
         # 2. Define parallel tasks as closures
         def run_media():
             """Generate images with content-aware prompts (slowest operation)."""
+            if cancellation_event is not None and cancellation_event.is_set():
+                return []
             if media_richness >= 2 and content:
                 num_images = 3 if media_richness >= 5 else 1
                 try:
@@ -255,6 +322,8 @@ class OrchestratorAgent(BaseAgent):
 
         def run_chart():
             """Generate chart suggestion and visualization."""
+            if cancellation_event is not None and cancellation_event.is_set():
+                return None
             if media_richness >= 3:
                 try:
                     suggestion = chart_agent.suggest_chart(
@@ -268,6 +337,8 @@ class OrchestratorAgent(BaseAgent):
 
         def run_quiz():
             """Generate quiz questions."""
+            if cancellation_event is not None and cancellation_event.is_set():
+                return None
             if config["defaults"]["include_quizzes"]:
                 try:
                     return quiz_agent.generate_quiz(
@@ -279,6 +350,8 @@ class OrchestratorAgent(BaseAgent):
 
         def run_summary():
             """Generate lesson summary."""
+            if cancellation_event is not None and cancellation_event.is_set():
+                return ""
             if config["defaults"]["include_summary"]:
                 try:
                     return summary_agent.generate_summary(
@@ -290,6 +363,8 @@ class OrchestratorAgent(BaseAgent):
 
         def run_resources():
             """Generate learning resources."""
+            if cancellation_event is not None and cancellation_event.is_set():
+                return ""
             if config["defaults"]["include_resources"]:
                 try:
                     return resource_agent.generate_resources(
@@ -301,6 +376,9 @@ class OrchestratorAgent(BaseAgent):
 
         # 3. Execute parallel tasks using ThreadPoolExecutor
         # Using 5 workers for 5 independent tasks (media, chart, quiz, summary, resources)
+        if cancellation_event is not None and cancellation_event.is_set():
+            return unit
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             future_media = executor.submit(run_media)
             future_chart = executor.submit(run_chart)

@@ -57,7 +57,11 @@ def get_provider_service():
 def get_curriculum_service():
     """Get cached Curriculum Service"""
     from services.curriculum_service import CurriculumService
-    return CurriculumService()
+    config = load_config()
+    client = get_openai_client()
+    if client is None:
+        return None
+    return CurriculumService(client, config)
 
 
 @st.cache_resource

@@ -382,7 +382,27 @@ class AIProviderService:
         if provider not in self.PROVIDERS:
             return []
 
-        return self.PROVIDERS[provider].get("text_models", [])
+        # Start with hardcoded defaults
+        models = set(self.PROVIDERS[provider].get("text_models", []))
+
+        # Merge defaults.text_models from config (global list)
+        default_text_models = self.config.get("defaults", {}).get("text_models", [])
+        if isinstance(default_text_models, list):
+            models.update(default_text_models)
+
+        # Merge provider-specific models from config.providers or ai_providers.providers
+        provider_config = self.config.get("providers", {})
+        if not provider_config:
+            ai_providers = self.config.get("ai_providers", {})
+            provider_config = ai_providers.get("providers", {})
+
+        if isinstance(provider_config, dict):
+            cfg = provider_config.get(provider, {})
+            extra_models = cfg.get("text_models", [])
+            if isinstance(extra_models, list):
+                models.update(extra_models)
+
+        return sorted(models)
 
     def get_image_models(self, provider: Optional[str] = None) -> List[str]:
         """Get available image models for a provider
