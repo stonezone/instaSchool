@@ -89,6 +89,25 @@ with st.sidebar.expander("🔌 **AI Model**", expanded=False):
     main_model = st.selectbox("Orchestrator", models, index=0, key="sb_model_main")
     worker_model = st.selectbox("Worker", models, index=0, key="sb_model_worker")
 
+    # Image Model (images always use OpenAI backend)
+    available_image_models = provider_service.get_image_models("openai")
+    default_image_model = config["defaults"].get("image_model", "gpt-image-1")
+
+    if available_image_models:
+        if default_image_model not in available_image_models:
+            default_image_model = available_image_models[0]
+
+        image_model = st.selectbox(
+            "Image Model (OpenAI)",
+            options=available_image_models,
+            index=available_image_models.index(default_image_model),
+            help="Images always use OpenAI; gpt-image-1 is recommended.",
+            key="sb_image_model",
+        )
+    else:
+        st.warning("⚠️ OpenAI API key required for image generation")
+        image_model = default_image_model
+
 # 3. Content Depth
 with st.sidebar.expander("📝 **Content Depth**", expanded=False):
     media_richness = st.slider("Media Richness", 0, 5, 2, help="0=Text Only, 5=Full Images/Charts")
@@ -155,6 +174,7 @@ with tab_gen:
         run_config = config.copy()
         run_config["defaults"].update({
             "media_richness": media_richness,
+            "image_model": image_model,
             "include_quizzes": inc_quiz,
             "include_summary": inc_sum,
             "include_resources": inc_res,
