@@ -7,8 +7,10 @@ import sys
 
 # CRITICAL: Clear stale module references before imports
 # This fixes KeyError crashes on Streamlit Cloud hot reloads (Python 3.13)
+# Note: Preserve 'src.core' to avoid KeyError on nested imports
 _modules_to_clear = [k for k in list(sys.modules.keys())
                      if k.startswith(('src.', 'services.', 'utils.'))
+                     and not k.startswith('src.core')  # Preserve core module hierarchy
                      and k in sys.modules]
 for _mod in _modules_to_clear:
     try:
