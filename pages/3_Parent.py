@@ -30,8 +30,18 @@ from src.ui_components import ThemeManager, FamilyDashboard
 from src.state_manager import StateManager
 from services.user_service import UserService
 from services.family_service import get_family_service
-from services.report_service import get_report_service
-from services.certificate_service import get_certificate_service
+
+# Report / certificate services can fail to import under certain hot-reload
+# conditions on Python 3.13, so guard their imports and degrade gracefully.
+try:
+    from services.report_service import get_report_service  # type: ignore
+except Exception:
+    get_report_service = None  # type: ignore[assignment]
+
+try:
+    from services.certificate_service import get_certificate_service  # type: ignore
+except Exception:
+    get_certificate_service = None  # type: ignore[assignment]
 
 # Page config
 setup_page(title="InstaSchool - Parent", icon="👨‍👩‍👧")
@@ -98,83 +108,95 @@ with parent_tab1:
 
 # Tab 2: Reports & Certificates
 with parent_tab2:
-    report_service = get_report_service()
-    cert_service = get_certificate_service()
-    user_service_reports = UserService()
-    children = user_service_reports.list_usernames()
-
-    if not children:
-        st.info("Add children in the Family Overview tab to generate reports.")
+    if get_report_service is None or get_certificate_service is None:
+        st.warning(
+            "Report and certificate services are currently unavailable in this environment."
+        )
+        st.info(
+            "You can still view curricula and use Student / Teacher modes while this feature is disabled."
+        )
     else:
-        report_col, cert_col = st.columns(2)
+        report_service = get_report_service()
+        cert_service = get_certificate_service()
+        user_service_reports = UserService()
+        children = user_service_reports.list_usernames()
 
-        with report_col:
-            st.markdown("### 📊 Progress Reports")
-            selected_child = st.selectbox(
-                "Select Child",
-                options=["All Children"] + children,
-                key="report_child_select"
-            )
+        if not children:
+            st.info("Add children in the Family Overview tab to generate reports.")
+        else:
+            report_col, cert_col = st.columns(2)
 
-            if st.button("📥 Generate PDF Report", type="primary", key="gen_report"):
-                with st.spinner("Generating report..."):
-                    if selected_child == "All Children":
-                        pdf_bytes = report_service.generate_family_report()
-                        filename = "family_report.pdf"
-                    else:
-                        pdf_bytes = report_service.generate_child_report(selected_child)
-                        filename = f"{selected_child}_report.pdf"
+            with report_col:
+                st.markdown("### 📊 Progress Reports")
+                selected_child = st.selectbox(
+                    "Select Child",
+                    options=["All Children"] + children,
+                    key="report_child_select",
+                )
 
-                    st.download_button(
-                        "⬇️ Download Report",
-                        data=pdf_bytes,
-                        file_name=filename,
-                        mime="application/pdf"
-                    )
+                if st.button("📥 Generate PDF Report", type="primary", key="gen_report"):
+                    with st.spinner("Generating report..."):
+                        if selected_child == "All Children":
+                            pdf_bytes = report_service.generate_family_report()
+                            filename = "family_report.pdf"
+                        else:
+                            pdf_bytes = report_service.generate_child_report(selected_child)
+                            filename = f"{selected_child}_report.pdf"
 
-        with cert_col:
-            st.markdown("### 🏆 Certificates")
-            cert_child = st.selectbox(
-                "Select Child",
-                options=children,
-                key="cert_child_select"
-            )
-
-            cert_type = st.selectbox(
-                "Certificate Type",
-                ["Progress Certificate", "Custom Certificate"],
-                key="cert_type"
-            )
-
-            if cert_type == "Custom Certificate":
-                cert_title = st.text_input("Title", "Certificate of Achievement")
-                cert_text = st.text_area("Main Text", "For outstanding effort in learning!")
-
-            if st.button("🎖️ Generate Certificate", type="secondary", key="gen_cert"):
-                with st.spinner("Creating certificate..."):
-                    if cert_type == "Progress Certificate":
-                        user_data = user_service_reports.get_user(cert_child) or {}
-                        pdf_bytes = cert_service.generate_progress_certificate(
-                            student_name=cert_child,
-                            period=datetime.now().strftime("%B %Y"),
-                            sections_completed=user_data.get('sections_completed', 0),
-                            xp_earned=user_data.get('xp', 0),
-                            streak_days=user_data.get('streak', 0),
-                            quizzes_passed=user_data.get('quizzes_passed', 0)
-                        )
-                    else:
-                        pdf_bytes = cert_service.generate_custom_certificate(
-                            student_name=cert_child,
-                            title=cert_title,
-                            main_text=cert_text
+                        st.download_button(
+                            "⬇️ Download Report",
+                            data=pdf_bytes,
+                            file_name=filename,
+                            mime="application/pdf",
                         )
 
-                    st.download_button(
-                        "⬇️ Download Certificate",
-                        data=pdf_bytes,
-                        file_name=f"{cert_child}_certificate.pdf",
-                        mime="application/pdf"
+            with cert_col:
+                st.markdown("### 🏆 Certificates")
+                cert_child = st.selectbox(
+                    "Select Child",
+                    options=children,
+                    key="cert_child_select",
+                )
+
+                cert_type = st.selectbox(
+                    "Certificate Type",
+                    ["Progress Certificate", "Custom Certificate"],
+                    key="cert_type",
+                )
+
+                if cert_type == "Custom Certificate":
+                    cert_title = st.text_input("Title", "Certificate of Achievement")
+                    cert_text = st.text_area(
+                        "Main Text", "For outstanding effort in learning!"
                     )
+
+                if st.button("🎖️ Generate Certificate", type="secondary", key="gen_cert"):
+                    with st.spinner("Creating certificate..."):
+                        if cert_type == "Progress Certificate":
+                            user_data = user_service_reports.get_user(cert_child) or {}
+                            pdf_bytes = cert_service.generate_progress_certificate(
+                                student_name=cert_child,
+                                period=datetime.now().strftime("%B %Y"),
+                                sections_completed=user_data.get(
+                                    "sections_completed", 0
+                                ),
+                                xp_earned=user_data.get("xp", 0),
+                                streak_days=user_data.get("streak", 0),
+                                quizzes_passed=user_data.get("quizzes_passed", 0),
+                            )
+                        else:
+                            pdf_bytes = cert_service.generate_custom_certificate(
+                                student_name=cert_child,
+                                title=cert_title,
+                                main_text=cert_text,
+                            )
+
+                        st.download_button(
+                            "⬇️ Download Certificate",
+                            data=pdf_bytes,
+                            file_name=f"{cert_child}_certificate.pdf",
+                            mime="application/pdf",
+                        )
 
 # Tab 3: Curricula Overview
 with parent_tab3:
