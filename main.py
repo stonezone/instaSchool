@@ -79,6 +79,9 @@ total_curricula = len(list(curricula_dir.glob("*.json"))) if curricula_dir.exist
 stat_col1, stat_col2, stat_col3 = st.columns(3)
 with stat_col1:
     st.metric("Curricula Created", total_curricula)
+    if st.button("📚 View Curricula", use_container_width=True, key="btn_view_curricula"):
+        # Parent dashboard has a Curricula tab; send users there
+        st.switch_page("pages/3_Parent.py")
 with stat_col2:
     from services.user_service import UserService
     user_count = len(UserService().list_users())

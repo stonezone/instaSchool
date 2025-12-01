@@ -595,6 +595,7 @@ class MediaAgent:
         self.config = config  # Store full config to access defaults
         self.prompt_template = config["prompts"].get("image", "")
         self.client = client
+        self.images_enabled = True
 
         # Try to import the logger early
         try:
@@ -615,6 +616,18 @@ class MediaAgent:
         openai_api_key = os.getenv("OPENAI_API_KEY")
         client_base_url = getattr(client, '_base_url', None) or getattr(client, 'base_url', None)
         is_openai_client = client_base_url is None or 'api.openai.com' in str(client_base_url)
+
+        # If we're not using an OpenAI client and no OpenAI API key is configured,
+        # disable image generation gracefully (text-only curricula still work).
+        if not is_openai_client and not openai_api_key:
+            self.images_enabled = False
+            if self.logger:
+                self.logger.log_info(
+                    "MediaAgent: OPENAI_API_KEY not set and provider is not OpenAI; "
+                    "disabling image generation (text-only output)."
+                )
+            self.image_generator = ImageGenerator(image_client, default_model)
+            return
 
         if not is_openai_client and openai_api_key:
             try:
@@ -648,6 +661,11 @@ class MediaAgent:
             List of dictionaries with image data
         """
         if not topic:
+            return []
+
+        # If images are disabled (e.g., non-OpenAI provider with no OPENAI_API_KEY),
+        # skip image generation entirely to avoid noisy authentication errors.
+        if not self.images_enabled:
             return []
 
         # Use the custom prompt if provided, otherwise generate from template
