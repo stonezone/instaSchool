@@ -6,17 +6,36 @@ Implements the SM-2 algorithm for intelligent flashcard review scheduling.
 import uuid
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-from services.database_service import DatabaseService
 
 # Conditional logger import
 try:
     from src.verbose_logger import get_logger
-    logger = get_logger()
-    def log_info(msg): logger.info(msg) if logger else print(msg)
-    def log_error(msg): logger.error(msg) if logger else print(f"ERROR: {msg}")
+    _logger = get_logger()
+
+    def log_info(msg: str) -> None:
+        if _logger is None:
+            print(msg)
+        elif hasattr(_logger, "log_info"):
+            _logger.log_info(msg)
+        else:
+            # Fallback to underlying logger if exposed
+            getattr(_logger, "logger", _logger).info(msg)
+
+    def log_error(msg: str) -> None:
+        if _logger is None:
+            print(f"ERROR: {msg}")
+        elif hasattr(_logger, "log_error"):
+            _logger.log_error(msg)
+        else:
+            getattr(_logger, "logger", _logger).error(msg)
+
 except ImportError:
-    def log_info(msg): print(msg)
-    def log_error(msg): print(f"ERROR: {msg}")
+
+    def log_info(msg: str) -> None:
+        print(msg)
+
+    def log_error(msg: str) -> None:
+        print(f"ERROR: {msg}")
 
 
 class SRSService:
@@ -34,7 +53,7 @@ class SRSService:
         5 - Perfect response, immediate recall
     """
     
-    def __init__(self, db: DatabaseService):
+    def __init__(self, db):
         """Initialize SRS service with database connection.
         
         Args:

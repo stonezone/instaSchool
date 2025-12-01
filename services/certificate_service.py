@@ -40,13 +40,13 @@ class CertificatePDF(FPDF):
 
     def add_header_decoration(self):
         """Add decorative header elements"""
-        # Star decorations
+        # Simple decorative markers (ASCII only to avoid font issues)
         self.set_font('Arial', '', 24)
         self.set_text_color(255, 193, 7)  # Gold
         self.set_xy(30, 25)
-        self.cell(0, 10, '★', 0, 0, 'L')
+        self.cell(0, 10, '*', 0, 0, 'L')
         self.set_xy(247, 25)
-        self.cell(0, 10, '★', 0, 0, 'L')
+        self.cell(0, 10, '*', 0, 0, 'L')
 
 
 class CertificateService:
@@ -142,7 +142,8 @@ class CertificateService:
         pdf.set_text_color(150, 150, 150)
         pdf.cell(297, 5, 'Personalized Learning Achievement', 0, 1, 'C')
 
-        return pdf.output()
+        # FPDF2 output() returns a str; convert to bytes for download_button
+        return pdf.output(dest="S").encode("latin-1")
 
     def generate_progress_certificate(
         self,
@@ -251,7 +252,7 @@ class CertificateService:
         pdf.set_text_color(150, 150, 150)
         pdf.cell(297, 5, 'Personalized Learning Achievement', 0, 1, 'C')
 
-        return pdf.output()
+        return pdf.output(dest="S").encode("latin-1")
 
     def generate_custom_certificate(
         self,
@@ -328,7 +329,7 @@ class CertificateService:
         pdf.set_text_color(41, 98, 255)
         pdf.cell(297, 6, 'InstaSchool', 0, 1, 'C')
 
-        return pdf.output()
+        return pdf.output(dest="S").encode("latin-1")
 
 
 # Singleton instance

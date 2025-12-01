@@ -17,15 +17,18 @@ import hashlib
 import secrets
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, TYPE_CHECKING
 
-from services.database_service import DatabaseService
+if TYPE_CHECKING:  # For type checkers only; avoids import-time issues
+    from services.database_service import DatabaseService
 
 
 class UserService:
     """Database-backed user management with simple PIN authentication."""
 
     def __init__(self, users_dir: str = "users", db_path: str = "instaschool.db") -> None:
+        from services.database_service import DatabaseService
+
         self.users_dir = Path(users_dir)
         self.users_dir.mkdir(exist_ok=True)  # Keep for backward compatibility
         self.db = DatabaseService(db_path)
