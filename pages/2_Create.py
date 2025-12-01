@@ -71,6 +71,11 @@ with st.sidebar.expander("📚 **Curriculum Basics**", expanded=True):
 
 # 2. AI Provider
 with st.sidebar.expander("🔌 **AI Model**", expanded=False):
+    # Extra safety: ensure provider_service is initialized before use
+    if provider_service is None:
+        provider_service = get_provider_service()
+        StateManager.set_state("provider_service", provider_service)
+
     providers = provider_service.get_available_providers()
     current_prov = StateManager.get_state("current_provider", "openai")
 
