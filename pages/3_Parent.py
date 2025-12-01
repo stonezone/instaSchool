@@ -208,7 +208,7 @@ with parent_tab3:
                     units = len(data.get('units', []))
                     display_title = f"{subject} - Grade {grade}" if grade else title
 
-                    with st.expander(f"📖 {display_title}"):
+                    with st.expander(f"{display_title}"):
                         st.write(f"**Subject:** {subject}")
                         if grade:
                             st.write(f"**Grade:** {grade}")

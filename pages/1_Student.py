@@ -126,7 +126,7 @@ if not current_user:
     # Show existing profiles for quick switching
     users = user_service.list_users()
     if users:
-        with st.sidebar.expander("📋 Switch Profile", expanded=False):
+        with st.sidebar.expander("Switch Profile", expanded=False):
             for u in users[:5]:  # Limit to 5 profiles
                 label = f"{'🔒' if u['has_pin'] else '👤'} {u['username']}"
                 if st.button(label, key=f"switch_{u['username']}", use_container_width=True):

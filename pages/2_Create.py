@@ -48,7 +48,7 @@ if curriculum_service is None:
 st.sidebar.markdown("## ⚙️ Settings")
 
 # 1. Basic Config
-with st.sidebar.expander("📚 Curriculum Basics", expanded=True):
+with st.sidebar.expander("Curriculum Basics", expanded=True):
     # Subject
     selected_subjects = st.multiselect(
         "Subject",
@@ -73,7 +73,7 @@ with st.sidebar.expander("📚 Curriculum Basics", expanded=True):
         language = st.selectbox("Language", config["defaults"]["languages"], index=0, key="sb_lang")
 
 # 2. AI Provider
-with st.sidebar.expander("🔌 AI Model", expanded=False):
+with st.sidebar.expander("AI Model Settings", expanded=False):
     # Extra safety: ensure provider_service is initialized before use
     if provider_service is None:
         provider_service = get_provider_service()
@@ -117,7 +117,7 @@ with st.sidebar.expander("🔌 AI Model", expanded=False):
         image_model = default_image_model
 
 # 3. Content Depth
-with st.sidebar.expander("📝 Content Depth", expanded=False):
+with st.sidebar.expander("Content Options", expanded=False):
     media_richness = st.slider("Media Richness", 0, 5, 2, help="0=Text Only, 5=Full Images/Charts")
 
     st.caption("Components")

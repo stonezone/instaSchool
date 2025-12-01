@@ -362,6 +362,49 @@
 }
 
 /* =============================================================================
+   MULTISELECT - Improved Chip Styling
+   ============================================================================= */
+.stApp .stMultiSelect [data-baseweb="tag"] {
+    background: var(--scholar-forest-light) !important;
+    color: var(--cream) !important;
+    border: 1px solid var(--scholar-forest) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 4px 10px !important;
+    font-family: var(--font-body) !important;
+    font-size: var(--text-sm) !important;
+    font-weight: var(--weight-medium) !important;
+}
+
+.stApp .stMultiSelect [data-baseweb="tag"]:hover {
+    background: var(--scholar-forest) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* Multiselect remove button */
+.stApp .stMultiSelect [data-baseweb="tag"] svg {
+    fill: var(--cream) !important;
+    opacity: 0.9 !important;
+}
+
+.stApp .stMultiSelect [data-baseweb="tag"]:hover svg {
+    opacity: 1 !important;
+}
+
+/* Multiselect dropdown container */
+.stApp .stMultiSelect > div > div {
+    background: var(--surface-primary) !important;
+    border: 1.5px solid var(--separator) !important;
+    border-radius: var(--radius-md) !important;
+    transition: all var(--transition-fast) !important;
+}
+
+.stApp .stMultiSelect > div > div:hover,
+.stApp .stMultiSelect > div > div:focus-within {
+    border-color: var(--scholar-forest) !important;
+    box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.10) !important;
+}
+
+/* =============================================================================
    TABS - Elegant Book Tabs
    ============================================================================= */
 .stApp .stTabs [data-baseweb="tab-list"] {
