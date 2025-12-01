@@ -33,24 +33,18 @@ class ImageGenerator:
         self.models = {
             "gpt-image-1": {"sizes": ["1024x1024", "1024x1536", "1536x1024", "auto"]},
             "gpt-image-1-mini": {"sizes": ["1024x1024", "1024x1536", "1536x1024", "auto"]},
-            "dall-e-2": {"sizes": ["256x256", "512x512", "1024x1024"]},
-            "dall-e-3": {"sizes": ["1024x1024", "1024x1792", "1792x1024"]}
         }
 
         # Default sizes for each model - using 1024x1024 for all as safest option
         self.default_sizes = {
             "gpt-image-1": "1024x1024",
             "gpt-image-1-mini": "1024x1024",
-            "dall-e-2": "1024x1024",
-            "dall-e-3": "1024x1024"
         }
 
         # Maximum prompt lengths per model
         self.max_prompt_lengths = {
             "gpt-image-1": 32000,
             "gpt-image-1-mini": 32000,
-            "dall-e-2": 1000,
-            "dall-e-3": 4000
         }
 
     def _download_image_with_retry(
@@ -175,22 +169,11 @@ class ImageGenerator:
                     "size": use_size
                 }
 
-                # Add response_format parameter only for DALL-E models
-                if "dall-e" in current_model.lower():
-                    params["response_format"] = "b64_json"
-
-                # Add model-specific parameters based on the model
-                if current_model == "dall-e-3":
-                    params["quality"] = "standard"  # could be "hd" for higher quality
-                    # params["style"] = "vivid"  # or "natural"
-                elif current_model in ["gpt-image-1", "gpt-image-1-mini"]:
-                    # For gpt-image models, we need to ensure we're using supported size
+                # For gpt-image models, we need to ensure we're using supported size
+                if current_model in ["gpt-image-1", "gpt-image-1-mini"]:
                     if use_size not in ["1024x1024", "1024x1536", "1536x1024", "auto"]:
                         use_size = "1024x1024"
                         params["size"] = use_size
-                    # For gpt-image models, we do not need quality, style, or response_format parameters
-                    if "response_format" in params:
-                        del params["response_format"]
                     
                 # Log information for debugging
                 print(f"Using model {current_model} with parameters: {params}")

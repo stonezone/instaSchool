@@ -356,8 +356,7 @@ info_texts:
 
     **Image Models:**
     - **gpt-image-1**: Highest quality educational illustrations (recommended)
-    - **dall-e-3**: High quality with creative elements
-    - **dall-e-2**: Basic illustrations, faster generation
+    - **gpt-image-1-mini**: Lighter, faster variant for testing and cost savings
 
     This collaborative approach ensures each component is optimized for educational quality while maintaining a cohesive learning experience.
 

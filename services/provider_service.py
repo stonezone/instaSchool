@@ -25,7 +25,8 @@ class AIProviderService:
                 "worker": "gpt-4o-mini",
                 "image": "gpt-image-1"
             },
-            # Available text models
+            # Available text models (OpenAI only)
+            # NOTE: This list is the single source of truth for OpenAI models in the UI.
             "text_models": [
                 "gpt-4o",
                 "chatgpt-4o-latest",
@@ -59,11 +60,12 @@ class AIProviderService:
                 # Images: Use OpenAI (gpt-image-1) via cross-provider routing
                 "image": None
             },
-            # Available text models
+            # Available text models (Kimi only)
             "text_models": [
-                "kimi-k2-thinking",         # Smart reasoning (DEFAULT)
-                "kimi-k2-turbo-preview",    # Fast worker
+                "kimi-k2-thinking",         # Orchestrator / reasoning
+                "kimi-k2-turbo-preview",    # Worker / fast processing
             ],
+            # Kimi does not have its own image models; we always route images through OpenAI.
             "image_models": [],
             "supports_images": False,  # Use OpenAI for image generation
             "cost_tier": "free"
