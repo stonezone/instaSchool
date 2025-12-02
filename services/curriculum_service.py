@@ -52,15 +52,36 @@ class CurriculumService:
         if not params.get("grade"):
             return False, "Please select a grade level"
             
-        # Validate image model exists
+        # Validate image model exists (use provider_service for dynamic list)
         image_model = params.get("image_model")
-        if image_model and image_model not in self.config["defaults"].get("image_models", []):
-            return False, f"Invalid image model: {image_model}"
+        if image_model:
+            try:
+                from services.provider_service import get_provider_service
+                ps = get_provider_service()
+                valid_image_models = ps.get_image_models("openai")
+                if image_model not in valid_image_models:
+                    return False, f"Invalid image model: {image_model}"
+            except ImportError:
+                # Fallback to config if provider_service not available
+                if image_model not in self.config["defaults"].get("image_models", []):
+                    return False, f"Invalid image model: {image_model}"
             
-        # Validate text model exists  
+        # Validate text model exists (use provider_service for dynamic list)
         text_model = params.get("text_model")
-        if text_model and text_model not in self.config["defaults"].get("text_models", []):
-            return False, f"Invalid text model: {text_model}"
+        if text_model:
+            try:
+                from services.provider_service import get_provider_service
+                ps = get_provider_service()
+                # Check all providers for the model
+                all_models = []
+                for provider in ps.get_available_providers():
+                    all_models.extend(ps.get_text_models(provider))
+                if text_model not in all_models:
+                    return False, f"Invalid text model: {text_model}"
+            except ImportError:
+                # Fallback to config if provider_service not available
+                if text_model not in self.config["defaults"].get("text_models", []):
+                    return False, f"Invalid text model: {text_model}"
             
         return True, None
         
@@ -184,11 +205,28 @@ class CurriculumService:
         output_tokens = input_tokens * 1.5  # rough estimate
         total_tokens = input_tokens + output_tokens
         
-        # Model costs per 1K tokens (approximate - adjust based on your actual pricing)
+        # Model costs per 1K tokens (approximate - adjust based on actual pricing)
+        # Source: OpenAI pricing page, Kimi pricing page (as of late 2025)
         model_costs = {
+            # GPT-4o family
+            "gpt-4o": {"input": 0.005, "output": 0.015},
+            "chatgpt-4o-latest": {"input": 0.005, "output": 0.015},
+            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+            "gpt-4o-nano": {"input": 0.0001, "output": 0.0004},
+            # GPT-4.1 family
             "gpt-4.1": {"input": 0.01, "output": 0.03},
             "gpt-4.1-mini": {"input": 0.0015, "output": 0.002},
             "gpt-4.1-nano": {"input": 0.0005, "output": 0.0015},
+            # GPT-5 family
+            "gpt-5": {"input": 0.02, "output": 0.06},
+            "gpt-5-mini": {"input": 0.003, "output": 0.012},
+            "gpt-5-nano": {"input": 0.001, "output": 0.004},
+            # Kimi models (approximate - generally cheaper)
+            "kimi-k2-thinking": {"input": 0.001, "output": 0.003},
+            "kimi-k2-turbo-preview": {"input": 0.0005, "output": 0.0015},
+            "kimi-k2-thinking-turbo": {"input": 0.0008, "output": 0.0024},
+            "kimi-latest": {"input": 0.0003, "output": 0.001},
+            "moonshot-v1-auto": {"input": 0.0002, "output": 0.0008},
         }
         
         # Get costs or use defaults

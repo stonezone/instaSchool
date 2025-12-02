@@ -33,7 +33,7 @@ def test_base_agent_streaming():
     client = OpenAI(api_key=api_key)
 
     # Create a simple agent with nano model for fast testing
-    agent = BaseAgent(client, model="gpt-4.1-nano")
+    agent = BaseAgent(client, model="gpt-5-nano")
 
     # Test messages
     messages = [
@@ -84,7 +84,7 @@ def test_content_agent_streaming():
     config = load_config()
 
     # Create content agent with nano model for fast testing
-    agent = ContentAgent(client, model="gpt-4.1-nano", config=config)
+    agent = ContentAgent(client, model="gpt-5-nano", config=config)
 
     # Test parameters
     topic = "The Water Cycle"
@@ -149,7 +149,7 @@ def test_backward_compatibility():
     config = load_config()
 
     # Create content agent with nano model for fast testing
-    agent = ContentAgent(client, model="gpt-4.1-nano", config=config)
+    agent = ContentAgent(client, model="gpt-5-nano", config=config)
 
     # Test parameters
     topic = "Photosynthesis"
@@ -193,7 +193,7 @@ def main():
     print("STREAMING FUNCTIONALITY TESTS")
     print("="*70)
     print("\nThis script tests the new streaming capabilities added to InstaSchool.")
-    print("It will make API calls using gpt-4.1-nano for speed and cost efficiency.")
+    print("It will make API calls using gpt-5-nano for speed and cost efficiency.")
 
     results = []
 

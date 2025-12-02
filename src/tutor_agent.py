@@ -13,13 +13,13 @@ class TutorAgent(BaseAgent):
     Uses guided questioning and stays strictly within lesson context.
     """
 
-    def __init__(self, client, model: str = "gpt-4.1-nano"):
+    def __init__(self, client, model: str = "gpt-5-nano"):
         """
         Initialize the Tutor Agent.
 
         Args:
             client: OpenAI client instance
-            model: Model to use (defaults to gpt-4.1-nano for efficiency)
+            model: Model to use (defaults to gpt-5-nano for efficiency)
         """
         super().__init__(client, model)
         self.current_context = None

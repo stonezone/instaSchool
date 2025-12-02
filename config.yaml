@@ -253,9 +253,9 @@ defaults:
   image_models:
     - "gpt-image-1"
     - "gpt-image-1-mini"
-  # Available text models (OpenAI + Kimi)
+  # Available text models (OpenAI + Kimi) - CANONICAL LIST
   text_models:
-    # OpenAI models
+    # OpenAI models (all support vision)
     - "gpt-4o"
     - "chatgpt-4o-latest"
     - "gpt-4o-mini"
@@ -266,9 +266,21 @@ defaults:
     - "gpt-5"
     - "gpt-5-mini"
     - "gpt-5-nano"
-    # Kimi models
+    # Kimi K2 models
     - "kimi-k2-thinking"
     - "kimi-k2-turbo-preview"
+    - "kimi-k2-thinking-turbo"
+    - "kimi-k2-0905-preview"
+    - "kimi-k2-0711-preview"
+    - "kimi-latest"
+    # Moonshot v1 models
+    - "moonshot-v1-128k"
+    - "moonshot-v1-128k-vision-preview"
+    - "moonshot-v1-32k"
+    - "moonshot-v1-32k-vision-preview"
+    - "moonshot-v1-8k"
+    - "moonshot-v1-8k-vision-preview"
+    - "moonshot-v1-auto"
 
   # Default states for the feature toggles.
   include_quizzes: true
@@ -297,8 +309,8 @@ ai_providers:
       api_base: "https://api.openai.com/v1"
       api_key_env: "OPENAI_API_KEY"
       models:
-        main: "gpt-4.1-mini"
-        worker: "gpt-4.1-nano"
+        main: "gpt-5-nano"
+        worker: "gpt-5-nano"
         image: "gpt-image-1"
       settings:
         temperature: 0.7
@@ -349,10 +361,12 @@ info_texts:
     - **Resource Curator**: Suggests extension activities for deeper learning
 
     **AI Model Selection:**
-    - **gpt-4.1**: Highest quality, most capable model (recommended for complex subjects)
-    - **gpt-4.1-mini**: Good balance of quality and efficiency
-    - **gpt-4.1-nano**: Fastest, most economical option for simpler content
-    - **gpt-4o/gpt-4**: Legacy models for backward compatibility
+    - **gpt-5**: Highest quality, most capable model (recommended for complex subjects)
+    - **gpt-5-mini**: Good balance of quality and efficiency
+    - **gpt-5-nano**: Fastest, most economical option (default for testing)
+    - **gpt-4o/gpt-4.1**: Alternative models for backward compatibility
+    - **kimi-k2-thinking**: Smart reasoning model from Moonshot (orchestrator)
+    - **kimi-k2-turbo-preview**: Fast Kimi model for worker tasks
 
     **Image Models:**
     - **gpt-image-1**: Highest quality educational illustrations (recommended)
@@ -403,6 +417,6 @@ student_mode:
   # Tutor configuration
   tutor_enabled: true
   tutor_max_history: 5
-  tutor_model: "gpt-4.1-nano"  # Use nano for cost efficiency
+  tutor_model: "gpt-5-nano"  # Use nano for cost efficiency
   tutor_temperature: 0.7
   tutor_max_tokens: 500

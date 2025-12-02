@@ -69,13 +69,13 @@ IMPORTANT:
 - Match feedback complexity to the grade level
 - If the answer shows any understanding, acknowledge it"""
 
-    def __init__(self, client, model: str = "gpt-4.1-nano", config: Optional[Dict] = None):
+    def __init__(self, client, model: str = "gpt-5-nano", config: Optional[Dict] = None):
         """
         Initialize the grading agent.
 
         Args:
             client: OpenAI client instance
-            model: Model to use for grading (default: gpt-4.1-nano for cost efficiency)
+            model: Model to use for grading (default: gpt-5-nano for cost efficiency)
             config: Optional configuration dictionary
         """
         self.client = client

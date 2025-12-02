@@ -103,7 +103,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     # Initialize session state for tutor using StateManager for thread-safety
     if not StateManager.has_state('tutor_agent'):
         if tutor_enabled:
-            tutor_model = config.get('student_mode', {}).get('tutor_model', 'gpt-4.1-nano')
+            tutor_model = config.get('student_mode', {}).get('tutor_model', 'gpt-5-nano')
             StateManager.set_state('tutor_agent', TutorAgent(client, model=tutor_model))
         else:
             StateManager.set_state('tutor_agent', None)
@@ -735,7 +735,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                                 with st.spinner("🤖 AI is grading your answer..."):
                                     try:
                                         # Initialize grading agent
-                                        grading_model = StateManager.get_state('config', {}).get('student_mode', {}).get('grading_model', 'gpt-4.1-nano')
+                                        grading_model = StateManager.get_state('config', {}).get('student_mode', {}).get('grading_model', 'gpt-5-nano')
                                         grader = GradingAgent(
                                             client=StateManager.get_state('client'),
                                             model=grading_model

@@ -123,15 +123,16 @@ class ImageGenerator:
                     prompt = prompt.lower().replace(term.lower(), "science concepts")
             
         # Define fallback models to try if the primary one fails
+        # ONLY gpt-image models allowed per project requirements
         models_to_try = []
         use_model = model or self.default_model
         
         # Add the primary model first
         models_to_try.append(use_model)
         
-        # Add fallback models if the primary model isn't already a fallback
-        if "dall-e-2" not in models_to_try:
-            models_to_try.append("dall-e-2")  # More permissive fallback
+        # Add gpt-image-1-mini as fallback if not already selected
+        if use_model != "gpt-image-1-mini":
+            models_to_try.append("gpt-image-1-mini")
             
         results = []
         last_error = None

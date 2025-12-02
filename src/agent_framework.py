@@ -59,7 +59,7 @@ class OrchestratorAgent(BaseAgent):
         }
     }
 
-    def __init__(self, client, model="gpt-4.1", worker_model="gpt-4.1-mini"):
+    def __init__(self, client, model="gpt-5-nano", worker_model="gpt-5-nano"):
         super().__init__(client, model)
         self.worker_model = worker_model
 

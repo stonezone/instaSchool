@@ -35,8 +35,8 @@ LLM_TEMPERATURE_PRECISE = 0.3     # Lower temperature for precise, factual conte
 # MODEL DEFAULTS
 # =============================================================================
 
-DEFAULT_MAIN_MODEL = "gpt-4.1"         # Primary model for orchestration
-DEFAULT_WORKER_MODEL = "gpt-4.1-mini"  # Worker model for agent tasks
+DEFAULT_MAIN_MODEL = "gpt-5-nano"      # Primary model for orchestration
+DEFAULT_WORKER_MODEL = "gpt-5-nano"    # Worker model for agent tasks
 DEFAULT_IMAGE_MODEL = "gpt-image-1"    # Default image generation model
 
 

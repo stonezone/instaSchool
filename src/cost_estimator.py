@@ -9,17 +9,47 @@ try:
 except ImportError:
     HAS_STREAMLIT = False
 
-# Costs per 1K tokens (updated Nov 2025)
+# Costs per 1K tokens (updated Dec 2025)
 # Based on typical pricing patterns where nano < mini < full
 MODEL_COSTS = {
-    # Kimi K2 (Moonshot) - FREE tier available!
+    # Kimi K2 (Moonshot) - FREE tier / very cheap
+    "kimi-k2-thinking": {
+        "input": 0.001,
+        "output": 0.003,
+        "name": "Kimi K2 Thinking (Reasoning)",
+        "relative_cost": "$"
+    },
+    "kimi-k2-turbo-preview": {
+        "input": 0.0005,
+        "output": 0.0015,
+        "name": "Kimi K2 Turbo (Fast)",
+        "relative_cost": "$"
+    },
+    "kimi-k2-thinking-turbo": {
+        "input": 0.0008,
+        "output": 0.0024,
+        "name": "Kimi K2 Thinking Turbo",
+        "relative_cost": "$"
+    },
+    "kimi-latest": {
+        "input": 0.0003,
+        "output": 0.001,
+        "name": "Kimi Latest (Vision)",
+        "relative_cost": "$"
+    },
+    "moonshot-v1-auto": {
+        "input": 0.0002,
+        "output": 0.0008,
+        "name": "Moonshot Auto",
+        "relative_cost": "$"
+    },
     "kimi-k2-0905-preview": {
         "input": 0.0,       # Free tier
         "output": 0.0,      # Free tier
         "name": "Kimi K2 (FREE)",
         "relative_cost": "FREE"
     },
-    # Image models
+    # Image models (ONLY gpt-image allowed)
     "gpt-image-1": {
         "input": 0.0,       # Per-image pricing, not token-based
         "output": 0.04,     # ~$0.04 per image (standard)
@@ -32,22 +62,10 @@ MODEL_COSTS = {
         "name": "GPT Image 1 Mini",
         "relative_cost": "$"
     },
-    "dall-e-3": {
-        "input": 0.0,
-        "output": 0.04,     # ~$0.04 per image
-        "name": "DALL-E 3",
-        "relative_cost": "$$"
-    },
-    "dall-e-2": {
-        "input": 0.0,
-        "output": 0.02,     # ~$0.02 per image
-        "name": "DALL-E 2",
-        "relative_cost": "$"
-    },
     # GPT-5 Series (Current)
     "gpt-5-nano": {
-        "input": 0.00015,   # $0.15 per 1M tokens
-        "output": 0.0006,   # $0.60 per 1M tokens
+        "input": 0.001,     # $1 per 1M tokens
+        "output": 0.004,    # $4 per 1M tokens
         "name": "GPT-5 Nano (Most Affordable)",
         "relative_cost": "$"
     },
@@ -58,35 +76,10 @@ MODEL_COSTS = {
         "relative_cost": "$$"
     },
     "gpt-5": {
-        "input": 0.01,      # $10 per 1M tokens
-        "output": 0.03,     # $30 per 1M tokens
+        "input": 0.02,      # $20 per 1M tokens
+        "output": 0.06,     # $60 per 1M tokens
         "name": "GPT-5 (High Quality)",
         "relative_cost": "$$$"
-    },
-    "gpt-5.1": {
-        "input": 0.03,      # $30 per 1M tokens
-        "output": 0.12,     # $120 per 1M tokens
-        "name": "GPT-5.1 (Premium)",
-        "relative_cost": "$$$$$"
-    },
-    # GPT-4.1 Series (Legacy)
-    "gpt-4.1-nano": {
-        "input": 0.00015,   # $0.15 per 1M tokens
-        "output": 0.0006,   # $0.60 per 1M tokens
-        "name": "Nano (Most Affordable)",
-        "relative_cost": "$"
-    },
-    "gpt-4.1-mini": {
-        "input": 0.003,     # $3 per 1M tokens
-        "output": 0.012,    # $12 per 1M tokens
-        "name": "Mini (Balanced)",
-        "relative_cost": "$$$"
-    },
-    "gpt-4.1": {
-        "input": 0.03,      # $30 per 1M tokens
-        "output": 0.12,     # $120 per 1M tokens
-        "name": "Full (Premium)",
-        "relative_cost": "$$$$$"
     },
     # GPT-4o Series
     "gpt-4o": {
@@ -95,12 +88,43 @@ MODEL_COSTS = {
         "name": "GPT-4o",
         "relative_cost": "$$"
     },
+    "chatgpt-4o-latest": {
+        "input": 0.005,
+        "output": 0.015,
+        "name": "ChatGPT-4o Latest",
+        "relative_cost": "$$"
+    },
     "gpt-4o-mini": {
         "input": 0.00015,   # $0.15 per 1M tokens
         "output": 0.0006,   # $0.60 per 1M tokens
         "name": "GPT-4o Mini",
         "relative_cost": "$"
-    }
+    },
+    "gpt-4o-nano": {
+        "input": 0.0001,
+        "output": 0.0004,
+        "name": "GPT-4o Nano",
+        "relative_cost": "$"
+    },
+    # GPT-4.1 Series (Legacy)
+    "gpt-4.1-nano": {
+        "input": 0.0005,
+        "output": 0.0015,
+        "name": "GPT-4.1 Nano",
+        "relative_cost": "$"
+    },
+    "gpt-4.1-mini": {
+        "input": 0.0015,
+        "output": 0.002,
+        "name": "GPT-4.1 Mini",
+        "relative_cost": "$$"
+    },
+    "gpt-4.1": {
+        "input": 0.01,
+        "output": 0.03,
+        "name": "GPT-4.1",
+        "relative_cost": "$$$"
+    },
 }
 
 # Estimated token usage for curriculum generation

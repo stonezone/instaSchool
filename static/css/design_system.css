@@ -450,6 +450,7 @@
 /* =============================================================================
    EXPANDERS - Accordion with Gold Accent
    NOTE: Minimal styling to avoid interference with Streamlit's label rendering
+   FIX: Hide keyboard-navigation accessibility labels that leak into visible UI
    ============================================================================= */
 .stApp [data-testid="stExpander"] {
     border: 1px solid var(--separator) !important;
@@ -460,10 +461,37 @@
     margin-bottom: var(--space-3) !important;
 }
 
+/* FIX: Hide Streamlit's internal keyboard navigation labels */
+.stApp [data-testid="stExpander"] [data-testid="stExpanderToggleIcon"],
+.stApp [data-testid="stExpander"] .sr-only,
+.stApp [data-testid="stExpander"] [class*="keyboard"] {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Ensure expander header text renders cleanly */
 .stApp [data-testid="stExpander"] summary {
     padding: 14px 18px !important;
     cursor: pointer !important;
     transition: background var(--transition-fast) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+/* Reset any text-rendering issues */
+.stApp [data-testid="stExpander"] summary > span,
+.stApp [data-testid="stExpander"] summary > div {
+    font-family: var(--font-body) !important;
+    font-size: var(--text-base) !important;
+    color: var(--text-primary) !important;
 }
 
 .stApp [data-testid="stExpander"] summary:hover {

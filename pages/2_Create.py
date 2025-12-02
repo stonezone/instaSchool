@@ -94,8 +94,15 @@ with st.sidebar.expander("AI Model Settings", expanded=False):
 
     # Model Select
     models = provider_service.get_text_models(sel_prov)
-    main_model = st.selectbox("Orchestrator", models, index=0, key="sb_model_main")
-    worker_model = st.selectbox("Worker", models, index=0, key="sb_model_worker")
+    default_main = config["defaults"].get("text_model", "gpt-5-nano")
+    default_worker = config["defaults"].get("worker_model", "gpt-5-nano")
+    
+    # Find index of default model, fallback to 0 if not found
+    main_idx = models.index(default_main) if default_main in models else 0
+    worker_idx = models.index(default_worker) if default_worker in models else 0
+    
+    main_model = st.selectbox("Orchestrator", models, index=main_idx, key="sb_model_main")
+    worker_model = st.selectbox("Worker", models, index=worker_idx, key="sb_model_worker")
 
     # Image Model (images always use OpenAI backend)
     available_image_models = provider_service.get_image_models("openai")

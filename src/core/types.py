@@ -20,7 +20,7 @@ class BaseAgent:
     Agents should inherit from this class to get standard behavior.
     """
     
-    def __init__(self, client, model: str = "gpt-4.1"):
+    def __init__(self, client, model: str = "gpt-5-nano"):
         """Initialize base agent.
         
         Args:

@@ -12,6 +12,7 @@ class AIProviderService:
     """Manages multiple AI provider configurations and provides unified client access"""
 
     # Provider configurations with full model lists
+    # CANONICAL MODEL LIST - Do not add models outside this definition
     PROVIDERS = {
         "openai": {
             "base_url": "https://api.openai.com/v1",
@@ -21,12 +22,12 @@ class AIProviderService:
                 "temperature": 0.7,
             },
             "models": {
-                "main": "gpt-4o",
-                "worker": "gpt-4o-mini",
+                "main": "gpt-5-nano",      # Default: cheap but capable
+                "worker": "gpt-5-nano",
                 "image": "gpt-image-1"
             },
-            # Available text models (OpenAI only)
-            # NOTE: This list is the single source of truth for OpenAI models in the UI.
+            # Available text models (OpenAI only) - CANONICAL LIST
+            # All support vision/image understanding
             "text_models": [
                 "gpt-4o",
                 "chatgpt-4o-latest",
@@ -39,35 +40,76 @@ class AIProviderService:
                 "gpt-5-mini",
                 "gpt-5-nano",
             ],
-            # Image models (ONLY these - used by all providers)
+            # Image GENERATION models (ONLY these - used by ALL providers)
             "image_models": ["gpt-image-1", "gpt-image-1-mini"],
-            "supports_images": True,
+            # Vision models (can analyze images)
+            "vision_models": [
+                "gpt-4o",
+                "chatgpt-4o-latest",
+                "gpt-4o-mini",
+                "gpt-4o-nano",
+                "gpt-4.1",
+                "gpt-4.1-mini",
+                "gpt-4.1-nano",
+                "gpt-5",
+                "gpt-5-mini",
+                "gpt-5-nano",
+            ],
+            "supports_images": True,   # Can generate images
+            "supports_vision": True,   # Can analyze images
             "cost_tier": "paid"
         },
         "kimi": {
             "base_url": "https://api.moonshot.cn/v1",
-            "api_key_env": "KIMI_API_KEY",  # Also checks MOONSHOT_API_KEY as fallback
+            "api_key_env": "KIMI_API_KEY",
             "api_key_env_alt": "MOONSHOT_API_KEY",
             "requires_key": True,
             "default_settings": {
                 "temperature": 0.6,
             },
             "models": {
-                # kimi-k2-thinking: Smart reasoning for orchestration, content, prompts
+                # kimi-k2-thinking: Smart reasoning for orchestration (NO vision)
                 "main": "kimi-k2-thinking",
                 # kimi-k2-turbo-preview: Fast worker for data processing
                 "worker": "kimi-k2-turbo-preview",
-                # Images: Use OpenAI (gpt-image-1) via cross-provider routing
+                # Images: Always route through OpenAI
                 "image": None
             },
-            # Available text models (Kimi only)
+            # Available text models (Kimi/Moonshot) - CANONICAL LIST
             "text_models": [
-                "kimi-k2-thinking",         # Orchestrator / reasoning
-                "kimi-k2-turbo-preview",    # Worker / fast processing
+                # K2 family - flagship models
+                "kimi-k2-thinking",           # Orchestrator, deep reasoning (NO vision)
+                "kimi-k2-turbo-preview",      # Worker, fast processing
+                "kimi-k2-thinking-turbo",     # Fast reasoning, text optimization
+                "kimi-k2-0905-preview",       # Enhanced agentic coding, 256k ctx
+                "kimi-k2-0711-preview",       # Base K2, 128k ctx
+                # Kimi latest - tracks production Kimi AI Assistant
+                "kimi-latest",                # Vision support, 128k ctx, auto-caching
+                # Moonshot v1 family - context length variants
+                "moonshot-v1-128k",
+                "moonshot-v1-128k-vision-preview",
+                "moonshot-v1-32k",
+                "moonshot-v1-32k-vision-preview",
+                "moonshot-v1-8k",
+                "moonshot-v1-8k-vision-preview",
+                "moonshot-v1-auto",           # Auto-selects 8k/32k/128k
             ],
-            # Kimi does not have its own image models; we always route images through OpenAI.
+            # Vision models (can analyze images/charts)
+            "vision_models": [
+                "kimi-latest",
+                "moonshot-v1-128k-vision-preview",
+                "moonshot-v1-32k-vision-preview",
+                "moonshot-v1-8k-vision-preview",
+            ],
+            # Thinking/reasoning models
+            "thinking_models": [
+                "kimi-k2-thinking",
+                "kimi-k2-thinking-turbo",
+            ],
+            # Kimi has NO image generation - always route to OpenAI
             "image_models": [],
-            "supports_images": False,  # Use OpenAI for image generation
+            "supports_images": False,  # Cannot generate images
+            "supports_vision": True,   # CAN analyze images (via vision models)
             "cost_tier": "free"
         }
     }
