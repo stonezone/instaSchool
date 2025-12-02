@@ -253,7 +253,7 @@ defaults:
   image_models:
     - "gpt-image-1"
     - "gpt-image-1-mini"
-  # Available text models (OpenAI + Kimi) - CANONICAL LIST
+  # Available text models (OpenAI + Kimi + DeepSeek) - CANONICAL LIST
   text_models:
     # OpenAI models (all support vision)
     - "gpt-4o"
@@ -281,6 +281,9 @@ defaults:
     - "moonshot-v1-8k"
     - "moonshot-v1-8k-vision-preview"
     - "moonshot-v1-auto"
+    # DeepSeek models
+    - "deepseek-chat"
+    - "deepseek-reasoner"
 
   # Default states for the feature toggles.
   include_quizzes: true
@@ -297,12 +300,12 @@ defaults:
 
 
 # === AI Provider Configuration ===
-# Only OpenAI and Kimi providers supported
+# Supported providers: OpenAI, Kimi, DeepSeek
 ai_providers:
   # Which provider to use by default
   default: "openai"
 
-  # Provider definitions (OpenAI + Kimi only)
+  # Provider definitions
   providers:
     openai:
       name: "OpenAI"
@@ -325,6 +328,17 @@ ai_providers:
         image: null  # Use OpenAI for images
       settings:
         temperature: 1.0  # Recommended for kimi-k2-thinking
+
+    deepseek:
+      name: "DeepSeek"
+      api_base: "https://api.deepseek.com/v1"
+      api_key_env: "DEEPSEEK_API_KEY"
+      models:
+        main: "deepseek-chat"         # General purpose, fast
+        worker: "deepseek-chat"       # Cost-effective worker
+        image: null  # Use OpenAI for images
+      settings:
+        temperature: 0.7
 
 
 # --- Informational Texts ---
@@ -367,6 +381,8 @@ info_texts:
     - **gpt-4o/gpt-4.1**: Alternative models for backward compatibility
     - **kimi-k2-thinking**: Smart reasoning model from Moonshot (orchestrator)
     - **kimi-k2-turbo-preview**: Fast Kimi model for worker tasks
+    - **deepseek-chat**: Fast, affordable general-purpose model from DeepSeek
+    - **deepseek-reasoner**: Chain-of-thought reasoning model (R1)
 
     **Image Models:**
     - **gpt-image-1**: Highest quality educational illustrations (recommended)

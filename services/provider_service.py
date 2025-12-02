@@ -1,6 +1,6 @@
 """
 AI Provider Service
-Multi-provider abstraction for AI APIs (OpenAI, Kimi, Ollama)
+Multi-provider abstraction for AI APIs (OpenAI, Kimi, DeepSeek, Ollama)
 """
 
 import os
@@ -111,6 +111,40 @@ class AIProviderService:
             "supports_images": False,  # Cannot generate images
             "supports_vision": True,   # CAN analyze images (via vision models)
             "cost_tier": "free"
+        },
+        "deepseek": {
+            "base_url": "https://api.deepseek.com/v1",
+            "api_key_env": "DEEPSEEK_API_KEY",
+            "requires_key": True,
+            "default_settings": {
+                "temperature": 0.7,
+            },
+            "models": {
+                # deepseek-chat: General purpose, fast and capable
+                "main": "deepseek-chat",
+                # deepseek-reasoner: Chain-of-thought reasoning model
+                "worker": "deepseek-chat",
+                # Images: Always route through OpenAI
+                "image": None
+            },
+            # Available text models (DeepSeek) - CANONICAL LIST
+            "text_models": [
+                "deepseek-chat",       # General purpose, 64k context
+                "deepseek-reasoner",   # CoT reasoning model (R1)
+            ],
+            # Vision models - DeepSeek chat supports vision
+            "vision_models": [
+                "deepseek-chat",
+            ],
+            # Thinking/reasoning models
+            "thinking_models": [
+                "deepseek-reasoner",   # R1 with chain-of-thought
+            ],
+            # DeepSeek has NO image generation - always route to OpenAI
+            "image_models": [],
+            "supports_images": False,  # Cannot generate images
+            "supports_vision": True,   # CAN analyze images
+            "cost_tier": "cheap"       # Very affordable pricing
         }
     }
 
@@ -204,7 +238,7 @@ class AIProviderService:
         if not available:
             raise RuntimeError(
                 "No AI providers available. Please set OPENAI_API_KEY, "
-                "MOONSHOT_API_KEY, or configure Ollama."
+                "MOONSHOT_API_KEY, DEEPSEEK_API_KEY, or configure Ollama."
             )
 
         return available[0]

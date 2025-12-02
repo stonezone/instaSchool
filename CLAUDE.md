@@ -108,6 +108,7 @@ Config changes should be made in `config.yaml`, which controls:
 - Python 3.9+ required (OpenAI SDK 2.x requirement)
 - Requires OpenAI API key set in `.env` file or `OPENAI_API_KEY` environment variable
 - Optional: Kimi/Moonshot API key for Kimi K2 models (`KIMI_API_KEY` or `MOONSHOT_API_KEY`)
+- Optional: DeepSeek API key for DeepSeek models (`DEEPSEEK_API_KEY`)
 - Image models: gpt-image-1 (recommended), gpt-image-1-mini
 - Optional: wkhtmltopdf for PDF export functionality
 
