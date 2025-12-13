@@ -1,5 +1,6 @@
 streamlit>=1.51.0
-openai>=2.8.1
+# OpenAI Python SDK (codebase uses the v1 `OpenAI()` client API)
+openai>=1.82.1
 pyyaml>=6.0
 matplotlib>=3.5.0
 pillow>=9.0.0
@@ -7,7 +8,8 @@ python-dotenv>=0.19.0
 fpdf2>=2.7.0
 plotly>=5.15.0
 tenacity>=8.2.0
-httpx>=0.23.0
+# Keep httpx compatible with the OpenAI SDK and Streamlit Cloud runtime
+httpx>=0.23.0,<0.29
 requests>=2.28.0
 markdown>=3.4.0
 filelock>=3.12.0
