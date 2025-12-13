@@ -564,7 +564,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                 try:
                     import plotly.graph_objects as go
                     fig = go.Figure(chart['plotly_config'])
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 except ImportError:
                     # Fallback to matplotlib if plotly not available
                     chart_b64 = chart.get('b64')

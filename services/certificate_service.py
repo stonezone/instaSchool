@@ -17,9 +17,53 @@ from fpdf import FPDF
 class CertificatePDF(FPDF):
     """Custom PDF class for certificates with decorative borders"""
 
+    _UNICODE_REPLACEMENTS = {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201C": '"',
+        "\u201D": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2022": "-",
+        "\u00A0": " ",
+    }
+
     def __init__(self):
         super().__init__(orientation='L', unit='mm', format='A4')  # Landscape
         self.set_auto_page_break(auto=False)
+
+    def pdf_text(self, value: Any) -> str:
+        """Best-effort text conversion for core PDF fonts (latin-1)."""
+        if value is None:
+            return ""
+        text = value if isinstance(value, str) else str(value)
+        for src, dst in self._UNICODE_REPLACEMENTS.items():
+            text = text.replace(src, dst)
+        text = self._wrap_long_runs(text, max_run=60)
+        return text.encode("latin-1", "replace").decode("latin-1")
+
+    @staticmethod
+    def _wrap_long_runs(text: str, *, max_run: int = 60) -> str:
+        """Insert spaces into very long runs so `cell` can wrap safely."""
+        if not text or max_run <= 0:
+            return text
+        out = []
+        run = ""
+        for ch in text:
+            if ch.isspace():
+                if run:
+                    out.append(run)
+                    run = ""
+                out.append(ch)
+                continue
+            run += ch
+            if len(run) >= max_run:
+                out.append(run)
+                out.append(" ")
+                run = ""
+        if run:
+            out.append(run)
+        return "".join(out)
 
     def add_decorative_border(self):
         """Add decorative border to certificate"""
@@ -41,12 +85,12 @@ class CertificatePDF(FPDF):
     def add_header_decoration(self):
         """Add decorative header elements"""
         # Simple decorative markers (ASCII only to avoid font issues)
-        self.set_font('Arial', '', 24)
+        self.set_font('Helvetica', '', 24)
         self.set_text_color(255, 193, 7)  # Gold
         self.set_xy(30, 25)
-        self.cell(0, 10, '*', 0, 0, 'L')
+        self.cell(0, 10, self.pdf_text('*'), 0, 0, 'L')
         self.set_xy(247, 25)
-        self.cell(0, 10, '*', 0, 0, 'L')
+        self.cell(0, 10, self.pdf_text('*'), 0, 0, 'L')
 
 
 class CertificateService:
@@ -83,21 +127,21 @@ class CertificateService:
         pdf.add_header_decoration()
 
         # Title
-        pdf.set_font('Arial', 'B', 36)
+        pdf.set_font('Helvetica', 'B', 36)
         pdf.set_text_color(41, 98, 255)
         pdf.set_xy(0, 35)
-        pdf.cell(297, 15, 'Certificate of Completion', 0, 1, 'C')
+        pdf.cell(297, 15, pdf.pdf_text('Certificate of Completion'), 0, 1, 'C')
 
         # Subtitle
-        pdf.set_font('Arial', 'I', 14)
+        pdf.set_font('Helvetica', 'I', 14)
         pdf.set_text_color(100, 100, 100)
-        pdf.cell(297, 8, 'This certificate is proudly presented to', 0, 1, 'C')
+        pdf.cell(297, 8, pdf.pdf_text('This certificate is proudly presented to'), 0, 1, 'C')
 
         # Student name
-        pdf.set_font('Arial', 'B', 32)
+        pdf.set_font('Helvetica', 'B', 32)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
-        pdf.cell(297, 15, student_name, 0, 1, 'C')
+        pdf.cell(297, 15, pdf.pdf_text(student_name), 0, 1, 'C')
 
         # Decorative line
         pdf.set_draw_color(255, 193, 7)
@@ -105,45 +149,44 @@ class CertificateService:
         pdf.line(80, pdf.get_y() + 2, 217, pdf.get_y() + 2)
 
         # Completion text
-        pdf.set_font('Arial', '', 14)
+        pdf.set_font('Helvetica', '', 14)
         pdf.set_text_color(60, 60, 60)
         pdf.ln(10)
-        pdf.cell(297, 8, 'for successfully completing', 0, 1, 'C')
+        pdf.cell(297, 8, pdf.pdf_text('for successfully completing'), 0, 1, 'C')
 
         # Curriculum title
-        pdf.set_font('Arial', 'B', 24)
+        pdf.set_font('Helvetica', 'B', 24)
         pdf.set_text_color(41, 98, 255)
-        pdf.cell(297, 12, curriculum_title, 0, 1, 'C')
+        pdf.cell(297, 12, pdf.pdf_text(curriculum_title), 0, 1, 'C')
 
         # Subject if provided
         if subject:
-            pdf.set_font('Arial', 'I', 12)
+            pdf.set_font('Helvetica', 'I', 12)
             pdf.set_text_color(100, 100, 100)
-            pdf.cell(297, 6, f"Subject: {subject}", 0, 1, 'C')
+            pdf.cell(297, 6, pdf.pdf_text(f"Subject: {subject}"), 0, 1, 'C')
 
         # Achievement stats
         pdf.ln(8)
-        pdf.set_font('Arial', '', 11)
+        pdf.set_font('Helvetica', '', 11)
         pdf.set_text_color(60, 60, 60)
         stats_text = f"Level {level} | {total_xp:,} XP Earned"
-        pdf.cell(297, 6, stats_text, 0, 1, 'C')
+        pdf.cell(297, 6, pdf.pdf_text(stats_text), 0, 1, 'C')
 
         # Date
         pdf.ln(10)
-        pdf.set_font('Arial', 'I', 12)
-        pdf.cell(297, 6, f"Awarded on {completion_date}", 0, 1, 'C')
+        pdf.set_font('Helvetica', 'I', 12)
+        pdf.cell(297, 6, pdf.pdf_text(f"Awarded on {completion_date}"), 0, 1, 'C')
 
         # Footer
         pdf.set_xy(0, 175)
-        pdf.set_font('Arial', 'B', 12)
+        pdf.set_font('Helvetica', 'B', 12)
         pdf.set_text_color(41, 98, 255)
-        pdf.cell(297, 6, 'InstaSchool', 0, 1, 'C')
-        pdf.set_font('Arial', 'I', 9)
+        pdf.cell(297, 6, pdf.pdf_text('InstaSchool'), 0, 1, 'C')
+        pdf.set_font('Helvetica', 'I', 9)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(297, 5, 'Personalized Learning Achievement', 0, 1, 'C')
+        pdf.cell(297, 5, pdf.pdf_text('Personalized Learning Achievement'), 0, 1, 'C')
 
-        # FPDF2 output() returns a str; convert to bytes for download_button
-        return pdf.output(dest="S").encode("latin-1")
+        return bytes(pdf.output())
 
     def generate_progress_certificate(
         self,
@@ -173,21 +216,21 @@ class CertificateService:
         pdf.add_header_decoration()
 
         # Title
-        pdf.set_font('Arial', 'B', 32)
+        pdf.set_font('Helvetica', 'B', 32)
         pdf.set_text_color(41, 98, 255)
         pdf.set_xy(0, 35)
-        pdf.cell(297, 15, 'Progress Certificate', 0, 1, 'C')
+        pdf.cell(297, 15, pdf.pdf_text('Progress Certificate'), 0, 1, 'C')
 
         # Period
-        pdf.set_font('Arial', 'I', 14)
+        pdf.set_font('Helvetica', 'I', 14)
         pdf.set_text_color(100, 100, 100)
-        pdf.cell(297, 8, period, 0, 1, 'C')
+        pdf.cell(297, 8, pdf.pdf_text(period), 0, 1, 'C')
 
         # Student name
-        pdf.set_font('Arial', 'B', 28)
+        pdf.set_font('Helvetica', 'B', 28)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(8)
-        pdf.cell(297, 12, student_name, 0, 1, 'C')
+        pdf.cell(297, 12, pdf.pdf_text(student_name), 0, 1, 'C')
 
         # Decorative line
         pdf.set_draw_color(255, 193, 7)
@@ -196,9 +239,9 @@ class CertificateService:
 
         # Achievement summary
         pdf.ln(12)
-        pdf.set_font('Arial', '', 12)
+        pdf.set_font('Helvetica', '', 12)
         pdf.set_text_color(60, 60, 60)
-        pdf.cell(297, 6, 'has demonstrated outstanding dedication to learning', 0, 1, 'C')
+        pdf.cell(297, 6, pdf.pdf_text('has demonstrated outstanding dedication to learning'), 0, 1, 'C')
 
         # Stats boxes
         pdf.ln(10)
@@ -207,13 +250,13 @@ class CertificateService:
         box_y = pdf.get_y()
 
         stats = [
-            ("Sections", str(sections_completed), "📚"),
-            ("XP Earned", f"{xp_earned:,}", "⭐"),
-            ("Best Streak", f"{streak_days} days", "🔥"),
-            ("Quizzes", str(quizzes_passed), "✅"),
+            ("Sections", str(sections_completed)),
+            ("XP Earned", f"{xp_earned:,}"),
+            ("Best Streak", f"{streak_days} days"),
+            ("Quizzes", str(quizzes_passed)),
         ]
 
-        for i, (label, value, icon) in enumerate(stats):
+        for i, (label, value) in enumerate(stats):
             x = start_x + (i * 55)
 
             # Box background
@@ -222,37 +265,37 @@ class CertificateService:
 
             # Icon and value
             pdf.set_xy(x, box_y + 3)
-            pdf.set_font('Arial', 'B', 16)
+            pdf.set_font('Helvetica', 'B', 16)
             pdf.set_text_color(41, 98, 255)
-            pdf.cell(box_width - 5, 8, f"{icon} {value}", 0, 1, 'C')
+            pdf.cell(box_width - 5, 8, pdf.pdf_text(value), 0, 1, 'C')
 
             # Label
             pdf.set_xy(x, box_y + 14)
-            pdf.set_font('Arial', '', 9)
+            pdf.set_font('Helvetica', '', 9)
             pdf.set_text_color(100, 100, 100)
-            pdf.cell(box_width - 5, 6, label, 0, 1, 'C')
+            pdf.cell(box_width - 5, 6, pdf.pdf_text(label), 0, 1, 'C')
 
         # Encouragement
         pdf.set_xy(0, box_y + 40)
-        pdf.set_font('Arial', 'I', 11)
+        pdf.set_font('Helvetica', 'I', 11)
         pdf.set_text_color(60, 60, 60)
-        pdf.cell(297, 6, 'Keep up the amazing work!', 0, 1, 'C')
+        pdf.cell(297, 6, pdf.pdf_text('Keep up the amazing work!'), 0, 1, 'C')
 
         # Date
         pdf.ln(8)
-        pdf.set_font('Arial', 'I', 10)
-        pdf.cell(297, 6, f"Generated on {datetime.now().strftime('%B %d, %Y')}", 0, 1, 'C')
+        pdf.set_font('Helvetica', 'I', 10)
+        pdf.cell(297, 6, pdf.pdf_text(f"Generated on {datetime.now().strftime('%B %d, %Y')}"), 0, 1, 'C')
 
         # Footer
         pdf.set_xy(0, 175)
-        pdf.set_font('Arial', 'B', 12)
+        pdf.set_font('Helvetica', 'B', 12)
         pdf.set_text_color(41, 98, 255)
-        pdf.cell(297, 6, 'InstaSchool', 0, 1, 'C')
-        pdf.set_font('Arial', 'I', 9)
+        pdf.cell(297, 6, pdf.pdf_text('InstaSchool'), 0, 1, 'C')
+        pdf.set_font('Helvetica', 'I', 9)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(297, 5, 'Personalized Learning Achievement', 0, 1, 'C')
+        pdf.cell(297, 5, pdf.pdf_text('Personalized Learning Achievement'), 0, 1, 'C')
 
-        return pdf.output(dest="S").encode("latin-1")
+        return bytes(pdf.output())
 
     def generate_custom_certificate(
         self,
@@ -280,22 +323,22 @@ class CertificateService:
         pdf.add_header_decoration()
 
         # Title
-        pdf.set_font('Arial', 'B', 32)
+        pdf.set_font('Helvetica', 'B', 32)
         pdf.set_text_color(41, 98, 255)
         pdf.set_xy(0, 35)
-        pdf.cell(297, 15, title, 0, 1, 'C')
+        pdf.cell(297, 15, pdf.pdf_text(title), 0, 1, 'C')
 
         # Subtitle
         if subtitle:
-            pdf.set_font('Arial', 'I', 14)
+            pdf.set_font('Helvetica', 'I', 14)
             pdf.set_text_color(100, 100, 100)
-            pdf.cell(297, 8, subtitle, 0, 1, 'C')
+            pdf.cell(297, 8, pdf.pdf_text(subtitle), 0, 1, 'C')
 
         # Student name
-        pdf.set_font('Arial', 'B', 28)
+        pdf.set_font('Helvetica', 'B', 28)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(10)
-        pdf.cell(297, 12, student_name, 0, 1, 'C')
+        pdf.cell(297, 12, pdf.pdf_text(student_name), 0, 1, 'C')
 
         # Decorative line
         pdf.set_draw_color(255, 193, 7)
@@ -304,32 +347,32 @@ class CertificateService:
 
         # Main text
         pdf.ln(15)
-        pdf.set_font('Arial', '', 14)
+        pdf.set_font('Helvetica', '', 14)
         pdf.set_text_color(60, 60, 60)
 
         # Handle multi-line main text
         lines = main_text.split('\n')
         for line in lines:
-            pdf.cell(297, 8, line.strip(), 0, 1, 'C')
+            pdf.cell(297, 8, pdf.pdf_text(line.strip()), 0, 1, 'C')
 
         # Date
         pdf.ln(15)
-        pdf.set_font('Arial', 'I', 11)
-        pdf.cell(297, 6, f"Awarded on {datetime.now().strftime('%B %d, %Y')}", 0, 1, 'C')
+        pdf.set_font('Helvetica', 'I', 11)
+        pdf.cell(297, 6, pdf.pdf_text(f"Awarded on {datetime.now().strftime('%B %d, %Y')}"), 0, 1, 'C')
 
         # Footer
         pdf.set_xy(0, 170)
         if footer_text:
-            pdf.set_font('Arial', 'I', 10)
+            pdf.set_font('Helvetica', 'I', 10)
             pdf.set_text_color(100, 100, 100)
-            pdf.cell(297, 5, footer_text, 0, 1, 'C')
+            pdf.cell(297, 5, pdf.pdf_text(footer_text), 0, 1, 'C')
 
         pdf.set_xy(0, 180)
-        pdf.set_font('Arial', 'B', 12)
+        pdf.set_font('Helvetica', 'B', 12)
         pdf.set_text_color(41, 98, 255)
-        pdf.cell(297, 6, 'InstaSchool', 0, 1, 'C')
+        pdf.cell(297, 6, pdf.pdf_text('InstaSchool'), 0, 1, 'C')
 
-        return pdf.output(dest="S").encode("latin-1")
+        return bytes(pdf.output())
 
 
 # Singleton instance

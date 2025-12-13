@@ -16,45 +16,83 @@ import markdown
 
 class CurriculumPDF(FPDF):
     """Custom PDF class for curriculum export"""
+
+    _UNICODE_REPLACEMENTS = {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201C": '"',
+        "\u201D": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2022": "-",
+        "\u00A0": " ",
+    }
     
     def __init__(self, curriculum_title: str = "InstaSchool Curriculum"):
         super().__init__()
         self.curriculum_title = curriculum_title
         self.set_auto_page_break(auto=True, margin=15)
-        
+
+    def pdf_text(self, value: Any) -> str:
+        """Best-effort text conversion for core PDF fonts (latin-1)."""
+        if value is None:
+            return ""
+        text = value if isinstance(value, str) else str(value)
+        for src, dst in self._UNICODE_REPLACEMENTS.items():
+            text = text.replace(src, dst)
+        text = self._wrap_long_runs(text, max_run=60)
+        return text.encode("latin-1", "replace").decode("latin-1")
+
+    @staticmethod
+    def _wrap_long_runs(text: str, *, max_run: int = 60) -> str:
+        """Insert spaces into very long runs so `multi_cell` can wrap (e.g., URLs)."""
+        if not text or max_run <= 0:
+            return text
+        out = []
+        run = ""
+        for ch in text:
+            if ch.isspace():
+                if run:
+                    out.append(run)
+                    run = ""
+                out.append(ch)
+                continue
+            run += ch
+            if len(run) >= max_run:
+                out.append(run)
+                out.append(" ")
+                run = ""
+        if run:
+            out.append(run)
+        return "".join(out)
+
     def header(self):
         """Add header to each page"""
-        self.set_font('Arial', 'B', 16)
+        self.set_font('Helvetica', 'B', 16)
         self.set_text_color(41, 98, 255)  # Blue color
-        self.cell(0, 10, self.curriculum_title, 0, 1, 'C')
+        self.cell(0, 10, self.pdf_text(self.curriculum_title), 0, 1, 'C')
         self.ln(5)
         
     def footer(self):
         """Add footer to each page"""
         self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
+        self.set_font('Helvetica', 'I', 8)
         self.set_text_color(128, 128, 128)  # Gray
-        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, self.pdf_text(f'Page {self.page_no()}'), 0, 0, 'C')
         
     def chapter_title(self, title: str, level: int = 1):
         """Add a chapter/section title"""
-        self.set_font('Arial', 'B', 16 if level == 1 else 14)
+        self.set_font('Helvetica', 'B', 16 if level == 1 else 14)
         self.set_text_color(0, 0, 0)
         self.set_fill_color(200, 220, 255)  # Light blue background
-        self.cell(0, 10, title, 0, 1, 'L', 1)
+        self.cell(0, 10, self.pdf_text(title), 0, 1, 'L', 1)
         self.ln(4)
         
     def chapter_body(self, text: str):
         """Add body text to chapter"""
-        self.set_font('Arial', '', 11)
+        self.set_font('Helvetica', '', 11)
         self.set_text_color(0, 0, 0)
-        # Handle potential unicode issues
-        try:
-            self.multi_cell(0, 6, text)
-        except Exception:
-            # Fallback: remove problematic characters
-            safe_text = text.encode('ascii', 'ignore').decode('ascii')
-            self.multi_cell(0, 6, safe_text)
+        self.multi_cell(0, 6, self.pdf_text(text))
         self.ln(3)
         
     def add_image_from_base64(self, base64_data: str, w: int = 150):
@@ -77,9 +115,9 @@ class CurriculumPDF(FPDF):
             os.unlink(tmp_path)
         except Exception as e:
             # If image fails, add error message
-            self.set_font('Arial', 'I', 10)
+            self.set_font('Helvetica', 'I', 10)
             self.set_text_color(255, 0, 0)
-            self.cell(0, 10, f'[Image could not be loaded: {str(e)}]', 0, 1)
+            self.cell(0, 10, self.pdf_text(f'[Image could not be loaded: {str(e)}]'), 0, 1)
             self.ln(3)
 
 
@@ -113,19 +151,19 @@ class CurriculumExporter:
             pdf.add_page()
             
             # Add title page
-            pdf.set_font('Arial', 'B', 24)
+            pdf.set_font('Helvetica', 'B', 24)
             pdf.set_text_color(41, 98, 255)
-            pdf.cell(0, 20, title, 0, 1, 'C')
-            pdf.set_font('Arial', '', 14)
+            pdf.cell(0, 20, pdf.pdf_text(title), 0, 1, 'C')
+            pdf.set_font('Helvetica', '', 14)
             pdf.set_text_color(0, 0, 0)
-            pdf.cell(0, 10, f"Grade Level: {grade}", 0, 1, 'C')
+            pdf.cell(0, 10, pdf.pdf_text(f"Grade Level: {grade}"), 0, 1, 'C')
             
             # Add metadata
             if meta:
                 pdf.ln(10)
-                pdf.set_font('Arial', 'B', 12)
-                pdf.cell(0, 10, 'Curriculum Details', 0, 1, 'L')
-                pdf.set_font('Arial', '', 11)
+                pdf.set_font('Helvetica', 'B', 12)
+                pdf.cell(0, 10, pdf.pdf_text('Curriculum Details'), 0, 1, 'L')
+                pdf.set_font('Helvetica', '', 11)
                 
                 for key, value in meta.items():
                     if key not in ['subject', 'grade', 'grade_level']:
@@ -133,7 +171,13 @@ class CurriculumExporter:
                             display_value = json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else str(value)
                         except Exception:
                             display_value = str(value)
-                        pdf.cell(0, 8, f"{key.replace('_', ' ').title()}: {display_value}", 0, 1)
+                        pdf.multi_cell(
+                            0,
+                            6,
+                            pdf.pdf_text(f"{key.replace('_', ' ').title()}: {display_value}"),
+                            new_x="LMARGIN",
+                            new_y="NEXT",
+                        )
             
             # Add units
             units = curriculum.get('units', [])
@@ -145,27 +189,27 @@ class CurriculumExporter:
                 
                 # Introduction
                 if unit.get('introduction'):
-                    pdf.set_font('Arial', 'B', 12)
-                    pdf.cell(0, 8, 'Introduction', 0, 1)
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.cell(0, 8, pdf.pdf_text('Introduction'), 0, 1)
                     pdf.chapter_body(unit['introduction'])
                 
                 # Main content
                 if unit.get('content'):
-                    pdf.set_font('Arial', 'B', 12)
-                    pdf.cell(0, 8, 'Content', 0, 1)
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.cell(0, 8, pdf.pdf_text('Content'), 0, 1)
                     pdf.chapter_body(unit['content'])
                 
                 # Images - Check both 'selected_image_b64' (new) and 'image' (legacy)
                 img_b64 = unit.get('selected_image_b64') or unit.get('image')
                 if img_b64:
-                    pdf.set_font('Arial', 'B', 12)
-                    pdf.cell(0, 8, 'Illustration', 0, 1)
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.cell(0, 8, pdf.pdf_text('Illustration'), 0, 1)
                     pdf.add_image_from_base64(img_b64)
                 
                 # Chart
                 if unit.get('chart'):
-                    pdf.set_font('Arial', 'B', 12)
-                    pdf.cell(0, 8, 'Data Visualization', 0, 1)
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.cell(0, 8, pdf.pdf_text('Data Visualization'), 0, 1)
                     chart = unit.get("chart")
                     chart_b64 = None
                     if isinstance(chart, dict):
@@ -177,8 +221,8 @@ class CurriculumExporter:
                 
                 # Quiz
                 if unit.get('quiz'):
-                    pdf.set_font('Arial', 'B', 12)
-                    pdf.cell(0, 8, 'Assessment Questions', 0, 1)
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.cell(0, 8, pdf.pdf_text('Assessment Questions'), 0, 1)
                     quiz = unit['quiz']
 
                     # Handle both list format and dict format
@@ -190,44 +234,56 @@ class CurriculumExporter:
                     for q_idx, question in enumerate(questions, 1):
                         if not isinstance(question, dict):
                             continue
-                        pdf.set_font('Arial', 'B', 11)
-                        pdf.cell(0, 8, f"Question {q_idx}:", 0, 1)
-                        pdf.set_font('Arial', '', 11)
-                        pdf.multi_cell(0, 6, question.get('question', ''))
+                        pdf.set_font('Helvetica', 'B', 11)
+                        pdf.cell(0, 8, pdf.pdf_text(f"Question {q_idx}:"), 0, 1)
+                        pdf.set_font('Helvetica', '', 11)
+                        pdf.multi_cell(
+                            0,
+                            6,
+                            pdf.pdf_text(question.get('question', '')),
+                            new_x="LMARGIN",
+                            new_y="NEXT",
+                        )
                         
                         # Options
                         options = question.get("options")
                         if isinstance(options, list) and options:
                             for opt in options:
-                                pdf.cell(0, 6, f"  • {opt}", 0, 1)
+                                pdf.cell(0, 6, pdf.pdf_text(f"  - {opt}"), 0, 1)
                         
                         pdf.ln(3)
                 
                 # Summary
                 if unit.get('summary'):
-                    pdf.set_font('Arial', 'B', 12)
-                    pdf.cell(0, 8, 'Summary', 0, 1)
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.cell(0, 8, pdf.pdf_text('Summary'), 0, 1)
                     pdf.chapter_body(unit['summary'])
                 
                 # Resources
                 if unit.get('resources'):
-                    pdf.set_font('Arial', 'B', 12)
-                    pdf.cell(0, 8, 'Additional Resources', 0, 1)
-                    pdf.set_font('Arial', '', 11)
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.cell(0, 8, pdf.pdf_text('Additional Resources'), 0, 1)
+                    pdf.set_font('Helvetica', '', 11)
                     resources = unit.get("resources")
                     if isinstance(resources, str):
                         pdf.chapter_body(resources)
                     elif isinstance(resources, list):
                         for resource in resources:
-                            pdf.multi_cell(0, 6, f"• {resource}")
+                            pdf.multi_cell(
+                                0,
+                                6,
+                                pdf.pdf_text(f"- {resource}"),
+                                new_x="LMARGIN",
+                                new_y="NEXT",
+                            )
                         pdf.ln(3)
                     elif isinstance(resources, dict):
                         for resource_type, resource_list in resources.items():
                             if not resource_list:
                                 continue
-                            pdf.set_font('Arial', 'B', 11)
-                            pdf.cell(0, 7, str(resource_type).title(), 0, 1)
-                            pdf.set_font('Arial', '', 11)
+                            pdf.set_font('Helvetica', 'B', 11)
+                            pdf.cell(0, 7, pdf.pdf_text(str(resource_type).title()), 0, 1)
+                            pdf.set_font('Helvetica', '', 11)
                             if isinstance(resource_list, str):
                                 pdf.chapter_body(resource_list)
                             elif isinstance(resource_list, list):
@@ -235,13 +291,26 @@ class CurriculumExporter:
                                     if isinstance(resource, dict):
                                         title = resource.get("title", "Resource")
                                         url = resource.get("url")
-                                        pdf.multi_cell(0, 6, f"• {title} ({url})" if url else f"• {title}")
+                                        line = f"- {title} ({url})" if url else f"- {title}"
+                                        pdf.multi_cell(
+                                            0,
+                                            6,
+                                            pdf.pdf_text(line),
+                                            new_x="LMARGIN",
+                                            new_y="NEXT",
+                                        )
                                     else:
-                                        pdf.multi_cell(0, 6, f"• {resource}")
+                                        pdf.multi_cell(
+                                            0,
+                                            6,
+                                            pdf.pdf_text(f"- {resource}"),
+                                            new_x="LMARGIN",
+                                            new_y="NEXT",
+                                        )
                     pdf.ln(3)
             
             # Return PDF as bytes
-            return pdf.output(dest='S').encode('latin-1')
+            return bytes(pdf.output())
             
         except Exception as e:
             raise Exception(f"PDF generation failed: {str(e)}")

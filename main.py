@@ -34,13 +34,13 @@ from version import get_version_display
 st.markdown(
     f"""
     <div class="hero-glass animate-fade-in">
-        <div class="gradient-text" style="font-family: var(--font-display); font-size: 44px; font-weight: 600; margin: 0;">
+        <div class="gradient-text hero-title">
             🎓 InstaSchool
         </div>
-        <div style="color: var(--text-tertiary); font-size: 13px; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px;">
+        <div class="hero-version">
             {get_version_display()}
         </div>
-        <div style="margin-top: 14px; font-size: 17px;">
+        <div class="hero-lead">
             Choose your mode to get started:
         </div>
     </div>

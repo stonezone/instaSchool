@@ -187,6 +187,7 @@ yarn-error.log*
 # Keep essential docs for GitHub installs
 !README.md
 !TODO.md
+!MOBILE_UI.md
 !CACHING_GUIDE.md
 !docs/**/*.md
 !LICENSE*

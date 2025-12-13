@@ -168,17 +168,6 @@
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
     border-right: 1px solid var(--glass-border) !important;
     box-shadow: 4px 0 24px rgba(61, 58, 51, 0.05) !important;
-    width: 360px !important;
-    min-width: 360px !important;
-}
-
-.stApp [data-testid="stSidebar"] > div:first-child {
-    width: 360px !important;
-    min-width: 360px !important;
-}
-
-.stApp [data-testid="stSidebarContent"] {
-    width: 360px !important;
 }
 
 .stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
@@ -248,7 +237,7 @@
 
 .stApp p,
 .stApp label,
-.stApp span:not(.material-icons):not(.material-symbols-outlined):not(.material-symbols-rounded):not(.material-symbols-sharp) {
+.stApp span:not(.material-icons):not(.material-icons-round):not(.material-icons-outlined):not(.material-icons-two-tone):not(.material-icons-sharp):not(.material-symbols-outlined):not(.material-symbols-rounded):not(.material-symbols-sharp) {
     font-family: var(--font-body) !important;
     color: var(--text-secondary) !important;
     font-size: var(--text-base) !important;
@@ -259,10 +248,51 @@
    like "keyboard_arrow_down" renders as visible text). */
 .stApp span.material-icons,
 .stApp i.material-icons,
-.stApp span.material-symbols-outlined,
-.stApp span.material-symbols-rounded,
-.stApp span.material-symbols-sharp {
+.stApp span.material-icons-round,
+.stApp i.material-icons-round,
+.stApp span.material-icons-outlined,
+.stApp i.material-icons-outlined,
+.stApp span.material-icons-two-tone,
+.stApp i.material-icons-two-tone,
+.stApp span.material-icons-sharp,
+.stApp i.material-icons-sharp {
     font-family: "Material Icons" !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+    word-wrap: normal !important;
+    direction: ltr !important;
+}
+
+.stApp span.material-symbols-outlined {
+    font-family: "Material Symbols Outlined" !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+    word-wrap: normal !important;
+    direction: ltr !important;
+}
+
+.stApp span.material-symbols-rounded {
+    font-family: "Material Symbols Rounded" !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+    word-wrap: normal !important;
+    direction: ltr !important;
+}
+
+.stApp span.material-symbols-sharp {
+    font-family: "Material Symbols Sharp" !important;
     font-weight: normal !important;
     font-style: normal !important;
     letter-spacing: normal !important;
@@ -397,6 +427,10 @@
     font-weight: var(--weight-medium) !important;
 }
 
+.stApp .stMultiSelect [data-baseweb="tag"] span {
+    color: var(--cream) !important;
+}
+
 .stApp .stMultiSelect [data-baseweb="tag"]:hover {
     background: var(--scholar-forest) !important;
     box-shadow: var(--shadow-sm) !important;
@@ -516,7 +550,7 @@
 
 /* Force expander icon to use correct font */
 .stApp [data-testid="stExpander"] summary > span:first-child {
-    font-family: "Material Icons" !important;
+    font-family: "Material Symbols Rounded", "Material Symbols Outlined", "Material Symbols Sharp", "Material Icons" !important;
     font-weight: normal !important;
     font-style: normal !important;
     display: inline-block !important;
@@ -654,7 +688,7 @@
         rgba(0, 0, 0, 0.0) 3px,
         rgba(0, 0, 0, 0.0) 6px
     );
-    opacity: 0.35;
+    opacity: 0.22;
     pointer-events: none;
     animation: matrix-scan 3.8s linear infinite;
 }
@@ -665,10 +699,12 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 13px;
-    line-height: 1.45;
-    color: rgba(200, 255, 225, 0.98);
-    text-shadow: 0 0 14px rgba(0, 255, 120, 0.22);
+    font-size: 14px;
+    line-height: 1.52;
+    font-weight: 500;
+    letter-spacing: 0.15px;
+    color: rgba(235, 255, 244, 0.98);
+    text-shadow: 0 0 10px rgba(0, 255, 120, 0.18);
 }
 
 @keyframes matrix-scan {
@@ -682,6 +718,8 @@
 .stApp .stDownloadButton > button {
     background: linear-gradient(135deg, var(--sage) 0%, var(--scholar-forest) 100%) !important;
     box-shadow: var(--shadow-md), 0 4px 16px rgba(45, 90, 61, 0.30) !important;
+    color: var(--text-on-accent) !important;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25) !important;
 }
 
 .stApp .stDownloadButton > button:hover {
@@ -903,6 +941,28 @@
     box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight) !important;
 }
 
+.hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(30px, 6vw, 44px);
+    font-weight: var(--weight-semibold);
+    line-height: 1.08;
+    margin: 0;
+}
+
+.hero-version {
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.5px;
+    margin-top: 6px;
+}
+
+.hero-lead {
+    margin-top: 14px;
+    font-size: var(--text-lg);
+    color: var(--text-secondary);
+}
+
 /* Badge Styles - Warm Palette */
 .badge {
     display: inline-flex;
@@ -1011,7 +1071,18 @@
     border-radius: 1px;
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 1025px) {
+    /* Fixed sidebar width on desktop */
+    .stApp [data-testid="stSidebar"],
+    .stApp [data-testid="stSidebar"] > div:first-child,
+    .stApp [data-testid="stSidebarContent"] {
+        width: 360px !important;
+        min-width: 360px !important;
+        max-width: 360px !important;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
     /* Slightly tighter layout for tablets */
     .stApp [data-testid="block-container"] {
         padding: var(--space-5) !important;
@@ -1040,14 +1111,16 @@
     .stApp [data-testid="stSidebar"],
     .stApp [data-testid="stSidebar"] > div:first-child,
     .stApp [data-testid="stSidebarContent"] {
-        width: min(92vw, 420px) !important;
         min-width: 0 !important;
         max-width: 92vw !important;
     }
 
     /* Compact page padding */
     .stApp [data-testid="block-container"] {
-        padding: var(--space-4) var(--space-3) !important;
+        padding: calc(var(--space-4) + env(safe-area-inset-top))
+            calc(var(--space-3) + env(safe-area-inset-right))
+            var(--space-4)
+            calc(var(--space-3) + env(safe-area-inset-left)) !important;
     }
 
     /* Scale typography down */
@@ -1062,11 +1135,11 @@
     }
 
     /* Stack columns vertically on narrow screens */
-    .stApp [data-testid="stHorizontalBlock"] {
+    .stApp [data-testid="block-container"] [data-testid="stHorizontalBlock"] {
         flex-direction: column !important;
         gap: var(--space-3) !important;
     }
-    .stApp [data-testid="column"] {
+    .stApp [data-testid="block-container"] [data-testid="column"] {
         width: 100% !important;
         flex: 1 1 100% !important;
     }
