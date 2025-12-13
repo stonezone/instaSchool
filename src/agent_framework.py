@@ -10,6 +10,7 @@ import base64
 import httpx
 import concurrent.futures
 import threading
+import contextvars
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Union, Callable
@@ -413,11 +414,12 @@ class OrchestratorAgent(BaseAgent):
             return unit
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_media = executor.submit(run_media)
-            future_chart = executor.submit(run_chart)
-            future_quiz = executor.submit(run_quiz)
-            future_summary = executor.submit(run_summary)
-            future_resources = executor.submit(run_resources)
+            # Propagate contextvars (trace hook, etc.) into worker threads.
+            future_media = executor.submit(contextvars.copy_context().run, run_media)
+            future_chart = executor.submit(contextvars.copy_context().run, run_chart)
+            future_quiz = executor.submit(contextvars.copy_context().run, run_quiz)
+            future_summary = executor.submit(contextvars.copy_context().run, run_summary)
+            future_resources = executor.submit(contextvars.copy_context().run, run_resources)
 
             # Collect results (will block until each completes)
             # Using result() with no timeout - let individual tasks handle their own timeouts

@@ -4,8 +4,35 @@ Contains BaseAgent and shared type definitions to prevent circular dependencies.
 This module should have minimal dependencies to serve as a foundation.
 """
 
-from typing import Dict, Any, List, Optional
+from __future__ import annotations
+
+from typing import Dict, Any, List, Optional, Callable
+import contextvars
+import re
 from openai import APIError, RateLimitError, APIConnectionError, AuthenticationError, BadRequestError
+
+
+TraceHook = Callable[[Dict[str, Any]], None]
+
+_TRACE_HOOK: contextvars.ContextVar[Optional[TraceHook]] = contextvars.ContextVar(
+    "instaschool_trace_hook", default=None
+)
+_TRACE_MAX_CHARS: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "instaschool_trace_max_chars", default=900
+)
+
+
+def set_trace_hook(hook: Optional[TraceHook], *, max_chars: int = 900) -> None:
+    """Install a per-execution trace hook for LLM request/response telemetry."""
+    _TRACE_HOOK.set(hook)
+    try:
+        _TRACE_MAX_CHARS.set(int(max_chars))
+    except Exception:
+        _TRACE_MAX_CHARS.set(900)
+
+
+def get_trace_hook() -> Optional[TraceHook]:
+    return _TRACE_HOOK.get()
 
 
 class BaseAgent:
@@ -105,6 +132,59 @@ class BaseAgent:
     # Models that don't support temperature parameter
     NO_TEMPERATURE_MODELS = ['gpt-5-nano', 'o1', 'o3', 'o4']
 
+    _SECRET_PATTERNS = [
+        # OpenAI-style keys (best-effort)
+        re.compile(r"\bsk-[A-Za-z0-9]{10,}\b"),
+        re.compile(r"\bsk-proj-[A-Za-z0-9]{10,}\b"),
+    ]
+
+    def _redact(self, text: str) -> str:
+        if not isinstance(text, str) or not text:
+            return ""
+        redacted = text
+        for pat in self._SECRET_PATTERNS:
+            redacted = pat.sub("[REDACTED]", redacted)
+        return redacted
+
+    def _summarize_messages(
+        self, messages: Any, *, max_chars: int
+    ) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        if not isinstance(messages, list):
+            return out
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("role")
+            content = msg.get("content")
+            summary: Dict[str, Any] = {"role": role}
+            if isinstance(content, str):
+                safe = self._redact(content)
+                summary["content"] = safe[:max_chars] + ("… [truncated]" if len(safe) > max_chars else "")
+                summary["content_len"] = len(content)
+            elif isinstance(content, list):
+                parts = []
+                for part in content:
+                    if isinstance(part, dict):
+                        parts.append(part.get("type") or "part")
+                    else:
+                        parts.append(type(part).__name__)
+                summary["content"] = f"[{', '.join(parts)}]"
+                summary["content_len"] = len(content)
+            else:
+                summary["content"] = f"[{type(content).__name__}]"
+            out.append(summary)
+        return out
+
+    def _emit_trace(self, payload: Dict[str, Any]) -> None:
+        hook = get_trace_hook()
+        if hook is None:
+            return
+        try:
+            hook(payload)
+        except Exception:
+            return
+
     def _call_model(self, messages, response_format=None, temperature: float = 0.7):
         """Call the model with standard parameters and retry logic.
 
@@ -133,6 +213,24 @@ class BaseAgent:
         if response_format:
             params["response_format"] = response_format
 
+        # Optional trace hook (UI opt-in; no Streamlit calls here)
+        try:
+            max_chars = int(_TRACE_MAX_CHARS.get())
+        except Exception:
+            max_chars = 900
+        self._emit_trace(
+            {
+                "type": "llm.request",
+                "model": self.model,
+                "agent": self.__class__.__name__,
+                "endpoint": "chat.completions",
+                "supports_temperature": supports_temperature,
+                "temperature": params.get("temperature"),
+                "response_format": bool(response_format),
+                "messages": self._summarize_messages(messages, max_chars=max_chars),
+            }
+        )
+
         # Create a safe copy of params for logging
         if self.logger:
             log_params = params.copy()
@@ -157,6 +255,41 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_api_response(model=self.model, response=response)
 
+            # Trace response (bounded; best-effort)
+            try:
+                content = ""
+                finish_reason = None
+                if getattr(response, "choices", None):
+                    choice0 = response.choices[0]
+                    finish_reason = getattr(choice0, "finish_reason", None)
+                    msg0 = getattr(choice0, "message", None)
+                    content = getattr(msg0, "content", "") if msg0 else ""
+
+                usage_obj = getattr(response, "usage", None)
+                usage = None
+                if usage_obj is not None:
+                    usage = {
+                        "prompt_tokens": getattr(usage_obj, "prompt_tokens", None),
+                        "completion_tokens": getattr(usage_obj, "completion_tokens", None),
+                        "total_tokens": getattr(usage_obj, "total_tokens", None),
+                    }
+
+                safe_content = self._redact(content) if isinstance(content, str) else ""
+                self._emit_trace(
+                    {
+                        "type": "llm.response",
+                        "model": self.model,
+                        "agent": self.__class__.__name__,
+                        "finish_reason": finish_reason,
+                        "usage": usage,
+                        "content": safe_content[:max_chars]
+                        + ("… [truncated]" if isinstance(safe_content, str) and len(safe_content) > max_chars else ""),
+                        "content_len": len(content) if isinstance(content, str) else None,
+                    }
+                )
+            except Exception:
+                pass
+
             return response
 
         try:
@@ -174,6 +307,15 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Rate limit exceeded")
             print(f"Rate limit exceeded: {e}")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             raise  # Let retry handler deal with this
 
         except AuthenticationError as e:
@@ -181,6 +323,15 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Authentication failed")
             print(f"Authentication error: {e}")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             return None
 
         except APIConnectionError as e:
@@ -188,6 +339,15 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Connection error")
             print(f"Connection error: {e}")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             raise  # Let retry handler deal with this
 
         except BadRequestError as e:
@@ -195,6 +355,15 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Bad request")
             print(f"Bad request error: {e}")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             return None
 
         except APIError as e:
@@ -203,6 +372,15 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="API error")
             print(f"API error: {e}")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": error_msg,
+                }
+            )
 
             # Check for quota error specifically
             if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
@@ -215,6 +393,15 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Unexpected error in API call")
             print(f"Unexpected error: {e}")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             return None
 
     def _call_model_streaming(self, messages, response_format=None, temperature: float = 0.7):
@@ -248,6 +435,24 @@ class BaseAgent:
         # Note: response_format may not be supported with streaming for all models
         if response_format:
             params["response_format"] = response_format
+
+        # Optional trace hook (UI opt-in; bounded)
+        try:
+            max_chars = int(_TRACE_MAX_CHARS.get())
+        except Exception:
+            max_chars = 900
+        self._emit_trace(
+            {
+                "type": "llm.request",
+                "model": self.model,
+                "agent": self.__class__.__name__,
+                "endpoint": "chat.completions (streaming)",
+                "supports_temperature": supports_temperature,
+                "temperature": params.get("temperature"),
+                "response_format": bool(response_format),
+                "messages": self._summarize_messages(messages, max_chars=max_chars),
+            }
+        )
 
         # Log the streaming request
         if self.logger:
@@ -290,29 +495,83 @@ class BaseAgent:
 
                 self.logger.log_api_response(model=self.model, response=StreamingResponse(full_response))
 
+            # Trace complete response (bounded)
+            try:
+                safe_content = self._redact(full_response) if isinstance(full_response, str) else ""
+                self._emit_trace(
+                    {
+                        "type": "llm.response",
+                        "model": self.model,
+                        "agent": self.__class__.__name__,
+                        "finish_reason": "stream_end",
+                        "usage": None,
+                        "content": safe_content[:max_chars]
+                        + ("… [truncated]" if isinstance(safe_content, str) and len(safe_content) > max_chars else ""),
+                        "content_len": len(full_response) if isinstance(full_response, str) else None,
+                    }
+                )
+            except Exception:
+                pass
+
             return full_response
 
         except RateLimitError as e:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Rate limit exceeded (streaming)")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             yield f"[Error: Rate limit exceeded - {str(e)}]"
             return None
 
         except AuthenticationError as e:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Authentication failed (streaming)")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             yield f"[Error: Authentication failed - {str(e)}]"
             return None
 
         except APIConnectionError as e:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Connection error (streaming)")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             yield f"[Error: Connection error - {str(e)}]"
             return None
 
         except BadRequestError as e:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Bad request (streaming)")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             yield f"[Error: Bad request - {str(e)}]"
             return None
 
@@ -320,6 +579,15 @@ class BaseAgent:
             error_msg = str(e)
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="API error (streaming)")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": error_msg,
+                }
+            )
 
             if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
                 yield f"[Error: API quota exceeded - {str(e)}]"
@@ -331,5 +599,14 @@ class BaseAgent:
         except Exception as e:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Unexpected error in streaming call")
+            self._emit_trace(
+                {
+                    "type": "llm.error",
+                    "model": self.model,
+                    "agent": self.__class__.__name__,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
             yield f"[Error: Unexpected error - {str(e)}]"
             return None

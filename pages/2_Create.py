@@ -244,6 +244,54 @@ with tab_gen:
             if len(logs) > 200:
                 del logs[:-200]
 
+        # Safe, opt-in LLM trace hook (prompt/response excerpts) for the UI feed.
+        try:
+            from src.core.types import set_trace_hook
+        except Exception:
+            set_trace_hook = None  # type: ignore[assignment]
+
+        def trace_hook(evt: Dict[str, Any]) -> None:
+            with progress_lock:
+                if not progress_state.get("trace_enabled"):
+                    return
+
+                ts = time.strftime("%H:%M:%S")
+                agent = evt.get("agent", "Agent")
+                model = evt.get("model", "?")
+                kind = evt.get("type", "?")
+                include_more = bool(progress_state.get("trace_include_content"))
+
+                if kind == "llm.request":
+                    msgs = evt.get("messages") or []
+                    if not isinstance(msgs, list):
+                        msgs = []
+                    if not include_more:
+                        msgs = msgs[-2:]
+                    _push_log(f"[{ts}] → {agent} ({model})")
+                    for m in msgs:
+                        role = m.get("role")
+                        content = m.get("content", "")
+                        if role and content:
+                            _push_log(f"[{ts}]   {role}: {content}")
+                elif kind == "llm.response":
+                    content = evt.get("content", "")
+                    usage = evt.get("usage") or {}
+                    tok = usage.get("total_tokens") if isinstance(usage, dict) else None
+                    suffix = f" ({tok} tok)" if tok is not None else ""
+                    if content:
+                        _push_log(f"[{ts}] ← {agent} ({model}){suffix}: {content}")
+                    else:
+                        _push_log(f"[{ts}] ← {agent} ({model}){suffix}")
+                elif kind == "llm.error":
+                    err_t = evt.get("error_type", "Error")
+                    msg = evt.get("message", "")
+                    _push_log(f"[{ts}] ! {agent} ({model}) {err_t}: {msg}")
+                else:
+                    _push_log(f"[{ts}] {kind}: {evt}")
+
+        if set_trace_hook is not None:
+            set_trace_hook(trace_hook, max_chars=900)
+
         def progress_callback(event: str, data: Dict[str, Any]) -> None:
             with progress_lock:
                 progress_state["event"] = event
@@ -395,6 +443,22 @@ with tab_gen:
                 key="show_generation_feed",
                 help="Shows a running log of the generation phases (and unit titles).",
             )
+            capture_trace = st.toggle(
+                "Capture model prompts/responses",
+                value=bool(snapshot.get("trace_enabled")),
+                key="capture_api_trace",
+                help="Adds sanitized prompt/response excerpts to the live feed.",
+            )
+            trace_more = st.toggle(
+                "Verbose trace (more lines per request)",
+                value=bool(snapshot.get("trace_include_content")),
+                key="capture_api_trace_verbose",
+                disabled=not capture_trace,
+            )
+            if isinstance(progress_state, dict) and _is_lock(progress_lock):
+                with progress_lock:
+                    progress_state["trace_enabled"] = bool(capture_trace)
+                    progress_state["trace_include_content"] = bool(trace_more)
             if show_feed:
                 logs = snapshot.get("log", [])
                 if isinstance(logs, list) and logs:
@@ -452,6 +516,8 @@ with tab_gen:
             "event": None,
             "data": {},
             "log": [],
+            "trace_enabled": False,
+            "trace_include_content": False,
             "cancel_requested": False,
             "updated_at": time.time(),
         }
