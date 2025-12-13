@@ -246,11 +246,31 @@
     line-height: 1.35 !important;
 }
 
-.stApp p, .stApp span, .stApp label {
+.stApp p,
+.stApp label,
+.stApp span:not(.material-icons):not(.material-symbols-outlined):not(.material-symbols-rounded):not(.material-symbols-sharp) {
     font-family: var(--font-body) !important;
     color: var(--text-secondary) !important;
     font-size: var(--text-base) !important;
     line-height: 1.65 !important;
+}
+
+/* Ensure Streamlit's Material icons keep their icon font (otherwise the icon name
+   like "keyboard_arrow_down" renders as visible text). */
+.stApp span.material-icons,
+.stApp i.material-icons,
+.stApp span.material-symbols-outlined,
+.stApp span.material-symbols-rounded,
+.stApp span.material-symbols-sharp {
+    font-family: "Material Icons" !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+    word-wrap: normal !important;
+    direction: ltr !important;
 }
 
 /* =============================================================================
@@ -461,10 +481,8 @@
     margin-bottom: var(--space-3) !important;
 }
 
-/* FIX: Hide Streamlit's internal keyboard navigation labels */
-.stApp [data-testid="stExpander"] [data-testid="stExpanderToggleIcon"],
-.stApp [data-testid="stExpander"] .sr-only,
-.stApp [data-testid="stExpander"] [class*="keyboard"] {
+/* Hide Streamlit's internal screen-reader-only labels without affecting icons. */
+.stApp [data-testid="stExpander"] .sr-only {
     position: absolute !important;
     width: 1px !important;
     height: 1px !important;
@@ -487,7 +505,7 @@
 }
 
 /* Reset any text-rendering issues */
-.stApp [data-testid="stExpander"] summary > span,
+.stApp [data-testid="stExpander"] summary > span:not(.material-icons):not(.material-symbols-outlined):not(.material-symbols-rounded):not(.material-symbols-sharp),
 .stApp [data-testid="stExpander"] summary > div {
     font-family: var(--font-body) !important;
     font-size: var(--text-base) !important;
