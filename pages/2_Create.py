@@ -394,7 +394,7 @@ with tab_gen:
         st.error(f"Generation failed: {last_err}")
     elif last_file:
         st.success(f"✅ Curriculum saved to {last_file}")
-        if st.button("👀 View Now", use_container_width=True):
+        if st.button("👀 View Now", width="stretch"):
             st.switch_page("pages/1_Student.py")
 
     if is_generating:
@@ -476,13 +476,13 @@ with tab_gen:
             if cancel_requested:
                 st.warning("Cancellation requested. Waiting for a safe stop point…")
             elif isinstance(cancel_event, threading.Event):
-                if st.button("❌ Cancel Generation", type="secondary", use_container_width=True):
+                if st.button("❌ Cancel Generation", type="secondary", width="stretch"):
                     _request_cancel_generation()
 
         _generation_status_fragment()
 
     # Generation Button (only when not already generating)
-    if (not is_generating) and st.button("🚀 Start Generation", type="primary", use_container_width=True):
+    if (not is_generating) and st.button("🚀 Start Generation", type="primary", width="stretch"):
         if not valid_subjects:
             st.error("Please select at least one subject.")
             st.stop()
@@ -591,7 +591,7 @@ with tab_view:
                     # Actions
                     a1, a2, a3 = st.columns(3)
                     with a1:
-                        if st.button("🎓 Open in Student", key=f"open_{f.name}", use_container_width=True):
+                        if st.button("🎓 Open in Student", key=f"open_{f.name}", width="stretch"):
                             StateManager.set_state("preferred_curriculum_file", f.name)
                             st.switch_page("pages/1_Student.py")
 
@@ -603,12 +603,12 @@ with tab_view:
                             file_name=f.name,
                             mime="application/json",
                             key=f"dl_json_{f.name}",
-                            use_container_width=True,
+                            width="stretch",
                         )
 
                     with a3:
                         confirm = st.checkbox("Confirm delete", key=f"confirm_del_{f.name}")
-                        if st.button("🗑️ Delete", key=f"del_{f.name}", disabled=not confirm, use_container_width=True):
+                        if st.button("🗑️ Delete", key=f"del_{f.name}", disabled=not confirm, width="stretch"):
                             f.unlink()
                             st.rerun()
 
@@ -629,7 +629,7 @@ with tab_view:
                         # Markdown
                         md_state_key = f"export_md_{f.name}"
                         with exp1:
-                            if st.button("Prepare Markdown", key=f"prep_md_{f.name}", use_container_width=True):
+                            if st.button("Prepare Markdown", key=f"prep_md_{f.name}", width="stretch"):
                                 with st.spinner("Preparing Markdown…"):
                                     st.session_state[md_state_key] = exporter.generate_markdown(
                                         data, include_images=include_images
@@ -641,13 +641,13 @@ with tab_view:
                                     file_name=f"{f.stem}.md",
                                     mime="text/markdown",
                                     key=f"dl_md_{f.name}",
-                                    use_container_width=True,
+                                    width="stretch",
                                 )
 
                         # HTML
                         html_state_key = f"export_html_{f.name}"
                         with exp2:
-                            if st.button("Prepare HTML", key=f"prep_html_{f.name}", use_container_width=True):
+                            if st.button("Prepare HTML", key=f"prep_html_{f.name}", width="stretch"):
                                 with st.spinner("Preparing HTML…"):
                                     st.session_state[html_state_key] = exporter.generate_html(data)
                             if html_state_key in st.session_state:
@@ -657,13 +657,13 @@ with tab_view:
                                     file_name=f"{f.stem}.html",
                                     mime="text/html",
                                     key=f"dl_html_{f.name}",
-                                    use_container_width=True,
+                                    width="stretch",
                                 )
 
                         # PDF
                         pdf_state_key = f"export_pdf_{f.name}"
                         with exp3:
-                            if st.button("Prepare PDF", key=f"prep_pdf_{f.name}", use_container_width=True):
+                            if st.button("Prepare PDF", key=f"prep_pdf_{f.name}", width="stretch"):
                                 with st.spinner("Preparing PDF…"):
                                     st.session_state[pdf_state_key] = exporter.generate_pdf(data)
                             if pdf_state_key in st.session_state:
@@ -673,7 +673,7 @@ with tab_view:
                                     file_name=f"{f.stem}.pdf",
                                     mime="application/pdf",
                                     key=f"dl_pdf_{f.name}",
-                                    use_container_width=True,
+                                    width="stretch",
                                 )
 
                 except Exception:

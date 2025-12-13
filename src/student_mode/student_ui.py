@@ -214,7 +214,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     srs = SRSService(db)
     due_count = srs.get_due_count(user_id) if user_id else 0
     
-    if st.sidebar.button(f"📚 Review Cards ({due_count} due)", use_container_width=True):
+    if st.sidebar.button(f"📚 Review Cards ({due_count} due)", width="stretch"):
         StateManager.set_state('student_view', 'review')
         st.rerun()
     
@@ -364,7 +364,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     # Navigation buttons
     # Store section_idx in state for quiz scoring
     StateManager.set_state('current_section_idx', section_idx)
-    
+
     # Check mastery gates for quiz sections
     section_in_unit = section_idx % 6
     can_advance = True
@@ -372,25 +372,24 @@ def render_student_mode(config: Dict[str, Any], client: Any):
 
     if section_in_unit == 4:  # Quiz section
         can_advance, gate_message = progress.can_advance_from_section(section_idx, len(units))
-    
+
     col1, col2, col3 = st.columns([1, 2, 1])
-    
+
     with col1:
         if section_idx > 0:
-            if st.button("⬅️ Previous", use_container_width=True):
+            if st.button("⬅️ Previous", width="stretch"):
                 progress.previous_section()
                 st.rerun()
-    
-        # ... (inside render_student_mode) ...
+
     with col2:
         if can_advance:
-            if st.button("✅ Complete & Continue", type="primary", use_container_width=True):
+            if st.button("✅ Complete & Continue", type="primary", width="stretch"):
                 # Award XP for completing the section
                 leveled_up = progress.add_xp(XP_SECTION_COMPLETE)
 
                 # Mark section complete (updates streak and checks badges)
                 _, new_badges = progress.complete_section(section_idx)
-                
+
                 # TRIGGER SRS CARD CREATION (On Quiz Completion)
                 # Section 4 is Quiz. If we are completing it, we passed the gate.
                 if section_type_idx == 4 and user_id:
@@ -409,19 +408,15 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                     StateManager.set_state('new_badges', new_badges)
 
                 st.rerun()
-# ... (rest of file) ...
-
-
-
         else:
             # Show locked state with mastery requirement
             st.error(f"🔒 {gate_message}")
-            if st.button("🔄 Try Again", use_container_width=True, type="primary"):
+            if st.button("🔄 Try Again", type="primary", width="stretch"):
                 # Reset quiz state to allow retry
                 StateManager.set_state('quiz_submitted', False)
                 StateManager.set_state('quiz_answers', {})
                 st.rerun()
-    
+
     with col3:
         if not can_advance:
             # Parent override - allow skip even if not mastered
@@ -431,7 +426,7 @@ def render_student_mode(config: Dict[str, Any], client: Any):
                     progress.advance_section()
                     st.rerun()
         else:
-            if st.button("Skip ⏭️", use_container_width=True):
+            if st.button("Skip ⏭️", width="stretch"):
                 progress.advance_section()
                 st.rerun()
 
@@ -529,7 +524,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
         st.markdown("### 🖼️ Visual Learning")
         img_b64 = unit.get('selected_image_b64')
         if img_b64:
-            st.image(f"data:image/png;base64,{img_b64}", use_container_width=True)
+            st.image(f"data:image/png;base64,{img_b64}", width="stretch")
             caption = unit.get('selected_image_prompt', '')
             if caption:
                 st.caption(caption)
@@ -574,7 +569,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                     # Fallback to matplotlib if plotly not available
                     chart_b64 = chart.get('b64')
                     if chart_b64:
-                        st.image(f"data:image/png;base64,{chart_b64}", use_container_width=True)
+                        st.image(f"data:image/png;base64,{chart_b64}", width="stretch")
                     else:
                         st.warning("Plotly is not installed and no fallback image available.")
                 except Exception as e:
@@ -582,12 +577,12 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                     # Fallback to matplotlib if available
                     chart_b64 = chart.get('b64')
                     if chart_b64:
-                        st.image(f"data:image/png;base64,{chart_b64}", use_container_width=True)
+                        st.image(f"data:image/png;base64,{chart_b64}", width="stretch")
             else:
                 # Display matplotlib chart (legacy or fallback)
                 chart_b64 = chart.get('b64')
                 if chart_b64:
-                    st.image(f"data:image/png;base64,{chart_b64}", use_container_width=True)
+                    st.image(f"data:image/png;base64,{chart_b64}", width="stretch")
                 else:
                     st.info("No chart available for this section.")
             
@@ -662,7 +657,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                             user_answers[i] = answer
                             st.markdown("")
 
-                        submitted = st.form_submit_button("Submit Multiple Choice", type="primary", use_container_width=True)
+                        submitted = st.form_submit_button("Submit Multiple Choice", type="primary", width="stretch")
 
                         if submitted:
                             StateManager.set_state('quiz_submitted', True)
@@ -960,7 +955,7 @@ def _render_tutor_chat(config: Dict[str, Any], unit: Dict[str, Any]):
                 cols = st.columns(len(example_questions))
                 for idx, question in enumerate(example_questions):
                     with cols[idx]:
-                        if st.button(question, key=f"example_{idx}", use_container_width=True):
+                        if st.button(question, key=f"example_{idx}", width="stretch"):
                             # Process the example question
                             tutor_messages = StateManager.get_state('tutor_messages', [])
                             tutor_messages.append({

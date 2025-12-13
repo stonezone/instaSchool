@@ -59,7 +59,7 @@ if not current_user:
 
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            if st.button("Login", use_container_width=True):
+            if st.button("Login", width="stretch"):
                 if pin:
                     user, msg = user_service.authenticate(saved_username, pin)
                     if msg == "success":
@@ -71,7 +71,7 @@ if not current_user:
                 else:
                     st.sidebar.warning("Please enter your PIN.")
         with col2:
-            if st.button("Cancel", use_container_width=True):
+            if st.button("Cancel", width="stretch"):
                 StateManager.set_state('login_needs_pin', False)
                 StateManager.set_state('login_username', '')
                 st.rerun()
@@ -85,12 +85,12 @@ if not current_user:
         if user_exists:
             has_pin = user_service.user_has_pin(username.strip())
             if has_pin:
-                if st.sidebar.button("Continue →", use_container_width=True):
+                if st.sidebar.button("Continue →", width="stretch"):
                     StateManager.set_state('login_needs_pin', True)
                     StateManager.set_state('login_username', username.strip())
                     st.rerun()
             else:
-                if st.sidebar.button("Login", use_container_width=True):
+                if st.sidebar.button("Login", width="stretch"):
                     user, msg = user_service.authenticate(username.strip())
                     if msg == "success":
                         StateManager.set_state("current_user", user)
@@ -107,7 +107,7 @@ if not current_user:
                     help="Set a PIN to protect your progress"
                 )
 
-                if st.sidebar.button("Create Profile", use_container_width=True):
+                if st.sidebar.button("Create Profile", width="stretch"):
                     # Validate PIN if provided
                     if pin_input and (len(pin_input) < 4 or not pin_input.isdigit()):
                         st.sidebar.error("PIN must be 4-6 digits")
@@ -129,7 +129,7 @@ if not current_user:
         with st.sidebar.expander("Switch Profile", expanded=False):
             for u in users[:5]:  # Limit to 5 profiles
                 label = f"{'🔒' if u['has_pin'] else '👤'} {u['username']}"
-                if st.button(label, key=f"switch_{u['username']}", use_container_width=True):
+                if st.button(label, key=f"switch_{u['username']}", width="stretch"):
                     if u['has_pin']:
                         StateManager.set_state('login_needs_pin', True)
                         StateManager.set_state('login_username', u['username'])
@@ -146,7 +146,7 @@ if not current_user:
 st.sidebar.success(f"✓ Logged in as **{current_user['username']}**")
 if current_user.get('has_pin'):
     st.sidebar.caption("🔒 PIN protected")
-if st.sidebar.button("Logout", use_container_width=True):
+if st.sidebar.button("Logout", width="stretch"):
     StateManager.set_state("current_user", None)
     StateManager.set_state('login_needs_pin', False)
     StateManager.set_state('login_username', '')

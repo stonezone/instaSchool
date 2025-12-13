@@ -126,7 +126,7 @@ with parent_tab2:
                     key="report_child_select",
                 )
 
-                if st.button("📥 Generate PDF Report", type="primary", key="gen_report", use_container_width=True):
+                if st.button("📥 Generate PDF Report", type="primary", key="gen_report", width="stretch"):
                     with st.spinner("Generating report..."):
                         if selected_child == "All Children":
                             pdf_bytes = report_service.generate_family_report()
@@ -140,7 +140,7 @@ with parent_tab2:
                             data=pdf_bytes,
                             file_name=filename,
                             mime="application/pdf",
-                            use_container_width=True,
+                            width="stretch",
                         )
 
             with cert_col:
@@ -163,7 +163,7 @@ with parent_tab2:
                         "Main Text", "For outstanding effort in learning!"
                     )
 
-                if st.button("🎖️ Generate Certificate", type="secondary", key="gen_cert", use_container_width=True):
+                if st.button("🎖️ Generate Certificate", type="secondary", key="gen_cert", width="stretch"):
                     with st.spinner("Creating certificate..."):
                         if cert_type == "Progress Certificate":
                             user_data = user_service_reports.get_user(cert_child) or {}
@@ -189,7 +189,7 @@ with parent_tab2:
                             data=pdf_bytes,
                             file_name=f"{cert_child}_certificate.pdf",
                             mime="application/pdf",
-                            use_container_width=True,
+                            width="stretch",
                         )
 
 # Tab 3: Curricula Overview

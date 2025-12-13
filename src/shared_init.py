@@ -215,16 +215,16 @@ def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wi
     with st.container():
         nav_cols = st.columns(4)
         with nav_cols[0]:
-            if st.button("🏠 Home", use_container_width=True, key="nav_home"):
+            if st.button("🏠 Home", width="stretch", key="nav_home"):
                 st.switch_page("main.py")
         with nav_cols[1]:
-            if st.button("🎓 Student", use_container_width=True, key="nav_student"):
+            if st.button("🎓 Student", width="stretch", key="nav_student"):
                 st.switch_page("pages/1_Student.py")
         with nav_cols[2]:
-            if st.button("✨ Create", use_container_width=True, key="nav_create"):
+            if st.button("✨ Create", width="stretch", key="nav_create"):
                 st.switch_page("pages/2_Create.py")
         with nav_cols[3]:
-            if st.button("👨‍👩‍👧 Parent", use_container_width=True, key="nav_parent"):
+            if st.button("👨‍👩‍👧 Parent", width="stretch", key="nav_parent"):
                 st.switch_page("pages/3_Parent.py")
 
     st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)

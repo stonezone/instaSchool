@@ -168,7 +168,7 @@ def _render_flashcard(srs_service: SRSService, user_id: str) -> None:
         if not StateManager.get_state("show_answer"):
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                if st.button("🔍 Show Answer", use_container_width=True, type="primary"):
+                if st.button("🔍 Show Answer", type="primary", width="stretch"):
                     StateManager.set_state("show_answer", True)
                     st.rerun()
         else:
@@ -230,7 +230,7 @@ def _render_quality_buttons(
                 unsafe_allow_html=True
             )
             
-            if st.button(label, key=f"quality_{quality}", use_container_width=True):
+            if st.button(label, key=f"quality_{quality}", width="stretch"):
                 _process_review(card, quality, srs_service, user_id)
 
 

@@ -813,7 +813,7 @@ class FamilyDashboard:
                     max_chars=6
                 )
 
-            submitted = st.form_submit_button("Add Child", use_container_width=True)
+            submitted = st.form_submit_button("Add Child", width="stretch")
 
             if submitted:
                 if not username:

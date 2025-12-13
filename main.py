@@ -54,21 +54,21 @@ with col1:
     with st.container(border=True):
         st.markdown("### 🎒 Student")
         st.markdown("Access your lessons, complete quizzes, and track your progress.")
-        if st.button("Enter Classroom", use_container_width=True, key="btn_student"):
+        if st.button("Enter Classroom", width="stretch", key="btn_student"):
             st.switch_page("pages/1_Student.py")
 
 with col2:
     with st.container(border=True):
         st.markdown("### 👨‍🏫 Teacher")
         st.markdown("Create new curricula, manage content, and view analytics.")
-        if st.button("Create Curriculum", use_container_width=True, key="btn_teacher"):
+        if st.button("Create Curriculum", width="stretch", key="btn_teacher"):
             st.switch_page("pages/2_Create.py")
 
 with col3:
     with st.container(border=True):
         st.markdown("### 👨‍👩‍👧 Parent")
         st.markdown("Monitor family progress, manage profiles, and print reports.")
-        if st.button("Family Dashboard", use_container_width=True, key="btn_parent"):
+        if st.button("Family Dashboard", width="stretch", key="btn_parent"):
             st.switch_page("pages/3_Parent.py")
 
 # Quick stats
@@ -81,7 +81,7 @@ total_curricula = len(list(curricula_dir.glob("*.json"))) if curricula_dir.exist
 stat_col1, stat_col2, stat_col3 = st.columns(3)
 with stat_col1:
     st.metric("Curricula Created", total_curricula)
-    if st.button("📚 View Curricula", use_container_width=True, key="btn_view_curricula"):
+    if st.button("📚 View Curricula", width="stretch", key="btn_view_curricula"):
         # Parent dashboard has a Curricula tab; send users there
         st.switch_page("pages/3_Parent.py")
 with stat_col2:
