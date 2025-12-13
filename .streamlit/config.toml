@@ -10,9 +10,10 @@ font = "sans serif"
 headless = true
 enableCORS = false
 enableXsrfProtection = true
+fileWatcherType = "poll"
 
 [browser]
 gatherUsageStats = false
 
 [runner]
-fastReruns = true
+fastReruns = false

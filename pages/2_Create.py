@@ -6,6 +6,7 @@ import os
 import sys
 import copy
 import json
+import html
 import time
 import threading
 import concurrent.futures
@@ -232,6 +233,17 @@ with tab_gen:
     ) -> Dict[str, Any]:
         orchestrator = OrchestratorAgent(client, main_model, worker_model)
 
+        def _push_log(line: str) -> None:
+            if not line:
+                return
+            logs = progress_state.get("log")
+            if not isinstance(logs, list):
+                logs = []
+                progress_state["log"] = logs
+            logs.append(line)
+            if len(logs) > 200:
+                del logs[:-200]
+
         def progress_callback(event: str, data: Dict[str, Any]) -> None:
             with progress_lock:
                 progress_state["event"] = event
@@ -275,6 +287,14 @@ with tab_gen:
                     progress_state["message"] = "Cancelled — wrapping up…"
                 elif event == "done":
                     progress_state["message"] = "Done!"
+
+                # Append to live feed log (for UI transparency)
+                ts = time.strftime("%H:%M:%S")
+                msg = progress_state.get("message")
+                if isinstance(msg, str) and msg:
+                    _push_log(f"[{ts}] {msg}")
+                else:
+                    _push_log(f"[{ts}] {event}: {data}")
 
         return orchestrator.create_curriculum(
             subject=subject_str,
@@ -359,7 +379,33 @@ with tab_gen:
             if elapsed is not None:
                 st.caption(f"⏱️ Elapsed: {elapsed:.0f}s")
 
-            st.progress(percent, text=msg)
+            # Always show full status text (progress bar text can truncate on mobile)
+            if msg:
+                st.markdown(
+                    f'<div class="status-line">{html.escape(str(msg))}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            st.progress(percent)
+
+            # Live feed ("Matrix"-style) so users can see what's happening.
+            show_feed = st.toggle(
+                "Show live generation feed",
+                value=True,
+                key="show_generation_feed",
+                help="Shows a running log of the generation phases (and unit titles).",
+            )
+            if show_feed:
+                logs = snapshot.get("log", [])
+                if isinstance(logs, list) and logs:
+                    tail = logs[-24:]
+                    pre = html.escape("\n".join(str(x) for x in tail))
+                    st.markdown(
+                        f'<div class="matrix-terminal"><pre>{pre}</pre></div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.caption("Waiting for the first model response…")
 
             cancel_event = StateManager.get_state("generation_cancel_event")
             cancel_requested = bool(snapshot.get("cancel_requested"))
@@ -405,6 +451,7 @@ with tab_gen:
             "message": "Starting…",
             "event": None,
             "data": {},
+            "log": [],
             "cancel_requested": False,
             "updated_at": time.time(),
         }
