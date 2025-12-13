@@ -212,20 +212,19 @@ def _estimate_curriculum_cost_impl(orchestrator_model: str, worker_model: str,
     total_cost += image_cost
     
     # Calculate total tokens for display
-    total_tokens = 0
-    for component, tokens in ESTIMATED_TOKENS.items():
-        if component == "orchestrator":
-            total_tokens += tokens["input"] + tokens["output"]
-        elif component in ["content", "outline", "media", "chart", "quiz"]:
-            total_tokens += (tokens["input"] + tokens["output"]) * num_units
-        elif component == "summary_per_unit" and include_summary:
-            total_tokens += (tokens["input"] + tokens["output"]) * num_units
-        elif component == "resources_per_unit" and include_resources:
-            total_tokens += (tokens["input"] + tokens["output"]) * num_units
-        elif component == "quiz_per_unit" and include_quizzes:
-            total_tokens += (tokens["input"] + tokens["output"]) * num_units
-        elif component == "image_prompt":
-            total_tokens += (tokens["input"] + tokens["output"]) * num_units
+    total_tokens = (
+        (ESTIMATED_TOKENS["orchestrator"]["input"] + ESTIMATED_TOKENS["orchestrator"]["output"]) +
+        (ESTIMATED_TOKENS["outline"]["input"] + ESTIMATED_TOKENS["outline"]["output"]) +
+        (ESTIMATED_TOKENS["content_per_unit"]["input"] + ESTIMATED_TOKENS["content_per_unit"]["output"]) * num_units +
+        (ESTIMATED_TOKENS["image_prompt"]["input"] + ESTIMATED_TOKENS["image_prompt"]["output"]) * num_units
+    )
+
+    if include_quizzes:
+        total_tokens += (ESTIMATED_TOKENS["quiz_per_unit"]["input"] + ESTIMATED_TOKENS["quiz_per_unit"]["output"]) * num_units
+    if include_summary:
+        total_tokens += (ESTIMATED_TOKENS["summary_per_unit"]["input"] + ESTIMATED_TOKENS["summary_per_unit"]["output"]) * num_units
+    if include_resources:
+        total_tokens += (ESTIMATED_TOKENS["resources_per_unit"]["input"] + ESTIMATED_TOKENS["resources_per_unit"]["output"]) * num_units
 
     return {
         "total": total_cost,
@@ -250,12 +249,9 @@ def _calculate_cost_impl(model: str, input_tokens: int, output_tokens: int) -> f
     elif "kimi" in model_lower or "moonshot" in model_lower:
         costs = MODEL_COSTS["kimi-k2-0905-preview"]
 
-    # 3. Image models
+    # 3. Legacy image models (treat as closest supported tier)
     elif "dall-e" in model_lower or "dalle" in model_lower:
-        if "3" in model_lower:
-            costs = MODEL_COSTS["dall-e-3"]
-        else:
-            costs = MODEL_COSTS["dall-e-2"]
+        costs = MODEL_COSTS["gpt-image-1"]
     elif "gpt-image" in model_lower or "image" in model_lower:
         if "mini" in model_lower:
             costs = MODEL_COSTS["gpt-image-1-mini"]
@@ -312,7 +308,7 @@ def _calculate_cost_impl(model: str, input_tokens: int, output_tokens: int) -> f
 
     return input_cost + output_cost
 
-def calculate_savings(orchestrator_model: str, worker_model: str, actual_cost: float) -> float:
+def calculate_savings(orchestrator_model: str, worker_model: str, actual_cost: float) -> dict:
     """Calculate savings compared to using full model for everything"""
     # Calculate what it would cost with full model (without recursive call to calculate_savings)
     full_orch_cost = _calculate_cost_impl("gpt-4.1", 2000, 1500)  # Orchestrator usage

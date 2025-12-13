@@ -7,6 +7,7 @@ Streamlit's session state is already isolated per-session, so no locking is need
 Do NOT call these methods from background threads.
 """
 import streamlit as st
+import copy
 from typing import Any, Dict, Optional, Callable
 from contextlib import contextmanager
 
@@ -29,6 +30,14 @@ class StateManager:
         'curriculum_id': None,
         'generation_params': {},
         'progress': 0.0,
+        'generation_future': None,
+        'generation_cancel_event': None,
+        'generation_started_at': None,
+        'generation_progress_state': None,
+        'generation_progress_lock': None,
+        'generation_last_error': None,
+        'generation_last_filename': None,
+        'generation_executor': None,
 
         # Quiz state
         'quiz_answers': {},
@@ -85,7 +94,11 @@ class StateManager:
         """
         for key, value in cls.DEFAULTS.items():
             if key not in st.session_state:
-                st.session_state[key] = value
+                try:
+                    st.session_state[key] = copy.deepcopy(value)
+                except Exception:
+                    # Fallback: if deepcopy fails, use the value as-is.
+                    st.session_state[key] = value
 
     @classmethod
     def update_state(cls, key: str, value: Any, callback: Optional[Callable] = None):

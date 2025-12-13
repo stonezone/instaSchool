@@ -25,6 +25,24 @@ def _log_warning(message: str) -> None:
         sys.stderr.write(f"Warning: {message}\n")
 
 
+def _normalize_completed_sections(sections: object) -> List[int]:
+    """Normalize completed section indices to a unique list of ints (stable order)."""
+    if not isinstance(sections, list):
+        return []
+    seen: set[int] = set()
+    normalized: List[int] = []
+    for item in sections:
+        try:
+            idx = int(item)
+        except (TypeError, ValueError):
+            continue
+        if idx in seen:
+            continue
+        seen.add(idx)
+        normalized.append(idx)
+    return normalized
+
+
 def load_badges_config() -> Dict:
     """Load badge definitions from badges.json"""
     badges_file = Path("badges.json")
@@ -83,7 +101,13 @@ class StudentProgress:
                     # Ensure required fields exist in DB record
                     db_progress.setdefault("badges", [])
                     db_progress.setdefault("stats", {})
-                    db_progress.setdefault("completed_sections", [])
+                    db_progress["completed_sections"] = _normalize_completed_sections(
+                        db_progress.get("completed_sections", [])
+                    )
+                    if isinstance(db_progress.get("stats"), dict):
+                        db_progress["stats"]["total_sections_completed"] = len(
+                            db_progress["completed_sections"]
+                        )
                     return db_progress
             except sqlite3.Error as db_err:
                 _log_warning(f"Error loading progress from DB: {db_err}")
@@ -96,6 +120,14 @@ class StudentProgress:
             try:
                 with open(self.progress_file, 'r') as f:
                     data = json.load(f)
+                    if isinstance(data, dict):
+                        data["completed_sections"] = _normalize_completed_sections(
+                            data.get("completed_sections", [])
+                        )
+                        if isinstance(data.get("stats"), dict):
+                            data["stats"]["total_sections_completed"] = len(
+                                data["completed_sections"]
+                            )
                     # If we successfully loaded from JSON but DB was empty/failed, 
                     # we might want to sync back to DB later (save_progress will handle this)
                     return data
@@ -113,12 +145,18 @@ class StudentProgress:
                         # Ensure minimal fields and attach user_id
                         data.setdefault("curriculum_id", self.curriculum_id)
                         data.setdefault("current_section", 0)
-                        data.setdefault("completed_sections", [])
+                        data["completed_sections"] = _normalize_completed_sections(
+                            data.get("completed_sections", [])
+                        )
                         data.setdefault("xp", 0)
                         data.setdefault("level", 0)
                         data["user_id"] = self.user_id
                         data.setdefault("created_at", datetime.now().isoformat())
                         data["last_updated"] = datetime.now().isoformat()
+                        if isinstance(data.get("stats"), dict):
+                            data["stats"]["total_sections_completed"] = len(
+                                data["completed_sections"]
+                            )
                         return data
                 except (json.JSONDecodeError, IOError):
                     pass
@@ -149,6 +187,13 @@ class StudentProgress:
     def save_progress(self):
         """Persist progress data to file and database"""
         self.data["last_updated"] = datetime.now().isoformat()
+        self.data["completed_sections"] = _normalize_completed_sections(
+            self.data.get("completed_sections", [])
+        )
+        if isinstance(self.data.get("stats"), dict):
+            self.data["stats"]["total_sections_completed"] = len(
+                self.data["completed_sections"]
+            )
         
         # 1. Save to JSON (Backup/Offline)
         try:
@@ -178,8 +223,9 @@ class StudentProgress:
     def advance_section(self):
         """Move to next section"""
         self.data["current_section"] += 1
-        if self.data["current_section"] not in self.data["completed_sections"]:
-            self.data["completed_sections"].append(self.data["current_section"] - 1)
+        previous_section = self.data["current_section"] - 1
+        if previous_section not in self.data["completed_sections"]:
+            self.data["completed_sections"].append(previous_section)
         self.save_progress()
     
     def previous_section(self):
@@ -423,7 +469,7 @@ class StudentProgress:
             'attempts': self.data['quiz_scores'].get(str(unit_idx), {}).get('attempts', 0) + 1,
             'passed': score >= 0.8
         }
-        self._save()
+        self.save_progress()
 
     def get_quiz_score(self, unit_idx: int) -> Optional[Dict]:
         """Get quiz score for a unit"""

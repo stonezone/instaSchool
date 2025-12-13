@@ -116,17 +116,24 @@ prompts:
     - Use clear, concise language students will understand
     - Provide appropriate challenge while ensuring student success
 
-    Instructions:
-    - Create 3-5 developmentally appropriate questions that directly assess understanding of "{topic}"
-    - Include a balanced mix of:
-      * Multiple Choice ("MCQ"): Include 3-4 plausible options with one clear correct answer
-      * True/False ("TF"): Use precise statements that are clearly true or false
-      * Fill-in-the-Blank ("FILL"): Use for key terminology or simple numerical answers
-    - For MCQ, provide options logically related to the question with no obvious wrong answers
-    - Ensure answer format exactly matches requirements (MCQ: option must match exactly; TF: "True"/"False"; FILL: clear, unambiguous answer)
-    - Output **only** a valid JSON object with key "quiz" containing an array of question objects with: "question", "type", "options" (array, empty for non-MCQ), "answer"
+	    Instructions:
+	    - Create 3-5 developmentally appropriate questions that directly assess understanding of "{topic}"
+	    - Include mostly multiple choice, plus optionally 1 short answer question for deeper thinking.
+	    - For multiple choice questions:
+	      * Use type "multiple_choice"
+	      * Provide 3-4 plausible options with one clear correct answer
+	      * Ensure "correct" matches one of the options exactly
+	    - For short answer questions:
+	      * Use type "short_answer"
+	      * Provide a brief "sample_answer" (1-2 sentences) that a student could aim for
+	    - Output **only** a valid JSON object with key "questions" containing an array of question objects.
+	      Each question object must have:
+	      * "question" (string)
+	      * "type" ("multiple_choice" or "short_answer")
+	      * For multiple_choice: "options" (array of strings) and "correct" (string)
+	      * For short_answer: "sample_answer" (string)
 
-    Example JSON Output: {{"quiz": [{{"question": "What is the capital of France?", "type": "FILL", "options": [], "answer": "Paris"}}, {{"question": "Earth is the third planet from the Sun.", "type": "TF", "options": [], "answer": "True"}}, {{"question": "Which of these is a mammal?", "type": "MCQ", "options": ["Fish", "Bird", "Dolphin", "Snake"], "answer": "Dolphin"}}]}}
+	    Example JSON Output: {{"questions": [{{"question": "What is the capital of France?", "type": "multiple_choice", "options": ["Rome", "Paris", "Berlin", "Madrid"], "correct": "Paris"}}, {{"question": "Explain why plants need sunlight.", "type": "short_answer", "sample_answer": "Plants use sunlight to make food through photosynthesis."}}]}}
 
     Generate the JSON object now:
 

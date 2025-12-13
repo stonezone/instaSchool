@@ -456,10 +456,26 @@ def _validate_quiz_state(quiz_data: Dict[str, Any]) -> bool:
         return False
 
     questions = quiz_data.get('questions', [])
-    mc_questions = [
-        q for q in questions
-        if q.get('type', 'multiple_choice') == 'multiple_choice' or 'options' in q
-    ]
+    mc_questions: List[Dict[str, Any]] = []
+    if isinstance(questions, list):
+        for q in questions:
+            if not isinstance(q, dict):
+                continue
+
+            q_type = str(q.get("type", "")).strip().lower()
+            if q_type in {"short_answer", "fill", "fill_in_blank", "fill-in-the-blank", "fill_in_the_blank"}:
+                continue
+            if q_type in {"tf", "true_false", "true/false", "truefalse"}:
+                mc_questions.append(q)
+                continue
+            options = q.get("options")
+            if q_type in {"multiple_choice", "mcq", "mc", "choice"}:
+                if isinstance(options, list) and len(options) > 0:
+                    mc_questions.append(q)
+                continue
+            if isinstance(options, list) and len(options) > 0:
+                mc_questions.append(q)
+
     expected_mc_count = len(mc_questions)
 
     # Multiple choice answers are stored with integer keys
@@ -473,6 +489,19 @@ def _validate_quiz_state(quiz_data: Dict[str, Any]) -> bool:
         return False
 
     return True
+
+
+def _coerce_quiz_data(raw_quiz: Any) -> Dict[str, Any]:
+    """Normalize quiz into a dict with a 'questions' list (backward compatible)."""
+    if isinstance(raw_quiz, dict):
+        if isinstance(raw_quiz.get("questions"), list):
+            return raw_quiz
+        if isinstance(raw_quiz.get("quiz"), list):
+            return {"questions": raw_quiz.get("quiz", [])}
+        return raw_quiz
+    if isinstance(raw_quiz, list):
+        return {"questions": raw_quiz}
+    return {}
 
 
 def _render_section_content(unit: Dict[str, Any], section_type: str):
@@ -571,7 +600,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
     
     elif section_type == 'quiz':
         st.markdown("### 🎯 Knowledge Check")
-        quiz_data = unit.get('quiz', {})
+        quiz_data = _coerce_quiz_data(unit.get('quiz', {}))
 
         if quiz_data and isinstance(quiz_data, dict):
             questions = quiz_data.get('questions', [])
@@ -585,8 +614,21 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
 
             if questions:
                 # Separate multiple choice and short answer questions
-                mc_questions = [q for q in questions if q.get('type', 'multiple_choice') == 'multiple_choice' or 'options' in q]
-                sa_questions = [q for q in questions if q.get('type') == 'short_answer']
+                def _is_short_answer(q: Dict[str, Any]) -> bool:
+                    t = str(q.get("type", "")).strip().lower()
+                    return t in {"short_answer", "fill", "fill_in_blank", "fill-in-the-blank", "fill_in_the_blank"}
+
+                def _is_multiple_choice(q: Dict[str, Any]) -> bool:
+                    t = str(q.get("type", "")).strip().lower()
+                    if t in {"tf", "true_false", "true/false", "truefalse"}:
+                        return True
+                    options = q.get("options")
+                    if t in {"multiple_choice", "mcq", "mc", "choice"}:
+                        return isinstance(options, list) and len(options) > 0
+                    return isinstance(options, list) and len(options) > 0 and not _is_short_answer(q)
+
+                mc_questions = [q for q in questions if isinstance(q, dict) and _is_multiple_choice(q)]
+                sa_questions = [q for q in questions if isinstance(q, dict) and _is_short_answer(q)]
 
                 # Initialize session state for quiz answers using StateManager for thread-safety
                 if StateManager.get_state('quiz_submitted') is None:
@@ -605,6 +647,11 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
                         for i, q in enumerate(mc_questions):
                             st.markdown(f"**Question {i + 1}: {q.get('question', '')}**")
                             options = q.get('options', [])
+                            if not isinstance(options, list):
+                                options = []
+                            q_type = str(q.get("type", "")).strip().lower()
+                            if q_type in {"tf", "true_false", "true/false", "truefalse"} and not options:
+                                options = ["True", "False"]
 
                             answer = st.radio(
                                 f"Select your answer for question {i + 1}",
@@ -634,7 +681,7 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
 
                         for i, q in enumerate(mc_questions):
                             user_answer = quiz_answers.get(i)
-                            correct_answer = q.get('correct', '')
+                            correct_answer = q.get('correct') or q.get('answer') or ''
 
                             is_correct = user_answer == correct_answer
                             if is_correct:
@@ -849,19 +896,38 @@ def _render_section_content(unit: Dict[str, Any], section_type: str):
             st.markdown(summary)
             
             # Add resources if available
-            resources = unit.get('resources', {})
+            resources = unit.get('resources', None)
             if resources:
                 st.markdown("---")
                 st.markdown("#### 🔗 Additional Resources")
-                
-                for resource_type, resource_list in resources.items():
-                    if resource_list:
-                        st.markdown(f"**{resource_type.title()}**")
-                        for resource in resource_list:
-                            if isinstance(resource, dict):
-                                st.markdown(f"- [{resource.get('title', 'Resource')}]({resource.get('url', '#')})")
-                            else:
-                                st.markdown(f"- {resource}")
+
+                if isinstance(resources, str):
+                    st.markdown(resources)
+                elif isinstance(resources, list):
+                    for resource in resources:
+                        if isinstance(resource, dict):
+                            title = resource.get("title", "Resource")
+                            url = resource.get("url")
+                            st.markdown(f"- [{title}]({url})" if url else f"- {title}")
+                        else:
+                            st.markdown(f"- {resource}")
+                elif isinstance(resources, dict):
+                    for resource_type, resource_list in resources.items():
+                        if not resource_list:
+                            continue
+                        st.markdown(f"**{str(resource_type).title()}**")
+
+                        if isinstance(resource_list, str):
+                            st.markdown(resource_list)
+                            continue
+                        if isinstance(resource_list, list):
+                            for resource in resource_list:
+                                if isinstance(resource, dict):
+                                    title = resource.get("title", "Resource")
+                                    url = resource.get("url")
+                                    st.markdown(f"- [{title}]({url})" if url else f"- {title}")
+                                else:
+                                    st.markdown(f"- {resource}")
         else:
             st.info("No summary available for this section.")
     
@@ -994,20 +1060,23 @@ def _create_flashcards_from_quiz(unit: Dict[str, Any], user_id: str, curriculum_
     try:
         db = get_database_service()
         srs = SRSService(db)
-        quiz = unit.get('quiz', {})
-        questions = quiz.get('questions', [])
+        quiz_data = _coerce_quiz_data(unit.get('quiz', {}))
+        questions = quiz_data.get('questions', [])
         
         count = 0
         for q in questions:
+            if not isinstance(q, dict):
+                continue
             front = q.get('question')
             back = ""
             
             # Determine back of card based on question type
-            if q.get('type') == 'short_answer':
-                back = q.get('sample_answer')
+            q_type = str(q.get("type", "")).strip().lower()
+            if q_type in {"short_answer", "fill", "fill_in_blank", "fill-in-the-blank", "fill_in_the_blank"}:
+                back = q.get('sample_answer') or q.get("answer") or q.get("correct")
             else:
                 # Default to multiple choice style
-                back = q.get('correct')
+                back = q.get('correct') or q.get("answer")
                 
             # Create card if valid
             if front and back:

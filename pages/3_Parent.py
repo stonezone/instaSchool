@@ -57,16 +57,19 @@ with parent_tab1:
 
     if not children:
         # Empty state with onboarding
-        st.markdown("""
-        <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; margin: 20px 0;">
-            <h1 style="font-size: 48px; margin-bottom: 10px;">👨‍👩‍👧‍👦</h1>
-            <h2 style="margin-bottom: 10px;">Welcome to InstaSchool!</h2>
-            <p style="opacity: 0.9; max-width: 400px; margin: 0 auto 20px;">
-                Get started by adding your children's profiles. Each child gets their own
-                personalized learning experience with progress tracking.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="hero-glass animate-fade-in" style="text-align: center; margin: 20px 0;">
+                <div style="font-size: 48px; margin-bottom: 10px;">👨‍👩‍👧‍👦</div>
+                <h2 style="margin: 0 0 10px 0;">Welcome to InstaSchool!</h2>
+                <p style="max-width: 520px; margin: 0 auto;">
+                    Get started by adding your children's profiles. Each child gets their own
+                    personalized learning experience with progress tracking.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         st.markdown("### 🎯 Quick Start")
         col1, col2, col3 = st.columns(3)
@@ -123,7 +126,7 @@ with parent_tab2:
                     key="report_child_select",
                 )
 
-                if st.button("📥 Generate PDF Report", type="primary", key="gen_report"):
+                if st.button("📥 Generate PDF Report", type="primary", key="gen_report", use_container_width=True):
                     with st.spinner("Generating report..."):
                         if selected_child == "All Children":
                             pdf_bytes = report_service.generate_family_report()
@@ -137,6 +140,7 @@ with parent_tab2:
                             data=pdf_bytes,
                             file_name=filename,
                             mime="application/pdf",
+                            use_container_width=True,
                         )
 
             with cert_col:
@@ -159,7 +163,7 @@ with parent_tab2:
                         "Main Text", "For outstanding effort in learning!"
                     )
 
-                if st.button("🎖️ Generate Certificate", type="secondary", key="gen_cert"):
+                if st.button("🎖️ Generate Certificate", type="secondary", key="gen_cert", use_container_width=True):
                     with st.spinner("Creating certificate..."):
                         if cert_type == "Progress Certificate":
                             user_data = user_service_reports.get_user(cert_child) or {}
@@ -185,6 +189,7 @@ with parent_tab2:
                             data=pdf_bytes,
                             file_name=f"{cert_child}_certificate.pdf",
                             mime="application/pdf",
+                            use_container_width=True,
                         )
 
 # Tab 3: Curricula Overview

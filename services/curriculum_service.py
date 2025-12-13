@@ -5,6 +5,7 @@ Handles business logic for curriculum generation, separated from UI
 
 import uuid
 import json
+import copy
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from src.agent_framework import OrchestratorAgent
@@ -57,11 +58,11 @@ class CurriculumService:
         if image_model:
             try:
                 from services.provider_service import get_provider_service
-                ps = get_provider_service()
+                ps = get_provider_service(self.config)
                 valid_image_models = ps.get_image_models("openai")
                 if image_model not in valid_image_models:
                     return False, f"Invalid image model: {image_model}"
-            except ImportError:
+            except Exception:
                 # Fallback to config if provider_service not available
                 if image_model not in self.config["defaults"].get("image_models", []):
                     return False, f"Invalid image model: {image_model}"
@@ -71,14 +72,14 @@ class CurriculumService:
         if text_model:
             try:
                 from services.provider_service import get_provider_service
-                ps = get_provider_service()
+                ps = get_provider_service(self.config)
                 # Check all providers for the model
                 all_models = []
                 for provider in ps.get_available_providers():
                     all_models.extend(ps.get_text_models(provider))
                 if text_model not in all_models:
                     return False, f"Invalid text model: {text_model}"
-            except ImportError:
+            except Exception:
                 # Fallback to config if provider_service not available
                 if text_model not in self.config["defaults"].get("text_models", []):
                     return False, f"Invalid text model: {text_model}"
@@ -133,7 +134,8 @@ class CurriculumService:
         }
         
         # Update config with current parameters
-        current_config = self.config.copy()
+        # IMPORTANT: do not mutate cached config objects (get_curriculum_service is cached).
+        current_config = copy.deepcopy(self.config)
         current_config["defaults"]["text_model"] = params["text_model"]
         current_config["defaults"]["worker_model"] = params.get("worker_model", params["text_model"])  # Use worker_model if provided
         current_config["defaults"]["image_model"] = params["image_model"]
@@ -323,51 +325,12 @@ class CurriculumExporter:
     
     @staticmethod
     def generate_markdown(curriculum: Dict[str, Any], include_images: bool = True) -> str:
-        """Generate Markdown representation of curriculum
-        
-        Args:
-            curriculum: Curriculum dictionary
-            include_images: Whether to include image placeholders
-            
-        Returns:
-            Markdown string
+        """Generate Markdown representation of curriculum.
+
+        Note: This method is a thin compatibility wrapper. The canonical export
+        implementation lives in `services/export_service.py`.
         """
-        metadata = curriculum.get("meta", {})
-        units = curriculum.get("units", [])
-        
-        md_content = f"# {metadata.get('subject', 'Subject')} Curriculum - Grade {metadata.get('grade', 'Grade')}\n\n"
-        md_content += f"*Style: {metadata.get('style', 'Standard')} | Language: {metadata.get('language', 'English')}*\n\n"
-        
-        for i, unit in enumerate(units):
-            md_content += f"## Unit {i+1}: {unit.get('title', 'Untitled')}\n\n"
-            
-            # Add content
-            content = unit.get('content', 'No content available.')
-            if include_images and unit.get("selected_image_b64"):
-                # Insert image placeholder after first paragraph
-                if "##" in content:
-                    parts = content.split("##", 1)
-                    md_content += parts[0] + "\n\n"
-                    md_content += "*![Illustration: " + unit.get('title', 'Topic') + "]*\n\n"
-                    if len(parts) > 1:
-                        md_content += "##" + parts[1] + "\n\n"
-                else:
-                    md_content += "*![Illustration: " + unit.get('title', 'Topic') + "]*\n\n"
-                    md_content += content + "\n\n"
-            else:
-                md_content += content + "\n\n"
-            
-            # Add other components...
-            if unit.get("summary"):
-                md_content += "### Summary\n\n"
-                md_content += unit.get("summary") + "\n\n"
-                
-            if unit.get("resources"):
-                md_content += "### Further Resources\n\n"
-                md_content += unit.get("resources") + "\n\n"
-                
-            # Add separator between units
-            if i < len(units) - 1:
-                md_content += "---\n\n"
-        
-        return md_content
+        from services.export_service import get_exporter
+
+        exporter = get_exporter()
+        return exporter.generate_markdown(curriculum, include_images=include_images)

@@ -909,3 +909,118 @@
     border-radius: inherit;
     pointer-events: none;
 }
+
+/* =============================================================================
+   RESPONSIVE / MOBILE
+   ============================================================================= */
+
+.nav-divider {
+    height: 1px;
+    background: var(--separator);
+    margin: var(--space-4) 0 var(--space-6) 0;
+    border-radius: 1px;
+}
+
+@media (max-width: 1024px) {
+    /* Slightly tighter layout for tablets */
+    .stApp [data-testid="block-container"] {
+        padding: var(--space-5) !important;
+    }
+
+    .stApp [data-testid="stSidebar"],
+    .stApp [data-testid="stSidebar"] > div:first-child,
+    .stApp [data-testid="stSidebarContent"] {
+        width: 320px !important;
+        min-width: 320px !important;
+        max-width: 320px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Reduce expensive fixed backgrounds on mobile */
+    .stApp {
+        background-attachment: scroll !important;
+    }
+
+    .nav-divider {
+        margin: var(--space-3) 0 var(--space-4) 0;
+    }
+
+    /* Make sidebar usable in Streamlit's mobile drawer */
+    .stApp [data-testid="stSidebar"],
+    .stApp [data-testid="stSidebar"] > div:first-child,
+    .stApp [data-testid="stSidebarContent"] {
+        width: min(92vw, 420px) !important;
+        min-width: 0 !important;
+        max-width: 92vw !important;
+    }
+
+    /* Compact page padding */
+    .stApp [data-testid="block-container"] {
+        padding: var(--space-4) var(--space-3) !important;
+    }
+
+    /* Scale typography down */
+    .stApp h1 {
+        font-size: 34px !important;
+    }
+    .stApp h2 {
+        font-size: 22px !important;
+    }
+    .stApp h3 {
+        font-size: 18px !important;
+    }
+
+    /* Stack columns vertically on narrow screens */
+    .stApp [data-testid="stHorizontalBlock"] {
+        flex-direction: column !important;
+        gap: var(--space-3) !important;
+    }
+    .stApp [data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    /* Buttons / inputs */
+    .stApp .stButton > button,
+    .stApp .stDownloadButton > button {
+        width: 100% !important;
+        padding: 12px 16px !important;
+    }
+
+    .stApp .stTextInput > div > div > input,
+    .stApp .stTextArea > div > div > textarea,
+    .stApp .stNumberInput > div > div > input {
+        padding: 12px 14px !important;
+    }
+
+    /* Tabs should wrap instead of forcing horizontal scroll */
+    .stApp .stTabs [data-baseweb="tab-list"] {
+        flex-wrap: wrap !important;
+        row-gap: 6px !important;
+    }
+    .stApp .stTabs [data-baseweb="tab"] {
+        padding: 10px 14px !important;
+    }
+
+    /* Reduce card padding */
+    .stApp [data-testid="stForm"],
+    .glass-card,
+    .hero-glass {
+        padding: 18px !important;
+    }
+
+    .stApp [data-testid="stMetric"] {
+        padding: 18px 18px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .stApp h1 {
+        font-size: 30px !important;
+    }
+
+    .stApp [data-testid="stMetricValue"] {
+        font-size: 26px !important;
+    }
+}

@@ -139,7 +139,7 @@ if not current_user:
                     st.rerun()
 
 if not current_user:
-    st.info("👈 Enter your name in the sidebar to start learning.")
+    st.info("👈 Enter your name in the sidebar to start learning. On mobile, tap the ☰ button to open the sidebar.")
     st.stop()
 
 # Logged in - show user info and logout

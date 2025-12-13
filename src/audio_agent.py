@@ -247,11 +247,6 @@ class AudioAgent(BaseAgent):
             self._log(f"Authentication failed: {e}", "error")
             if self.logger:
                 self.logger.log_error(error=e, model=self.tts_model, context=f"TTS authentication for '{unit_title or 'content'}'")
-            try:
-                import streamlit as st
-                st.error("⚠️ OpenAI API authentication failed. Please check your API key.")
-            except ImportError:
-                pass
             return None
 
         except APIConnectionError as e:
@@ -277,11 +272,7 @@ class AudioAgent(BaseAgent):
 
             # Check for quota errors specifically
             if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
-                try:
-                    import streamlit as st
-                    st.error("⚠️ OpenAI API quota exceeded. Please check your billing details.")
-                except ImportError:
-                    pass
+                self._log("Quota exceeded. Please check your billing details.", "error")
 
             return None
 

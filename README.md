@@ -3,9 +3,8 @@
 An AI-powered educational curriculum generator that creates complete, media-rich learning materials for students across multiple subjects and grade levels.
 
 ![InstaSchool](https://img.shields.io/badge/InstaSchool-Curriculum_Generator-blue)
-![Python](https://img.shields.io/badge/Python-3.9+-green)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT_4.1-lightblue)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![Python](https://img.shields.io/badge/Python-3.9%2B-green)
+![OpenAI](https://img.shields.io/badge/OpenAI-SDK_2.x-lightblue)
 
 ## Overview
 
@@ -20,15 +19,16 @@ InstaSchool Curriculum Generator is a powerful tool that leverages advanced AI m
 - **Multi-Subject Support**: Science, Math, Language Arts, Social Studies, and more
 - **Grade-Appropriate Content**: From preschool through high school
 - **Multiple Teaching Styles**: Standard, inquiry-based, project-based, story-based, and more
-- **Full Export Options**: Export in HTML, Markdown, or PDF formats
-- **Mobile Responsive**: Automatically adapts to mobile devices for on-the-go curriculum development
+- **Exports**: Download curricula as JSON, Markdown, HTML, or PDF
+- **Cancelable Generation**: Start generation in the background and cancel at the next safe stop point
+- **Mobile-Friendly Layout**: Responsive CSS improvements for smaller screens (desktop is still best)
 
 ## Installation
 
 ### Prerequisites
 
 - Python 3.9 or higher (required for OpenAI SDK 2.x)
-- OpenAI API key with access to GPT-4.1 and image generation models
+- OpenAI API key with access to your selected chat model(s) and image generation models (if enabled)
 - Optional: Kimi/Moonshot API key for Kimi K2 models
 - pip (Python package manager)
 
@@ -47,6 +47,7 @@ tenacity>=8.2.0
 httpx>=0.23.0
 markdown>=3.4.0
 requests>=2.28.0
+filelock>=3.12.0
 ```
 
 PDF export now uses the pure-Python `fpdf2` library and does not require any external OS binaries like `wkhtmltopdf`.
@@ -81,9 +82,10 @@ pip install -r requirements.txt
 
 4. **Set up your OpenAI API key**
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (see `.env_example`):
 ```
 OPENAI_API_KEY=your_api_key_here
+OPENAI_ORG_ID=your_org_id_optional
 ```
 
 Or set it as an environment variable:
@@ -99,39 +101,12 @@ export OPENAI_API_KEY="your_api_key_here"
 
 ### Starting the Application
 
-From the `release` directory, run:
-
 ```bash
 streamlit run main.py
 ```
 
 This will start a local web server and open the application in your default web browser (typically at http://localhost:8501).
-
-#### Verbose Mode
-
-You can enable verbose mode to see detailed API call logs:
-
-```bash
-streamlit run main.py -- --verbose
-```
-
-You can also specify a custom log file path:
-
-```bash
-streamlit run main.py -- --verbose --log-file=path/to/logfile.log
-```
-
-This will display all API requests and responses in the terminal and log them to the specified file.
-
-#### Testing Logger Functionality
-
-A test script is included to verify logger functionality:
-
-```bash
-python test_logger.py --verbose
-```
-
-This script simulates API calls and demonstrates how the logging works.
+Note: This is a Streamlit multipage app. Use the landing page to navigate between Student / Create / Parent modes.
 
 ### Generating a Curriculum
 
@@ -144,24 +119,16 @@ This script simulates API calls and demonstrates how the logging works.
      - **Advanced Settings**: Configure AI models, media richness, and component toggles
 
 2. **Generate Content**
-   - Navigate to the "Generate" tab
+   - Go to **Create** → **Generate**
    - Enter any specific guidelines or focus for your curriculum (optional)
    - Check the cost estimation to understand token usage and approximate costs
-   - Click the "🚀 Generate New Curriculum" button
+   - Click **🚀 Start Generation**
    - Wait for the generation process to complete (typically 1-3 minutes)
+   - Optionally click **❌ Cancel Generation** to stop at the next safe point (a partial curriculum will be saved)
 
-3. **View and Edit**
-   - Navigate to the "View & Edit" tab to see your generated curriculum
-   - Toggle "Edit Mode" to make changes to any component
-   - Select between multiple generated images
-   - Try the interactive quizzes
-   - Regenerate specific components as needed
-
-4. **Export Your Curriculum**
-   - Navigate to the "Export" tab
-   - Choose to export as Markdown, HTML, or PDF
-   - Select whether to include images in the export
-   - Download the exported file
+3. **Export Your Curriculum**
+   - Go to **Create** → **Library**
+   - Expand a curriculum and use the **Export** section to prepare + download Markdown/HTML/PDF
 
 ### Configuration
 
@@ -196,19 +163,19 @@ The application is highly configurable through the `config.yaml` file:
 
 **Error**: "Image generation failed" or "Image generation parameter issue"
 - **Solution**: Check that you have access to the selected image model in your OpenAI account.
-- **Alternative Solution**: Try switching to a different image model. DALL-E-2 and GPT-Image-1 have different parameter requirements.
+- **Alternative Solution**: Try switching to a different image model.
 
 #### Export Issues
 
-**Error**: "PDF export is not available"
-- **Solution**: Ensure wkhtmltopdf is correctly installed and in your PATH.
+**Error**: "PDF export failed"
+- **Solution**: Ensure `fpdf2` is installed (`pip install -r requirements.txt`) and try again.
 
 ### Dependencies Issues
 
 If you encounter issues with dependencies, try reinstalling them individually:
 
 ```bash
-pip install --upgrade streamlit openai pyyaml matplotlib pillow python-dotenv fpdf2 plotly tenacity httpx markdown
+pip install --upgrade streamlit openai pyyaml matplotlib pillow python-dotenv fpdf2 plotly tenacity httpx markdown filelock
 ```
 
 ### Resource Usage
@@ -244,12 +211,11 @@ Cost estimates are based on current OpenAI pricing and represent approximate val
 ### Model Selection
 
 For best results:
-- **Text Content**: Use GPT-4.1 for high-quality content (GPT-4o is a good alternative)
-- **Worker Agents**: GPT-4.1-mini provides a good balance of quality and speed
-- **Image Generation**: 
-  - **GPT-Imagegen-1**: Highest quality educational illustrations (recommended)
-  - **DALL-E 3**: High quality with creative elements
-  - **DALL-E 2**: Basic illustrations, faster generation
+- **Text Content**: `gpt-5-nano` is a good default for cost; use a larger model if you want higher quality.
+- **Worker Agents**: Use a smaller/faster model than the orchestrator when optimizing for speed/cost.
+- **Image Generation**:
+  - `gpt-image-1` (recommended)
+  - `gpt-image-1-mini` (faster/cheaper)
 
 ## Architecture
 
@@ -263,13 +229,21 @@ The application is built on a sophisticated agentic framework:
 - **SummaryAgent**: Provides concise lesson summaries
 - **ResourceAgent**: Suggests additional learning resources
 
+## Development
+
+Run a quick sanity check (no tests):
+
+```bash
+./scripts/check.sh
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+No license has been specified yet.
 
 ## Acknowledgements
 

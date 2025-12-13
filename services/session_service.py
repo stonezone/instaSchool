@@ -9,8 +9,90 @@ import uuid
 import base64
 import tempfile
 from pathlib import Path
-from datetime import datetime
+import threading
+from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Set
+
+# =============================================================================
+# Temporary File Tracking (process-wide)
+# =============================================================================
+
+_TEMP_FILE_PREFIX = "instaschool_tmp_"
+_TEMP_FILES: Set[str] = set()
+_TEMP_FILES_LOCK = threading.Lock()
+_TEMPFILE_CLEANUP_INITIALIZED = False
+_TEMPFILE_CLEANUP_INIT_LOCK = threading.Lock()
+
+
+def register_temp_file(file_path: str) -> None:
+    """Register a temp file path for process-wide cleanup."""
+    if not file_path:
+        return
+    with _TEMP_FILES_LOCK:
+        _TEMP_FILES.add(file_path)
+
+
+def cleanup_registered_temp_files() -> int:
+    """Delete all temp files registered in this process.
+
+    Returns:
+        Number of files successfully removed (best-effort).
+    """
+    with _TEMP_FILES_LOCK:
+        to_delete = list(_TEMP_FILES)
+        _TEMP_FILES.clear()
+
+    deleted = 0
+    for filepath in to_delete:
+        try:
+            Path(filepath).unlink(missing_ok=True)
+            deleted += 1
+        except Exception:
+            # Best-effort cleanup only
+            pass
+    return deleted
+
+
+def cleanup_stale_temp_files(max_age_hours: int = 24) -> int:
+    """Delete stale InstaSchool temp files in the OS temp directory.
+
+    This covers orphaned files from previous runs where atexit cleanup didn't run.
+    Only deletes files with the InstaSchool temp prefix older than the threshold.
+    """
+    try:
+        temp_dir = Path(tempfile.gettempdir())
+        cutoff = datetime.now() - timedelta(hours=max_age_hours)
+        deleted = 0
+        for p in temp_dir.glob(f"{_TEMP_FILE_PREFIX}*"):
+            try:
+                mtime = datetime.fromtimestamp(p.stat().st_mtime)
+                if mtime <= cutoff:
+                    p.unlink(missing_ok=True)
+                    deleted += 1
+            except Exception:
+                continue
+        return deleted
+    except Exception:
+        return 0
+
+
+def init_tempfile_cleanup(max_age_hours: int = 24) -> None:
+    """Initialize process-wide temp file cleanup once.
+
+    Safe to call multiple times (e.g., on Streamlit reruns).
+    """
+    global _TEMPFILE_CLEANUP_INITIALIZED
+    with _TEMPFILE_CLEANUP_INIT_LOCK:
+        if _TEMPFILE_CLEANUP_INITIALIZED:
+            return
+        _TEMPFILE_CLEANUP_INITIALIZED = True
+
+    # Best-effort cleanup of orphaned temp files from prior runs.
+    cleanup_stale_temp_files(max_age_hours=max_age_hours)
+
+    # Register exit cleanup once per process.
+    import atexit
+    atexit.register(cleanup_registered_temp_files)
 
 
 class SessionManager:
@@ -19,6 +101,9 @@ class SessionManager:
     def __init__(self):
         """Initialize session manager"""
         self.temp_files: Set[str] = set()
+
+        # Best-effort cleanup of orphaned temp files from prior runs.
+        cleanup_stale_temp_files(max_age_hours=24)
         
         # Ensure required directories exist
         Path("curricula").mkdir(exist_ok=True)
@@ -32,6 +117,7 @@ class SessionManager:
         """
         if file_path and os.path.exists(file_path):
             self.temp_files.add(file_path)
+            register_temp_file(file_path)
             
     def save_base64_to_temp_file(self, b64_data: str, suffix: str = ".png") -> Optional[str]:
         """Save base64 data to a temporary file
@@ -47,6 +133,10 @@ class SessionManager:
             return None
             
         try:
+            # Accept data URLs like "data:image/png;base64,...."
+            if "," in b64_data:
+                b64_data = b64_data.split(",", 1)[1]
+
             # Ensure correct padding
             missing_padding = len(b64_data) % 4
             if missing_padding:
@@ -55,7 +145,9 @@ class SessionManager:
             img_bytes = base64.b64decode(b64_data)
             
             # Use tempfile for secure temporary file creation
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode='wb') as tf:
+            with tempfile.NamedTemporaryFile(
+                delete=False, prefix=_TEMP_FILE_PREFIX, suffix=suffix, mode='wb'
+            ) as tf:
                 tf.write(img_bytes)
                 temp_path = tf.name
                 

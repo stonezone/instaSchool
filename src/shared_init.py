@@ -15,6 +15,7 @@ matplotlib.use('Agg')
 
 import streamlit as st
 import yaml
+import copy
 from pathlib import Path
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
@@ -28,7 +29,9 @@ def load_config(path: str = "config.yaml") -> Dict[str, Any]:
     """Load configuration from YAML file with caching"""
     try:
         with open(path, "r", encoding='utf-8') as f:
-            return yaml.safe_load(f)
+            cfg = yaml.safe_load(f) or {}
+            # Treat config as immutable: callers should not mutate cached objects.
+            return copy.deepcopy(cfg)
     except Exception as e:
         st.error(f"Failed to load config: {e}")
         return {}
@@ -126,8 +129,16 @@ def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wi
         page_title=title,
         page_icon=icon,
         layout=layout,
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="auto"
     )
+
+    # Ensure process-wide temp file cleanup is initialized even if a page is
+    # run directly (e.g., `streamlit run pages/2_Create.py`).
+    try:
+        from services.session_service import init_tempfile_cleanup
+        init_tempfile_cleanup(max_age_hours=24)
+    except Exception:
+        pass
 
     # Load CSS
     css_path = Path("static/css/design_system.css")
@@ -137,6 +148,24 @@ def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wi
 
     # Initialize session state
     init_session_state()
+
+    # Lightweight top navigation (helps on mobile when the sidebar is collapsed)
+    with st.container():
+        nav_cols = st.columns(4)
+        with nav_cols[0]:
+            if st.button("🏠 Home", use_container_width=True, key="nav_home"):
+                st.switch_page("main.py")
+        with nav_cols[1]:
+            if st.button("🎓 Student", use_container_width=True, key="nav_student"):
+                st.switch_page("pages/1_Student.py")
+        with nav_cols[2]:
+            if st.button("✨ Create", use_container_width=True, key="nav_create"):
+                st.switch_page("pages/2_Create.py")
+        with nav_cols[3]:
+            if st.button("👨‍👩‍👧 Parent", use_container_width=True, key="nav_parent"):
+                st.switch_page("pages/3_Parent.py")
+
+    st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
 
 
 def get_version_display() -> str:

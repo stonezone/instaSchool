@@ -310,17 +310,21 @@ class ImageGenerator:
         if not results:
             error_msg = str(last_error) if last_error else "Unknown error"
             
-            # Show appropriate error to user in Streamlit UI
-            try:
-                import streamlit as st
-                if "moderation" in error_msg.lower() or "safety" in error_msg.lower():
-                    st.warning("⚠️ Image generation was blocked by safety filters. Using a placeholder image instead.")
-                elif "quota" in error_msg.lower() or "insufficient_quota" in error_msg:
-                    st.error("⚠️ OpenAI API quota exceeded. Please check your billing details or try again later.")
-                else:
-                    st.warning(f"Image generation failed across all models. Using placeholder image instead.")
-            except ImportError:
-                pass  # Can't import streamlit, skip UI notification
+            # Avoid calling Streamlit from worker threads. UI layers should decide how to present errors.
+            if "moderation" in error_msg.lower() or "safety" in error_msg.lower():
+                msg = "Image generation blocked by safety filters. Using a placeholder image instead."
+            elif "quota" in error_msg.lower() or "insufficient_quota" in error_msg.lower():
+                msg = "OpenAI API quota exceeded. Using a placeholder image instead."
+            else:
+                msg = "Image generation failed across all models. Using a placeholder image instead."
+
+            print(f"⚠️ {msg}")
+            if logger:
+                try:
+                    logger.log_warning(msg)
+                except Exception:
+                    # Logger is best-effort only
+                    pass
             
             # Create a placeholder image
             placeholder_b64 = self._create_placeholder_image(f"Educational illustration for {topic or 'this topic'}")

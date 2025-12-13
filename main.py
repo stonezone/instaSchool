@@ -2,8 +2,6 @@
 InstaSchool - AI-Powered Curriculum Generator
 Landing page and navigation hub
 """
-import os
-import sys
 
 # NOTE: Module cleanup removed - causes KeyError crashes on Python 3.13/Streamlit Cloud
 # The previous approach of clearing sys.modules broke nested imports
@@ -13,7 +11,6 @@ import matplotlib
 matplotlib.use('Agg')
 
 import streamlit as st
-import atexit
 from pathlib import Path
 
 # Page config MUST be first Streamlit command
@@ -21,7 +18,7 @@ st.set_page_config(
     page_title="InstaSchool",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 # Load CSS
@@ -31,13 +28,25 @@ if css_path.exists():
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # Import after page config
-from src.ui_components import ModernUI
 from version import get_version_display
 
 # Landing Page Content
-st.markdown("# 🎓 Welcome to InstaSchool")
-st.markdown(f"*{get_version_display()}*")
-st.markdown("### Choose your mode to get started:")
+st.markdown(
+    f"""
+    <div class="hero-glass animate-fade-in">
+        <div class="gradient-text" style="font-family: var(--font-display); font-size: 44px; font-weight: 600; margin: 0;">
+            🎓 InstaSchool
+        </div>
+        <div style="color: var(--text-tertiary); font-size: 13px; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px;">
+            {get_version_display()}
+        </div>
+        <div style="margin-top: 14px; font-size: 17px;">
+            Choose your mode to get started:
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 col1, col2, col3 = st.columns(3)
 
@@ -87,5 +96,5 @@ st.markdown("---")
 st.caption("Built with ❤️ using Streamlit and OpenAI")
 
 # Cleanup registration
-from services.session_service import SessionManager
-atexit.register(lambda: SessionManager().cleanup_temp_files())
+from services.session_service import init_tempfile_cleanup
+init_tempfile_cleanup(max_age_hours=24)

@@ -4,6 +4,7 @@ Provides PDF, HTML, and Markdown export functionality using pure Python librarie
 """
 
 import os
+import json
 import base64
 import tempfile
 from pathlib import Path
@@ -99,9 +100,13 @@ class CurriculumExporter:
             PDF file as bytes
         """
         try:
+            meta = curriculum.get("meta") or curriculum.get("metadata") or {}
+            if not isinstance(meta, dict):
+                meta = {}
+
             # Extract curriculum info
-            title = curriculum.get('metadata', {}).get('subject', 'Curriculum')
-            grade = curriculum.get('metadata', {}).get('grade_level', '')
+            title = meta.get("subject") or meta.get("title") or "Curriculum"
+            grade = meta.get("grade") or meta.get("grade_level") or ""
             
             # Create PDF
             pdf = CurriculumPDF(curriculum_title=f"{title} - {grade}")
@@ -116,16 +121,19 @@ class CurriculumExporter:
             pdf.cell(0, 10, f"Grade Level: {grade}", 0, 1, 'C')
             
             # Add metadata
-            metadata = curriculum.get('metadata', {})
-            if metadata:
+            if meta:
                 pdf.ln(10)
                 pdf.set_font('Arial', 'B', 12)
                 pdf.cell(0, 10, 'Curriculum Details', 0, 1, 'L')
                 pdf.set_font('Arial', '', 11)
                 
-                for key, value in metadata.items():
-                    if key not in ['subject', 'grade_level']:
-                        pdf.cell(0, 8, f"{key.replace('_', ' ').title()}: {value}", 0, 1)
+                for key, value in meta.items():
+                    if key not in ['subject', 'grade', 'grade_level']:
+                        try:
+                            display_value = json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else str(value)
+                        except Exception:
+                            display_value = str(value)
+                        pdf.cell(0, 8, f"{key.replace('_', ' ').title()}: {display_value}", 0, 1)
             
             # Add units
             units = curriculum.get('units', [])
@@ -158,7 +166,14 @@ class CurriculumExporter:
                 if unit.get('chart'):
                     pdf.set_font('Arial', 'B', 12)
                     pdf.cell(0, 8, 'Data Visualization', 0, 1)
-                    pdf.add_image_from_base64(unit['chart'])
+                    chart = unit.get("chart")
+                    chart_b64 = None
+                    if isinstance(chart, dict):
+                        chart_b64 = chart.get("b64")
+                    elif isinstance(chart, str):
+                        chart_b64 = chart
+                    if chart_b64:
+                        pdf.add_image_from_base64(chart_b64)
                 
                 # Quiz
                 if unit.get('quiz'):
@@ -167,17 +182,24 @@ class CurriculumExporter:
                     quiz = unit['quiz']
 
                     # Handle both list format and dict format
-                    questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
+                    if isinstance(quiz, dict) and isinstance(quiz.get("quiz"), list):
+                        questions = quiz.get("quiz", [])
+                    else:
+                        questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
+
                     for q_idx, question in enumerate(questions, 1):
+                        if not isinstance(question, dict):
+                            continue
                         pdf.set_font('Arial', 'B', 11)
                         pdf.cell(0, 8, f"Question {q_idx}:", 0, 1)
                         pdf.set_font('Arial', '', 11)
                         pdf.multi_cell(0, 6, question.get('question', ''))
                         
                         # Options
-                        for opt_key in ['a', 'b', 'c', 'd']:
-                            if opt_key in question:
-                                pdf.cell(0, 6, f"  {opt_key.upper()}) {question[opt_key]}", 0, 1)
+                        options = question.get("options")
+                        if isinstance(options, list) and options:
+                            for opt in options:
+                                pdf.cell(0, 6, f"  • {opt}", 0, 1)
                         
                         pdf.ln(3)
                 
@@ -192,8 +214,30 @@ class CurriculumExporter:
                     pdf.set_font('Arial', 'B', 12)
                     pdf.cell(0, 8, 'Additional Resources', 0, 1)
                     pdf.set_font('Arial', '', 11)
-                    for resource in unit['resources']:
-                        pdf.multi_cell(0, 6, f"• {resource}")
+                    resources = unit.get("resources")
+                    if isinstance(resources, str):
+                        pdf.chapter_body(resources)
+                    elif isinstance(resources, list):
+                        for resource in resources:
+                            pdf.multi_cell(0, 6, f"• {resource}")
+                        pdf.ln(3)
+                    elif isinstance(resources, dict):
+                        for resource_type, resource_list in resources.items():
+                            if not resource_list:
+                                continue
+                            pdf.set_font('Arial', 'B', 11)
+                            pdf.cell(0, 7, str(resource_type).title(), 0, 1)
+                            pdf.set_font('Arial', '', 11)
+                            if isinstance(resource_list, str):
+                                pdf.chapter_body(resource_list)
+                            elif isinstance(resource_list, list):
+                                for resource in resource_list:
+                                    if isinstance(resource, dict):
+                                        title = resource.get("title", "Resource")
+                                        url = resource.get("url")
+                                        pdf.multi_cell(0, 6, f"• {title} ({url})" if url else f"• {title}")
+                                    else:
+                                        pdf.multi_cell(0, 6, f"• {resource}")
                     pdf.ln(3)
             
             # Return PDF as bytes
@@ -212,8 +256,25 @@ class CurriculumExporter:
         Returns:
             HTML string
         """
-        title = curriculum.get('metadata', {}).get('subject', 'Curriculum')
-        grade = curriculum.get('metadata', {}).get('grade_level', '')
+        meta = curriculum.get("meta") or curriculum.get("metadata") or {}
+        if not isinstance(meta, dict):
+            meta = {}
+
+        title = meta.get("subject") or meta.get("title") or "Curriculum"
+        grade = meta.get("grade") or meta.get("grade_level") or ""
+
+        units = curriculum.get("units", []) or []
+        needs_plotly = any(
+            isinstance(u, dict)
+            and isinstance(u.get("chart"), dict)
+            and u.get("chart", {}).get("plotly_config")
+            for u in units
+        )
+        plotly_script = (
+            '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
+            if needs_plotly
+            else ""
+        )
         
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -221,6 +282,7 @@ class CurriculumExporter:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} - {grade}</title>
+    {plotly_script}
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -266,47 +328,91 @@ class CurriculumExporter:
 <body>
     <h1>{title}</h1>
     <p><strong>Grade Level:</strong> {grade}</p>
-"""
+        """
         
         # Add units
-        units = curriculum.get('units', [])
         for idx, unit in enumerate(units, 1):
+            if not isinstance(unit, dict):
+                continue
             html += f'\n<div class="unit">\n'
             html += f'<h2>Unit {idx}: {unit.get("title", "Untitled")}</h2>\n'
             
             if unit.get('introduction'):
-                html += f'<h3>Introduction</h3>\n<p>{unit["introduction"]}</p>\n'
+                html += f'<h3>Introduction</h3>\n{markdown.markdown(unit.get("introduction", ""))}\n'
             
             if unit.get('content'):
-                html += f'<h3>Content</h3>\n<p>{unit["content"]}</p>\n'
+                html += f'<h3>Content</h3>\n{markdown.markdown(unit.get("content", ""))}\n'
             
             img_b64 = unit.get('selected_image_b64') or unit.get('image')
             if img_b64:
-                html += f'<h3>Illustration</h3>\n<img src="{img_b64}" alt="Unit illustration">\n'
+                src = img_b64 if isinstance(img_b64, str) and img_b64.startswith("data:") else f"data:image/png;base64,{img_b64}"
+                html += f'<h3>Illustration</h3>\n<img src="{src}" alt="Unit illustration">\n'
             
             if unit.get('chart'):
-                html += f'<h3>Data Visualization</h3>\n<img src="{unit["chart"]}" alt="Chart">\n'
+                chart = unit.get("chart")
+                html += f'<h3>Data Visualization</h3>\n'
+                if isinstance(chart, dict):
+                    chart_b64 = chart.get("b64")
+                    if chart_b64:
+                        src = chart_b64 if str(chart_b64).startswith("data:") else f"data:image/png;base64,{chart_b64}"
+                        html += f'<img src="{src}" alt="Chart">\n'
+                    elif chart.get("plotly_config"):
+                        chart_id = f"chart_{idx}"
+                        fig_json = json.dumps(chart.get("plotly_config"))
+                        html += f'<div id="{chart_id}" style="width: 100%; height: 420px;"></div>\n'
+                        html += f'<script>const fig_{idx} = {fig_json}; Plotly.newPlot("{chart_id}", fig_{idx}.data, fig_{idx}.layout);</script>\n'
+                elif isinstance(chart, str):
+                    src = chart if chart.startswith("data:") else f"data:image/png;base64,{chart}"
+                    html += f'<img src="{src}" alt="Chart">\n'
             
             if unit.get('quiz'):
                 html += '<div class="quiz">\n<h3>Assessment Questions</h3>\n'
                 quiz = unit['quiz']
-                questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
+                if isinstance(quiz, dict) and isinstance(quiz.get("quiz"), list):
+                    questions = quiz.get("quiz", [])
+                else:
+                    questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
                 for q_idx, question in enumerate(questions, 1):
+                    if not isinstance(question, dict):
+                        continue
                     html += f'<div class="question">\n<strong>Question {q_idx}:</strong> {question.get("question", "")}<br>\n'
-                    for opt_key in ['a', 'b', 'c', 'd']:
-                        if opt_key in question:
-                            html += f'{opt_key.upper()}) {question[opt_key]}<br>\n'
+                    options = question.get("options")
+                    if isinstance(options, list) and options:
+                        for opt in options:
+                            html += f'• {opt}<br>\n'
                     html += '</div>\n'
                 html += '</div>\n'
             
             if unit.get('summary'):
-                html += f'<h3>Summary</h3>\n<p>{unit["summary"]}</p>\n'
+                html += f'<h3>Summary</h3>\n{markdown.markdown(unit.get("summary", ""))}\n'
             
             if unit.get('resources'):
-                html += '<h3>Additional Resources</h3>\n<ul>\n'
-                for resource in unit['resources']:
-                    html += f'<li>{resource}</li>\n'
-                html += '</ul>\n'
+                html += '<h3>Additional Resources</h3>\n'
+                resources = unit.get("resources")
+                if isinstance(resources, str):
+                    html += markdown.markdown(resources) + "\n"
+                elif isinstance(resources, list):
+                    html += '<ul>\n'
+                    for resource in resources:
+                        html += f'<li>{resource}</li>\n'
+                    html += '</ul>\n'
+                elif isinstance(resources, dict):
+                    for resource_type, resource_list in resources.items():
+                        if not resource_list:
+                            continue
+                        html += f"<h4>{str(resource_type).title()}</h4>\n"
+                        if isinstance(resource_list, str):
+                            html += markdown.markdown(resource_list) + "\n"
+                        elif isinstance(resource_list, list):
+                            html += "<ul>\n"
+                            for resource in resource_list:
+                                if isinstance(resource, dict):
+                                    r_title = resource.get("title", "Resource")
+                                    url = resource.get("url")
+                                    html += f"<li><a href=\"{url}\">{r_title}</a></li>\n" if url else f"<li>{r_title}</li>\n"
+                                else:
+                                    html += f"<li>{resource}</li>\n"
+                            html += "</ul>\n"
             
             html += '</div>\n'
         
@@ -316,18 +422,23 @@ class CurriculumExporter:
         
         return html
     
-    def generate_markdown(self, curriculum: Dict[str, Any]) -> str:
+    def generate_markdown(self, curriculum: Dict[str, Any], include_images: bool = True) -> str:
         """
         Generate Markdown from curriculum data
         
         Args:
             curriculum: Curriculum dictionary
+            include_images: Whether to include image/chart placeholders
             
         Returns:
             Markdown string
         """
-        title = curriculum.get('metadata', {}).get('subject', 'Curriculum')
-        grade = curriculum.get('metadata', {}).get('grade_level', '')
+        meta = curriculum.get("meta") or curriculum.get("metadata") or {}
+        if not isinstance(meta, dict):
+            meta = {}
+
+        title = meta.get("subject") or meta.get("title") or "Curriculum"
+        grade = meta.get("grade") or meta.get("grade_level") or ""
         
         md = f"# {title}\n\n"
         md += f"**Grade Level:** {grade}\n\n"
@@ -335,8 +446,10 @@ class CurriculumExporter:
         md += "---\n\n"
         
         # Add units
-        units = curriculum.get('units', [])
+        units = curriculum.get('units', []) or []
         for idx, unit in enumerate(units, 1):
+            if not isinstance(unit, dict):
+                continue
             md += f"## Unit {idx}: {unit.get('title', 'Untitled')}\n\n"
             
             if unit.get('introduction'):
@@ -344,16 +457,38 @@ class CurriculumExporter:
             
             if unit.get('content'):
                 md += f"### Content\n\n{unit['content']}\n\n"
+
+            if include_images:
+                img_b64 = unit.get("selected_image_b64") or unit.get("image")
+                if img_b64:
+                    md += "### Illustration\n\n"
+                    md += f"*![Illustration: {unit.get('title', 'Topic')}]*\n\n"
+
+                chart = unit.get("chart")
+                chart_b64 = None
+                if isinstance(chart, dict):
+                    chart_b64 = chart.get("b64")
+                elif isinstance(chart, str):
+                    chart_b64 = chart
+                if chart_b64:
+                    md += "### Data Visualization\n\n"
+                    md += f"*![Chart: {unit.get('title', 'Topic')}]*\n\n"
             
             if unit.get('quiz'):
                 md += "### Assessment Questions\n\n"
                 quiz = unit['quiz']
-                questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
+                if isinstance(quiz, dict) and isinstance(quiz.get("quiz"), list):
+                    questions = quiz.get("quiz", [])
+                else:
+                    questions = quiz if isinstance(quiz, list) else quiz.get('questions', [])
                 for q_idx, question in enumerate(questions, 1):
+                    if not isinstance(question, dict):
+                        continue
                     md += f"**Question {q_idx}:** {question.get('question', '')}\n\n"
-                    for opt_key in ['a', 'b', 'c', 'd']:
-                        if opt_key in question:
-                            md += f"- {opt_key.upper()}) {question[opt_key]}\n"
+                    options = question.get("options")
+                    if isinstance(options, list) and options:
+                        for opt in options:
+                            md += f"- {opt}\n"
                     md += "\n"
             
             if unit.get('summary'):
@@ -361,8 +496,27 @@ class CurriculumExporter:
             
             if unit.get('resources'):
                 md += "### Additional Resources\n\n"
-                for resource in unit['resources']:
-                    md += f"- {resource}\n"
+                resources = unit.get("resources")
+                if isinstance(resources, str):
+                    md += resources.strip() + "\n"
+                elif isinstance(resources, list):
+                    for resource in resources:
+                        md += f"- {resource}\n"
+                elif isinstance(resources, dict):
+                    for resource_type, resource_list in resources.items():
+                        if not resource_list:
+                            continue
+                        md += f"**{str(resource_type).title()}**\n\n"
+                        if isinstance(resource_list, str):
+                            md += resource_list.strip() + "\n\n"
+                        elif isinstance(resource_list, list):
+                            for resource in resource_list:
+                                if isinstance(resource, dict):
+                                    r_title = resource.get("title", "Resource")
+                                    url = resource.get("url")
+                                    md += f"- {r_title} ({url})\n" if url else f"- {r_title}\n"
+                                else:
+                                    md += f"- {resource}\n"
                 md += "\n"
             
             md += "---\n\n"

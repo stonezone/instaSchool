@@ -12,7 +12,7 @@ import concurrent.futures
 import threading
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Dict, Any, List, Optional, Tuple, Union, Callable
 
 # Import BaseAgent from core.types to prevent circular dependencies
 from src.core.types import BaseAgent
@@ -92,6 +92,7 @@ class OrchestratorAgent(BaseAgent):
         extra,
         config,
         cancellation_event: Optional[threading.Event] = None,
+        progress_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     ):
         """Main entry point for curriculum generation.
 
@@ -103,32 +104,41 @@ class OrchestratorAgent(BaseAgent):
         def is_cancelled() -> bool:
             """Check whether generation has been cancelled.
 
-            Priority: explicit cancellation_event → StateManager.generating flag.
+            IMPORTANT: Do not touch Streamlit session state here. This method may
+            be called from non-Streamlit threads (see Streamlit multithreading docs).
             """
-            # Explicit cancellation token from caller takes precedence
-            if cancellation_event is not None and cancellation_event.is_set():
-                return True
+            return bool(cancellation_event is not None and cancellation_event.is_set())
 
-            # Fallback to StateManager flag (main thread only)
+        def report(event: str, **data: Any) -> None:
+            """Report progress events to the caller (best-effort)."""
+            if progress_callback is None:
+                return
             try:
-                from src.state_manager import StateManager  # Local import to avoid cycles
-
-                generating = StateManager.get_state("generating", True)
+                progress_callback(event, data)
             except Exception:
-                generating = True
-
-            if not generating and cancellation_event is not None:
-                # Propagate cancellation to worker tasks
-                cancellation_event.set()
-            return not generating
+                # Never let progress reporting break generation.
+                pass
 
         # Create a plan for curriculum generation
+        report("planning_start")
         plan = self._create_generation_plan(subject, grade, style, language, extra)
+        report("planning_done")
 
         # Check for cancellation
         if is_cancelled():
             print("Generation cancelled during planning phase")
-            return {"meta": {"cancelled": True}, "units": []}
+            report("cancelled", phase="planning")
+            return {
+                "meta": {
+                    "subject": subject,
+                    "grade": grade,
+                    "style": style,
+                    "language": language,
+                    "extra": extra,
+                    "cancelled": True,
+                },
+                "units": [],
+            }
 
         # Initialize worker agents with appropriate models
         outline_agent = OutlineAgent(self.client, self.worker_model, config)
@@ -140,6 +150,7 @@ class OrchestratorAgent(BaseAgent):
         resource_agent = ResourceAgent(self.client, self.worker_model, config)
         
         # Step 1: Generate outline
+        report("outline_start")
         topics = outline_agent.generate_outline(
             subject,
             grade,
@@ -149,11 +160,24 @@ class OrchestratorAgent(BaseAgent):
             config["defaults"]["max_topics"],
             language,
         )
+        report("outline_done", total_topics=len(topics), topics_completed=0)
 
         # Check for cancellation
         if is_cancelled():
             print("Generation cancelled after outline phase")
-            return {"meta": {"cancelled": True}, "units": []}
+            report("cancelled", phase="outline")
+            return {
+                "meta": {
+                    "subject": subject,
+                    "grade": grade,
+                    "style": style,
+                    "language": language,
+                    "extra": extra,
+                    "plan": plan,
+                    "cancelled": True,
+                },
+                "units": [],
+            }
         
         # Get persona based on subject
         persona = self.get_persona_for_subject(subject)
@@ -173,6 +197,7 @@ class OrchestratorAgent(BaseAgent):
                 "include_keypoints": config["defaults"]["include_keypoints"],
                 "media_richness": config["defaults"]["media_richness"],
                 "persona": persona,
+                "cancelled": False,
             },
             "units": []
         }
@@ -182,9 +207,18 @@ class OrchestratorAgent(BaseAgent):
             # Check for cancellation
             if is_cancelled():
                 print(f"Generation cancelled after processing {i} of {len(topics)} topics")
+                curriculum["meta"]["cancelled"] = True
+                report("cancelled", phase="topics", total_topics=len(topics), topics_completed=i)
                 return curriculum  # Return what we have so far
 
             # Provide detailed instructions to content agent based on plan
+            report(
+                "topic_start",
+                topic_index=i,
+                total_topics=len(topics),
+                topics_completed=i,
+                topic_title=topic.get("title", "Untitled Topic"),
+            )
             unit = self._process_topic(
                 topic,
                 subject,
@@ -202,26 +236,25 @@ class OrchestratorAgent(BaseAgent):
                 cancellation_event=cancellation_event,
             )
             curriculum["units"].append(unit)
-
-            # Update progress in session state after each unit (best-effort)
-            try:
-                from src.state_manager import StateManager  # Local import
-
-                topic_progress = 0.6 / max(len(topics), 1)
-                StateManager.update_state(
-                    "progress", 0.3 + (i + 1) * topic_progress
-                )
-            except Exception:
-                # If StateManager or Streamlit are unavailable, skip UI progress updates
-                pass
+            report(
+                "topic_done",
+                topic_index=i,
+                total_topics=len(topics),
+                topics_completed=i + 1,
+                topic_title=topic.get("title", "Untitled Topic"),
+            )
 
         # Check for cancellation before refinement
         if is_cancelled():
             print("Generation cancelled before refinement")
+            curriculum["meta"]["cancelled"] = True
+            report("cancelled", phase="refine", total_topics=len(topics), topics_completed=len(curriculum["units"]))
             return curriculum
             
         # Final review and refinement
+        report("refine_start", total_topics=len(topics), topics_completed=len(curriculum["units"]))
         curriculum = self._refine_curriculum(curriculum)
+        report("done", total_topics=len(topics), topics_completed=len(curriculum["units"]))
         return curriculum
     
     def _create_generation_plan(self, subject, grade, style, language, extra):
@@ -757,11 +790,6 @@ class ChartAgent(BaseAgent):
         if not labels or not values:
             error_msg = f"Cannot create chart '{title}': Missing labels or values."
             print(error_msg)
-            try:
-                import streamlit as st
-                st.warning(f"Chart generation issue: {error_msg}")
-            except ImportError:
-                pass
             return None
 
         # Convert values to numeric
@@ -785,10 +813,14 @@ class ChartAgent(BaseAgent):
                     chart_type, title, labels, numeric_values, x_label, y_label
                 )
                 if plotly_config:
+                    static = self._create_matplotlib_chart(
+                        chart_type, title, labels, numeric_values, x_label, y_label
+                    )
                     return {
                         "plotly_config": plotly_config,
                         "title": title,
-                        "chart_type": "plotly"
+                        "chart_type": "plotly",
+                        "b64": static.get("b64") if isinstance(static, dict) else None,
                     }
             except Exception as e:
                 print(f"Plotly chart generation failed, falling back to matplotlib: {e}")
@@ -901,11 +933,6 @@ class ChartAgent(BaseAgent):
         # Check if matplotlib is available
         if not MATPLOTLIB_AVAILABLE:
             print("Cannot create chart: matplotlib is not installed.")
-            try:
-                import streamlit as st
-                st.warning("Chart generation requires matplotlib which is not installed.")
-            except ImportError:
-                pass
             return {"title": title, "b64": None, "error": "matplotlib not installed", "chart_type": "matplotlib"}
 
         fig = None
@@ -972,12 +999,6 @@ class ChartAgent(BaseAgent):
             print(error_msg)
             if fig:
                 plt.close(fig)
-            
-            try:
-                import streamlit as st
-                st.warning(f"Chart generation issue: {error_msg}")
-            except ImportError:
-                pass
                 
             return None
 
@@ -989,7 +1010,7 @@ class QuizAgent(BaseAgent):
         super().__init__(client, model)
         self.prompt_template = config["prompts"].get("quiz", "")
     
-    def generate_quiz(self, topic, subject, grade, style, language) -> Optional[List[Dict[str, Any]]]:
+    def generate_quiz(self, topic, subject, grade, style, language) -> Optional[Dict[str, Any]]:
         prompt = self.prompt_template.format(
             topic=topic, subject=subject, grade=grade, style=style, language=language
         )
@@ -1005,7 +1026,103 @@ class QuizAgent(BaseAgent):
                 content = response.choices[0].message.content
                 try:
                     data = json.loads(content)
-                    return data.get("quiz", [])
+                    raw_questions = None
+                    if isinstance(data.get("questions"), list):
+                        raw_questions = data.get("questions")
+                    elif isinstance(data.get("quiz"), list):
+                        raw_questions = data.get("quiz")
+                    elif isinstance(data.get("quiz"), dict) and isinstance(data["quiz"].get("questions"), list):
+                        raw_questions = data["quiz"]["questions"]
+
+                    if not isinstance(raw_questions, list):
+                        return None
+
+                    def normalize_question(q: Any) -> Optional[Dict[str, Any]]:
+                        if not isinstance(q, dict):
+                            return None
+
+                        question_text = q.get("question") or q.get("prompt") or ""
+                        if not isinstance(question_text, str) or not question_text.strip():
+                            return None
+
+                        raw_type = q.get("type") or q.get("question_type") or ""
+                        raw_type_norm = str(raw_type).strip().lower()
+
+                        options = q.get("options")
+                        if options is None:
+                            # Legacy: options as a/b/c/d keys
+                            opts = []
+                            for k in ("a", "b", "c", "d"):
+                                if k in q:
+                                    opts.append(q.get(k))
+                            options = opts
+                        if not isinstance(options, list):
+                            options = []
+                        options = [
+                            str(o).strip()
+                            for o in options
+                            if o is not None and str(o).strip()
+                        ]
+
+                        answer = q.get("correct") or q.get("answer") or q.get("correct_answer")
+                        if isinstance(answer, (int, float)):
+                            answer = str(answer)
+                        if not isinstance(answer, str):
+                            answer = None
+                        if isinstance(answer, str):
+                            answer = answer.strip()
+
+                        # Determine question type compatible with Student UI
+                        if raw_type_norm in {"short_answer", "shortanswer", "open", "open_ended"}:
+                            qtype = "short_answer"
+                        elif raw_type_norm in {"fill", "fill_in_blank", "fill-in-the-blank", "fill_in_the_blank"}:
+                            qtype = "short_answer"
+                        elif raw_type_norm in {"tf", "true_false", "true/false", "truefalse"}:
+                            qtype = "multiple_choice"
+                            if not options:
+                                options = ["True", "False"]
+                        elif raw_type_norm in {"mcq", "mc", "multiple_choice", "multiple choice", "choice"}:
+                            qtype = "multiple_choice"
+                        else:
+                            # Heuristics: treat as MC if it has options, otherwise short answer if it has an answer
+                            qtype = "multiple_choice" if options else ("short_answer" if answer else "multiple_choice")
+
+                        if qtype == "multiple_choice":
+                            if not options or answer is None:
+                                return None
+
+                            # Accept letter answers like "A"/"B"/"C"/"D"
+                            if len(answer) == 1 and answer.upper() in "ABCD" and len(options) >= 4:
+                                answer = options["ABCD".index(answer.upper())]
+
+                            if answer not in options:
+                                # Try a case-insensitive match against the provided options
+                                for opt in options:
+                                    if opt.strip().lower() == answer.strip().lower():
+                                        answer = opt
+                                        break
+
+                            if answer not in options:
+                                return None
+
+                            return {
+                                "question": question_text.strip(),
+                                "type": "multiple_choice",
+                                "options": options,
+                                "correct": answer,
+                            }
+
+                        # short_answer
+                        out: Dict[str, Any] = {
+                            "question": question_text.strip(),
+                            "type": "short_answer",
+                        }
+                        if answer:
+                            out["sample_answer"] = answer
+                        return out
+
+                    normalized = [n for n in (normalize_question(q) for q in raw_questions) if n]
+                    return {"questions": normalized} if normalized else None
                 except json.JSONDecodeError:
                     print(f"Quiz JSON decode error: {content}")
             return None

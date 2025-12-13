@@ -4,6 +4,7 @@ Multi-provider abstraction for AI APIs (OpenAI, Kimi, DeepSeek, Ollama)
 """
 
 import os
+import copy
 from typing import Dict, Any, List, Optional
 from openai import OpenAI
 
@@ -155,7 +156,10 @@ class AIProviderService:
             config: Configuration dictionary from config.yaml
         """
         self.config = config
-        self.defaults = config.get("defaults", {})
+        # Treat config defaults as instance-scoped (avoid cross-session bleed via shared dicts).
+        self.defaults = copy.deepcopy(config.get("defaults", {}))
+        # Instance-scoped provider definitions (avoid mutating class-level PROVIDERS).
+        self.providers = copy.deepcopy(self.PROVIDERS)
 
         # Override provider configs from config.yaml if present
         # Check both config["providers"] and config["ai_providers"]["providers"]
@@ -171,14 +175,14 @@ class AIProviderService:
 
         if provider_config:
             for provider_name, provider_data in provider_config.items():
-                if provider_name in self.PROVIDERS:
+                if provider_name in self.providers:
                     # Only merge known keys to avoid breaking hardcoded structure
                     if "settings" in provider_data:
-                        self.PROVIDERS[provider_name]["default_settings"].update(
+                        self.providers[provider_name]["default_settings"].update(
                             provider_data["settings"]
                         )
                     if "models" in provider_data:
-                        self.PROVIDERS[provider_name]["models"].update(
+                        self.providers[provider_name]["models"].update(
                             provider_data["models"]
                         )
 
@@ -199,7 +203,7 @@ class AIProviderService:
 
         available = []
 
-        for provider_name, provider_config in self.PROVIDERS.items():
+        for provider_name, provider_config in self.providers.items():
             if not provider_config["requires_key"]:
                 # No key required (e.g., Ollama)
                 available.append(provider_name)
@@ -229,7 +233,7 @@ class AIProviderService:
             RuntimeError: If no providers are available
         """
         # Check config for explicit default
-        default_from_config = self.config.get("defaults", {}).get("provider")
+        default_from_config = self.defaults.get("provider")
         if default_from_config and default_from_config in self.get_available_providers():
             return default_from_config
 
@@ -259,14 +263,14 @@ class AIProviderService:
             provider = self.get_default_provider()
 
         # Validate provider
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             raise ValueError(
                 f"Invalid provider '{provider}'. "
-                f"Valid options: {', '.join(self.PROVIDERS.keys())}"
+                f"Valid options: {', '.join(self.providers.keys())}"
             )
 
         if provider not in self.get_available_providers():
-            provider_config = self.PROVIDERS[provider]
+            provider_config = self.providers[provider]
             if provider_config["requires_key"]:
                 key_name = provider_config["api_key_env"]
                 alt_key = provider_config.get("api_key_env_alt", "")
@@ -286,7 +290,7 @@ class AIProviderService:
             return self._client_cache[provider]
 
         # Create new client
-        provider_config = self.PROVIDERS[provider]
+        provider_config = self.providers[provider]
 
         client_kwargs = {
             "base_url": provider_config["base_url"]
@@ -340,10 +344,10 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             raise ValueError(
                 f"Invalid provider '{provider}'. "
-                f"Valid options: {', '.join(self.PROVIDERS.keys())}"
+                f"Valid options: {', '.join(self.providers.keys())}"
             )
 
         if task not in ["main", "worker", "image"]:
@@ -352,7 +356,7 @@ class AIProviderService:
                 f"Valid options: 'main', 'worker', 'image'"
             )
 
-        provider_config = self.PROVIDERS[provider]
+        provider_config = self.providers[provider]
         model = provider_config["models"].get(task)
 
         if model is None:
@@ -385,13 +389,13 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             raise ValueError(
                 f"Invalid provider '{provider}'. "
-                f"Valid options: {', '.join(self.PROVIDERS.keys())}"
+                f"Valid options: {', '.join(self.providers.keys())}"
             )
 
-        provider_config = self.PROVIDERS[provider]
+        provider_config = self.providers[provider]
         return provider_config.get("default_settings", {}).copy()
 
     def invalidate_cache(self, provider: Optional[str] = None) -> None:
@@ -421,13 +425,13 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             raise ValueError(
                 f"Invalid provider '{provider}'. "
-                f"Valid options: {', '.join(self.PROVIDERS.keys())}"
+                f"Valid options: {', '.join(self.providers.keys())}"
             )
 
-        provider_config = self.PROVIDERS[provider]
+        provider_config = self.providers[provider]
 
         info = {
             "name": provider,
@@ -457,14 +461,14 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             return []
 
         # Start with hardcoded defaults
-        models = set(self.PROVIDERS[provider].get("text_models", []))
+        models = set(self.providers[provider].get("text_models", []))
 
         # Merge defaults.text_models from config (global list)
-        default_text_models = self.config.get("defaults", {}).get("text_models", [])
+        default_text_models = self.defaults.get("text_models", [])
         if isinstance(default_text_models, list):
             models.update(default_text_models)
 
@@ -494,10 +498,10 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             return []
 
-        return self.PROVIDERS[provider].get("image_models", [])
+        return self.providers[provider].get("image_models", [])
 
     def supports_images(self, provider: Optional[str] = None) -> bool:
         """Check if a provider supports image generation
@@ -511,10 +515,10 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             return False
 
-        return self.PROVIDERS[provider].get("supports_images", False)
+        return self.providers[provider].get("supports_images", False)
 
     def get_cost_tier(self, provider: Optional[str] = None) -> str:
         """Get cost tier for a provider
@@ -528,10 +532,10 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             return "unknown"
 
-        return self.PROVIDERS[provider].get("cost_tier", "unknown")
+        return self.providers[provider].get("cost_tier", "unknown")
 
     def get_thinking_models(self, provider: Optional[str] = None) -> List[str]:
         """Get available thinking/reasoning models for a provider
@@ -547,10 +551,10 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             return []
 
-        return self.PROVIDERS[provider].get("thinking_models", [])
+        return self.providers[provider].get("thinking_models", [])
 
     def get_vision_models(self, provider: Optional[str] = None) -> List[str]:
         """Get available vision models for a provider
@@ -566,10 +570,10 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             return []
 
-        return self.PROVIDERS[provider].get("vision_models", [])
+        return self.providers[provider].get("vision_models", [])
 
     def supports_vision(self, provider: Optional[str] = None) -> bool:
         """Check if provider supports image analysis (vision)
@@ -586,10 +590,10 @@ class AIProviderService:
         if provider is None:
             provider = self.get_default_provider()
 
-        if provider not in self.PROVIDERS:
+        if provider not in self.providers:
             return False
 
-        return self.PROVIDERS[provider].get("supports_vision", False)
+        return self.providers[provider].get("supports_vision", False)
 
     def list_all_providers(self) -> Dict[str, Dict[str, Any]]:
         """Get information about all configured providers
@@ -599,7 +603,7 @@ class AIProviderService:
         """
         return {
             provider: self.get_provider_info(provider)
-            for provider in self.PROVIDERS.keys()
+            for provider in self.providers.keys()
         }
 
     # Cross-provider orchestration support

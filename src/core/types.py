@@ -181,11 +181,6 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Authentication failed")
             print(f"Authentication error: {e}")
-            try:
-                import streamlit as st
-                st.error("⚠️ OpenAI API authentication failed. Please check your API key.")
-            except ImportError:
-                pass
             return None
 
         except APIConnectionError as e:
@@ -211,11 +206,6 @@ class BaseAgent:
 
             # Check for quota error specifically
             if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
-                try:
-                    import streamlit as st
-                    st.error("⚠️ OpenAI API quota exceeded. Please check your billing details or try again later.")
-                except ImportError:
-                    pass
                 return None  # Don't retry quota errors
 
             raise  # Let retry handler deal with other API errors
@@ -312,11 +302,6 @@ class BaseAgent:
             if self.logger:
                 self.logger.log_error(error=e, model=self.model, context="Authentication failed (streaming)")
             yield f"[Error: Authentication failed - {str(e)}]"
-            try:
-                import streamlit as st
-                st.error("⚠️ OpenAI API authentication failed. Please check your API key.")
-            except ImportError:
-                pass
             return None
 
         except APIConnectionError as e:
@@ -338,11 +323,6 @@ class BaseAgent:
 
             if "insufficient_quota" in error_msg.lower() or "quota" in error_msg.lower():
                 yield f"[Error: API quota exceeded - {str(e)}]"
-                try:
-                    import streamlit as st
-                    st.error("⚠️ OpenAI API quota exceeded. Please check your billing details or try again later.")
-                except ImportError:
-                    pass
                 return None
 
             yield f"[Error: API error - {str(e)}]"
