@@ -154,6 +154,7 @@ desktop.ini
 # =============================================================================
 .claude/
 .claude-os/
+.gemini-clipboard/
 .serena/
 .cursor/
 .aider*
