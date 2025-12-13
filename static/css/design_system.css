@@ -505,11 +505,23 @@
 }
 
 /* Reset any text-rendering issues */
-.stApp [data-testid="stExpander"] summary > span:not(.material-icons):not(.material-symbols-outlined):not(.material-symbols-rounded):not(.material-symbols-sharp),
 .stApp [data-testid="stExpander"] summary > div {
     font-family: var(--font-body) !important;
     font-size: var(--text-base) !important;
     color: var(--text-primary) !important;
+    line-height: 1.65 !important;
+}
+
+/* Force expander icon to use correct font */
+.stApp [data-testid="stExpander"] summary > span:first-child {
+    font-family: "Material Icons" !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+    text-transform: none !important;
+    direction: ltr !important;
 }
 
 .stApp [data-testid="stExpander"] summary:hover {
