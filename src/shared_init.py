@@ -23,6 +23,68 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+def _apply_streamlit_secrets_to_env() -> None:
+    """Populate common env vars from Streamlit secrets when present.
+
+    Streamlit Cloud exposes secrets via `st.secrets`, not necessarily as process
+    environment variables. This keeps the rest of the codebase (which uses
+    `os.getenv`) working in both local `.env` and Cloud secrets setups.
+    """
+    try:
+        secrets = getattr(st, "secrets", None)
+        if not secrets:
+            return
+
+        def _maybe_set_env(env_key: str, value: Optional[str]) -> None:
+            if not env_key or not value:
+                return
+            if os.getenv(env_key):
+                return
+            os.environ[env_key] = str(value)
+
+        # Common top-level secrets
+        for env_key in [
+            "OPENAI_API_KEY",
+            "OPENAI_ORG_ID",
+            "KIMI_API_KEY",
+            "MOONSHOT_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "APP_PASSWORD",
+        ]:
+            try:
+                _maybe_set_env(env_key, secrets.get(env_key))
+            except Exception:
+                pass
+
+        # Optional structured secrets
+        try:
+            openai_section = secrets.get("openai") or {}
+            if isinstance(openai_section, dict):
+                _maybe_set_env("OPENAI_API_KEY", openai_section.get("api_key"))
+                _maybe_set_env("OPENAI_ORG_ID", openai_section.get("org_id"))
+        except Exception:
+            pass
+
+        try:
+            kimi_section = secrets.get("kimi") or secrets.get("moonshot") or {}
+            if isinstance(kimi_section, dict):
+                _maybe_set_env("KIMI_API_KEY", kimi_section.get("api_key"))
+                _maybe_set_env("MOONSHOT_API_KEY", kimi_section.get("api_key"))
+        except Exception:
+            pass
+
+        try:
+            deepseek_section = secrets.get("deepseek") or {}
+            if isinstance(deepseek_section, dict):
+                _maybe_set_env("DEEPSEEK_API_KEY", deepseek_section.get("api_key"))
+        except Exception:
+            pass
+    except Exception:
+        return
+
+
+_apply_streamlit_secrets_to_env()
+
 
 @st.cache_data(ttl=300)
 def load_config(path: str = "config.yaml") -> Dict[str, Any]:
