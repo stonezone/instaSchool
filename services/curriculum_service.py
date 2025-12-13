@@ -23,19 +23,24 @@ class CurriculumService:
             config: Configuration dictionary
         """
         self.client = client
-        self.config = config
+        self.config = config or {}
+
+        defaults = self.config.get("defaults") or {}
+        text_model = defaults.get("text_model") or "gpt-5-nano"
+        worker_model = defaults.get("worker_model") or text_model
+        image_model = defaults.get("image_model") or "gpt-image-1"
         
         # Initialize orchestrator
         self.orchestrator = OrchestratorAgent(
             client, 
-            model=config["defaults"]["text_model"],
-            worker_model=config["defaults"]["worker_model"]
+            model=text_model,
+            worker_model=worker_model,
         )
         
         # Initialize image generator
         self.image_generator = ImageGenerator(
             client, 
-            config["defaults"]["image_model"]
+            image_model,
         )
         
     def validate_generation_params(self, params: Dict[str, Any]) -> tuple[bool, Optional[str]]:

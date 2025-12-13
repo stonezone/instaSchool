@@ -24,7 +24,6 @@ from src.shared_init import (
     setup_page,
     load_config,
     get_provider_service,
-    get_curriculum_service,
 )
 from src.state_manager import StateManager
 from src.ui_components import ModernUI, ThemeManager
@@ -42,11 +41,6 @@ provider_service = StateManager.get_state("provider_service")
 if provider_service is None:
     provider_service = get_provider_service()
     StateManager.set_state("provider_service", provider_service)
-
-curriculum_service = StateManager.get_state("curriculum_service")
-if curriculum_service is None:
-    curriculum_service = get_curriculum_service()
-    StateManager.set_state("curriculum_service", curriculum_service)
 
 # --- SIDEBAR: Configuration ---
 st.sidebar.markdown("## ⚙️ Settings")
