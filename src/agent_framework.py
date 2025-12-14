@@ -17,6 +17,7 @@ from typing import Dict, Any, List, Optional, Tuple, Union, Callable
 
 # Import BaseAgent from core.types to prevent circular dependencies
 from src.core.types import BaseAgent
+from src.core.json_utils import parse_json_relaxed
 from src.audio_agent import AudioAgent
 from src.constants import LLM_TEMPERATURE_DEFAULT
 
@@ -498,12 +499,12 @@ class OutlineAgent(BaseAgent):
             
             if response and response.choices:
                 content = response.choices[0].message.content
-                try:
-                    data = json.loads(content)
+                data = parse_json_relaxed(content)
+                if isinstance(data, dict):
                     topics_list = data.get("topics", [])
-                    return [{"title": topic} for topic in topics_list]
-                except json.JSONDecodeError:
-                    print(f"JSON decode error: {content}")
+                    if isinstance(topics_list, list):
+                        return [{"title": topic} for topic in topics_list if isinstance(topic, str)]
+                print(f"Outline JSON parse error: {content}")
             return []
         except Exception as e:
             print(f"Outline generation error: {e}")
@@ -751,13 +752,12 @@ class ChartAgent(BaseAgent):
             
             if response and response.choices:
                 content = response.choices[0].message.content
-                try:
-                    data = json.loads(content)
+                data = parse_json_relaxed(content)
+                if isinstance(data, dict):
                     # Add the suggestion text for reference
                     data["suggestion_text"] = f"Chart type: {data.get('chart_type', 'unknown')}, Title: {data.get('title', 'untitled')}"
                     return data
-                except json.JSONDecodeError:
-                    print(f"Chart JSON decode error: {content}")
+                print(f"Chart JSON parse error: {content}")
             return None
         except Exception as e:
             print(f"Chart suggestion error: {e}")
@@ -1026,107 +1026,108 @@ class QuizAgent(BaseAgent):
             
             if response and response.choices:
                 content = response.choices[0].message.content
-                try:
-                    data = json.loads(content)
-                    raw_questions = None
-                    if isinstance(data.get("questions"), list):
-                        raw_questions = data.get("questions")
-                    elif isinstance(data.get("quiz"), list):
-                        raw_questions = data.get("quiz")
-                    elif isinstance(data.get("quiz"), dict) and isinstance(data["quiz"].get("questions"), list):
-                        raw_questions = data["quiz"]["questions"]
+                data = parse_json_relaxed(content)
+                if not isinstance(data, dict):
+                    print(f"Quiz JSON parse error: {content}")
+                    return None
 
-                    if not isinstance(raw_questions, list):
+                raw_questions = None
+                if isinstance(data.get("questions"), list):
+                    raw_questions = data.get("questions")
+                elif isinstance(data.get("quiz"), list):
+                    raw_questions = data.get("quiz")
+                elif isinstance(data.get("quiz"), dict) and isinstance(data["quiz"].get("questions"), list):
+                    raw_questions = data["quiz"]["questions"]
+
+                if not isinstance(raw_questions, list):
+                    return None
+
+                def normalize_question(q: Any) -> Optional[Dict[str, Any]]:
+                    if not isinstance(q, dict):
                         return None
 
-                    def normalize_question(q: Any) -> Optional[Dict[str, Any]]:
-                        if not isinstance(q, dict):
+                    question_text = q.get("question") or q.get("prompt") or ""
+                    if not isinstance(question_text, str) or not question_text.strip():
+                        return None
+
+                    raw_type = q.get("type") or q.get("question_type") or ""
+                    raw_type_norm = str(raw_type).strip().lower()
+
+                    options = q.get("options")
+                    if options is None:
+                        # Legacy: options as a/b/c/d keys
+                        opts = []
+                        for k in ("a", "b", "c", "d"):
+                            if k in q:
+                                opts.append(q.get(k))
+                        options = opts
+                    if not isinstance(options, list):
+                        options = []
+                    options = [
+                        str(o).strip()
+                        for o in options
+                        if o is not None and str(o).strip()
+                    ]
+
+                    answer = q.get("correct") or q.get("answer") or q.get("correct_answer")
+                    if isinstance(answer, (int, float)):
+                        answer = str(answer)
+                    if not isinstance(answer, str):
+                        answer = None
+                    if isinstance(answer, str):
+                        answer = answer.strip()
+
+                    # Determine question type compatible with Student UI
+                    if raw_type_norm in {"short_answer", "shortanswer", "open", "open_ended"}:
+                        qtype = "short_answer"
+                    elif raw_type_norm in {"fill", "fill_in_blank", "fill-in-the-blank", "fill_in_the_blank"}:
+                        qtype = "short_answer"
+                    elif raw_type_norm in {"tf", "true_false", "true/false", "truefalse"}:
+                        qtype = "multiple_choice"
+                        if not options:
+                            options = ["True", "False"]
+                    elif raw_type_norm in {"mcq", "mc", "multiple_choice", "multiple choice", "choice"}:
+                        qtype = "multiple_choice"
+                    else:
+                        # Heuristics: treat as MC if it has options, otherwise short answer if it has an answer
+                        qtype = "multiple_choice" if options else ("short_answer" if answer else "multiple_choice")
+
+                    if qtype == "multiple_choice":
+                        if not options or answer is None:
                             return None
 
-                        question_text = q.get("question") or q.get("prompt") or ""
-                        if not isinstance(question_text, str) or not question_text.strip():
+                        # Accept letter answers like "A"/"B"/"C"/"D"
+                        if len(answer) == 1 and answer.upper() in "ABCD" and len(options) >= 4:
+                            answer = options["ABCD".index(answer.upper())]
+
+                        if answer not in options:
+                            # Try a case-insensitive match against the provided options
+                            for opt in options:
+                                if opt.strip().lower() == answer.strip().lower():
+                                    answer = opt
+                                    break
+
+                        if answer not in options:
                             return None
 
-                        raw_type = q.get("type") or q.get("question_type") or ""
-                        raw_type_norm = str(raw_type).strip().lower()
-
-                        options = q.get("options")
-                        if options is None:
-                            # Legacy: options as a/b/c/d keys
-                            opts = []
-                            for k in ("a", "b", "c", "d"):
-                                if k in q:
-                                    opts.append(q.get(k))
-                            options = opts
-                        if not isinstance(options, list):
-                            options = []
-                        options = [
-                            str(o).strip()
-                            for o in options
-                            if o is not None and str(o).strip()
-                        ]
-
-                        answer = q.get("correct") or q.get("answer") or q.get("correct_answer")
-                        if isinstance(answer, (int, float)):
-                            answer = str(answer)
-                        if not isinstance(answer, str):
-                            answer = None
-                        if isinstance(answer, str):
-                            answer = answer.strip()
-
-                        # Determine question type compatible with Student UI
-                        if raw_type_norm in {"short_answer", "shortanswer", "open", "open_ended"}:
-                            qtype = "short_answer"
-                        elif raw_type_norm in {"fill", "fill_in_blank", "fill-in-the-blank", "fill_in_the_blank"}:
-                            qtype = "short_answer"
-                        elif raw_type_norm in {"tf", "true_false", "true/false", "truefalse"}:
-                            qtype = "multiple_choice"
-                            if not options:
-                                options = ["True", "False"]
-                        elif raw_type_norm in {"mcq", "mc", "multiple_choice", "multiple choice", "choice"}:
-                            qtype = "multiple_choice"
-                        else:
-                            # Heuristics: treat as MC if it has options, otherwise short answer if it has an answer
-                            qtype = "multiple_choice" if options else ("short_answer" if answer else "multiple_choice")
-
-                        if qtype == "multiple_choice":
-                            if not options or answer is None:
-                                return None
-
-                            # Accept letter answers like "A"/"B"/"C"/"D"
-                            if len(answer) == 1 and answer.upper() in "ABCD" and len(options) >= 4:
-                                answer = options["ABCD".index(answer.upper())]
-
-                            if answer not in options:
-                                # Try a case-insensitive match against the provided options
-                                for opt in options:
-                                    if opt.strip().lower() == answer.strip().lower():
-                                        answer = opt
-                                        break
-
-                            if answer not in options:
-                                return None
-
-                            return {
-                                "question": question_text.strip(),
-                                "type": "multiple_choice",
-                                "options": options,
-                                "correct": answer,
-                            }
-
-                        # short_answer
-                        out: Dict[str, Any] = {
+                        return {
                             "question": question_text.strip(),
-                            "type": "short_answer",
+                            "type": "multiple_choice",
+                            "options": options,
+                            "correct": answer,
                         }
-                        if answer:
-                            out["sample_answer"] = answer
-                        return out
 
-                    normalized = [n for n in (normalize_question(q) for q in raw_questions) if n]
-                    return {"questions": normalized} if normalized else None
-                except json.JSONDecodeError:
-                    print(f"Quiz JSON decode error: {content}")
+                    # short_answer
+                    out: Dict[str, Any] = {
+                        "question": question_text.strip(),
+                        "type": "short_answer",
+                    }
+                    if answer:
+                        out["sample_answer"] = answer
+                    return out
+
+                normalized = [n for n in (normalize_question(q) for q in raw_questions) if n]
+                return {"questions": normalized} if normalized else None
             return None
         except Exception as e:
             print(f"Quiz generation error: {e}")

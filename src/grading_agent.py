@@ -7,7 +7,9 @@ import json
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
-from openai import APIError, RateLimitError, APIConnectionError
+from openai import APIError, RateLimitError, APIConnectionError, BadRequestError
+
+from src.core.json_utils import parse_json_relaxed
 
 # Import logger
 try:
@@ -129,14 +131,26 @@ IMPORTANT:
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "system", "content": prompt}],
-                response_format={"type": "json_object"},
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "system", "content": prompt}],
+                    response_format={"type": "json_object"},
+                )
+            except BadRequestError as e:
+                # Some OpenAI-compatible providers don't support `response_format`.
+                if "response_format" in str(e).lower():
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[{"role": "system", "content": prompt}],
+                    )
+                else:
+                    raise
 
             result = response.choices[0].message.content
-            data = json.loads(result)
+            data = parse_json_relaxed(result)
+            if not isinstance(data, dict):
+                raise json.JSONDecodeError("Invalid JSON response", str(result), 0)
 
             return GradingResult(
                 score=float(data.get('score', 0.5)),
@@ -148,7 +162,7 @@ IMPORTANT:
                 graded=True
             )
 
-        except (APIError, RateLimitError, APIConnectionError) as api_err:
+        except (APIError, RateLimitError, APIConnectionError, BadRequestError) as api_err:
             # API-specific errors - log and fallback
             if _logger:
                 _logger.log_error(error=api_err, model=self.model, context="Grading API call")
@@ -238,17 +252,28 @@ Respond in JSON format:
 }}"""
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "system", "content": prompt}],
-                response_format={"type": "json_object"},
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "system", "content": prompt}],
+                    response_format={"type": "json_object"},
+                )
+            except BadRequestError as e:
+                if "response_format" in str(e).lower():
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[{"role": "system", "content": prompt}],
+                    )
+                else:
+                    raise
 
             result = response.choices[0].message.content
-            data = json.loads(result)
+            data = parse_json_relaxed(result)
+            if not isinstance(data, dict):
+                raise json.JSONDecodeError("Invalid JSON response", str(result), 0)
             return data.get('questions', [])
 
-        except (APIError, RateLimitError, APIConnectionError) as api_err:
+        except (APIError, RateLimitError, APIConnectionError, BadRequestError) as api_err:
             # API-specific errors - log and return fallback
             if _logger:
                 _logger.log_error(error=api_err, model=self.model, context="Question generation API call")

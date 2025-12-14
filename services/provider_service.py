@@ -30,14 +30,9 @@ class AIProviderService:
             # Available text models (OpenAI only) - CANONICAL LIST
             # All support vision/image understanding
             "text_models": [
-                "gpt-4o",
-                "chatgpt-4o-latest",
-                "gpt-4o-mini",
-                "gpt-4o-nano",
-                "gpt-4.1",
+                "gpt-4-turbo",
                 "gpt-4.1-mini",
                 "gpt-4.1-nano",
-                "gpt-5",
                 "gpt-5-mini",
                 "gpt-5-nano",
             ],
@@ -45,14 +40,9 @@ class AIProviderService:
             "image_models": ["gpt-image-1", "gpt-image-1-mini"],
             # Vision models (can analyze images)
             "vision_models": [
-                "gpt-4o",
-                "chatgpt-4o-latest",
-                "gpt-4o-mini",
-                "gpt-4o-nano",
-                "gpt-4.1",
+                "gpt-4-turbo",
                 "gpt-4.1-mini",
                 "gpt-4.1-nano",
-                "gpt-5",
                 "gpt-5-mini",
                 "gpt-5-nano",
             ],
@@ -464,15 +454,19 @@ class AIProviderService:
         if provider not in self.providers:
             return []
 
-        # Start with hardcoded defaults
-        models = set(self.providers[provider].get("text_models", []))
+        def _dedupe_preserve_order(items: List[str]) -> List[str]:
+            seen = set()
+            out: List[str] = []
+            for item in items:
+                if not isinstance(item, str):
+                    continue
+                if item in seen:
+                    continue
+                seen.add(item)
+                out.append(item)
+            return out
 
-        # Merge defaults.text_models from config (global list)
-        default_text_models = self.defaults.get("text_models", [])
-        if isinstance(default_text_models, list):
-            models.update(default_text_models)
-
-        # Merge provider-specific models from config.providers or ai_providers.providers
+        # Provider-specific models from config.providers or ai_providers.providers
         provider_config = self.config.get("providers", {})
         if not provider_config:
             ai_providers = self.config.get("ai_providers", {})
@@ -481,10 +475,14 @@ class AIProviderService:
         if isinstance(provider_config, dict):
             cfg = provider_config.get(provider, {})
             extra_models = cfg.get("text_models", [])
-            if isinstance(extra_models, list):
-                models.update(extra_models)
+            if isinstance(extra_models, list) and extra_models:
+                return _dedupe_preserve_order(extra_models)
 
-        return sorted(models)
+        # Fallback to provider-scoped defaults
+        base_models = self.providers[provider].get("text_models", [])
+        if isinstance(base_models, list):
+            return _dedupe_preserve_order(base_models)
+        return []
 
     def get_image_models(self, provider: Optional[str] = None) -> List[str]:
         """Get available image models for a provider

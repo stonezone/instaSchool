@@ -247,9 +247,32 @@ class BaseAgent:
             # Log the API request
             self.logger.log_api_request(model=self.model, endpoint="chat.completions", params=log_params)
 
+        def _call_chat_completions(call_params: Dict[str, Any]):
+            return self.client.chat.completions.create(**call_params)
+
+        def _supports_response_format_error(exc: Exception) -> bool:
+            msg = str(exc).lower()
+            # Many OpenAI-compatible providers reject this param with slightly different wording.
+            return (
+                "response_format" in msg
+                or "json_object" in msg
+                or "unsupported" in msg and "format" in msg
+                or "unknown parameter" in msg and "response_format" in msg
+            )
+
         # Define the API call function for retry
         def make_api_call():
-            response = self.client.chat.completions.create(**params)
+            call_params = params
+            try:
+                response = _call_chat_completions(call_params)
+            except BadRequestError as e:
+                # Some providers (e.g., non-OpenAI OpenAI-compatible APIs) don't support `response_format`.
+                # Retry once without it so curriculum JSON outputs can still work.
+                if call_params.get("response_format") and _supports_response_format_error(e):
+                    call_params = {k: v for k, v in call_params.items() if k != "response_format"}
+                    response = _call_chat_completions(call_params)
+                else:
+                    raise
 
             # Log the response if logger is available
             if self.logger:

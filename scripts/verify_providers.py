@@ -17,6 +17,7 @@ import os
 from typing import Any, Dict
 
 import yaml
+from dotenv import load_dotenv
 
 from services.provider_service import AIProviderService
 
@@ -68,6 +69,7 @@ def _try_chat(ps: AIProviderService, provider: str, model: str) -> Dict[str, Any
 
 
 def main() -> int:
+    load_dotenv()
     cfg = _load_config()
     ps = AIProviderService(cfg)
 
@@ -118,4 +120,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
