@@ -322,7 +322,7 @@ ai_providers:
 
     kimi:
       name: "Kimi K2 (Moonshot)"
-      api_base: "https://api.moonshot.cn/v1"
+      api_base: "https://api.moonshot.ai/v1"
       api_key_env: "MOONSHOT_API_KEY"
       models:
         main: "kimi-k2-thinking"      # Smart reasoning (orchestrator)

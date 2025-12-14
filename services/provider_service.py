@@ -51,7 +51,7 @@ class AIProviderService:
             "cost_tier": "paid"
         },
         "kimi": {
-            "base_url": "https://api.moonshot.cn/v1",
+            "base_url": "https://api.moonshot.ai/v1",
             "api_key_env": "KIMI_API_KEY",
             "api_key_env_alt": "MOONSHOT_API_KEY",
             "requires_key": True,
@@ -167,6 +167,8 @@ class AIProviderService:
             for provider_name, provider_data in provider_config.items():
                 if provider_name in self.providers:
                     # Only merge known keys to avoid breaking hardcoded structure
+                    if "api_base" in provider_data:
+                        self.providers[provider_name]["base_url"] = str(provider_data["api_base"])
                     if "settings" in provider_data:
                         self.providers[provider_name]["default_settings"].update(
                             provider_data["settings"]
