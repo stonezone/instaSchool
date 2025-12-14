@@ -261,21 +261,35 @@ Priority legend:
 
 ---
 
-#### [ ] P2.3 Add basic automated checks (tests + lint)
+#### [x] P2.3 Add basic automated checks (tests + lint) ✅ COMPLETED
 
-**Note**
-- Deferred by request: no test suite was added in this pass. Keep this as an optional follow-up.
+**Implementation (2025-12-14):**
 
-**Plan**
-1. Add `pytest` with a small test suite focused on services and pure functions:
-   - state default isolation
-   - progress dedup + advance logic
-   - cost estimator outputs
-   - provider service config isolation
-2. Add `ruff` (or similar) + a minimal CI workflow to run:
-   - `python -m compileall -q .`
-   - `pytest -q`
-   - `ruff check .` (optional)
+Added pytest test suite with 51 regression tests covering:
+- `test_state_manager.py` - State default isolation (P0.2)
+- `test_progress_manager.py` - Progress dedup + advance logic (P0.3)
+- `test_cost_estimator.py` - Cost estimator outputs (P1.3)
+- `test_provider_service.py` - Provider service config isolation (P1.4)
+
+Added ruff linter with minimal config in `pyproject.toml`:
+- Checks for pycodestyle errors (E), Pyflakes (F), isort (I), pyupgrade (UP)
+- Permissive ignores for existing codebase patterns
+
+Updated CI workflow (`.github/workflows/ci.yml`):
+- **sanity**: `python -m compileall -q .`
+- **lint**: `ruff check . --output-format=github`
+- **test**: `python -m pytest tests/ -v --tb=short`
+
+**Files Added/Modified:**
+- `tests/__init__.py`
+- `tests/conftest.py`
+- `tests/test_state_manager.py`
+- `tests/test_progress_manager.py`
+- `tests/test_cost_estimator.py`
+- `tests/test_provider_service.py`
+- `pyproject.toml` (pytest + ruff config)
+- `requirements.txt` (added pytest, ruff)
+- `.github/workflows/ci.yml` (lint + test jobs)
 
 ---
 

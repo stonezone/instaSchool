@@ -643,7 +643,6 @@ class MediaAgent:
         # Initialize ImageGenerator with proper model
         # IMPORTANT: Images require OpenAI - use dedicated client if main client is different provider
         from src.image_generator import ImageGenerator
-        import os
 
         default_model = config["defaults"].get("image_model", "gpt-image-1")
         image_client = client  # Default to main client

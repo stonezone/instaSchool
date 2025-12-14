@@ -116,7 +116,7 @@ tmp/
 # =============================================================================
 archive/
 test_*/
-tests/
+# tests/ - now tracked for CI
 *.test.py
 *_test.py
 debug/
