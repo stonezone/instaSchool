@@ -202,8 +202,13 @@ class AIProviderService:
                 api_key_env = provider_config["api_key_env"]
                 api_key_env_alt = provider_config.get("api_key_env_alt")
                 
-                has_key = (api_key_env and os.getenv(api_key_env)) or \
-                          (api_key_env_alt and os.getenv(api_key_env_alt))
+                def _has_env(name: Optional[str]) -> bool:
+                    if not name:
+                        return False
+                    value = os.getenv(name)
+                    return bool(str(value).strip()) if value is not None else False
+
+                has_key = _has_env(api_key_env) or _has_env(api_key_env_alt)
                 
                 if has_key:
                     available.append(provider_name)
@@ -294,7 +299,9 @@ class AIProviderService:
                 alt_key_env = provider_config.get("api_key_env_alt")
                 if alt_key_env:
                     api_key = os.getenv(alt_key_env)
-            
+
+            api_key = str(api_key).strip() if api_key is not None else ""
+
             if not api_key:
                 key_name = provider_config["api_key_env"]
                 alt_key = provider_config.get("api_key_env_alt", "")

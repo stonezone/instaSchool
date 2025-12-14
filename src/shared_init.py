@@ -40,7 +40,7 @@ def _apply_streamlit_secrets_to_env() -> None:
                 return
             if os.getenv(env_key):
                 return
-            os.environ[env_key] = str(value)
+            os.environ[env_key] = str(value).strip()
 
         # Common top-level secrets
         for env_key in [
