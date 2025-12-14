@@ -3,6 +3,7 @@ Create Mode - Curriculum Generation Interface
 InstaSchool multi-page app
 """
 import os
+import re
 import sys
 import copy
 import json
@@ -14,6 +15,17 @@ import streamlit as st
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Any, Dict
+
+
+def sanitize_filename(name: str) -> str:
+    """Sanitize filename: replace spaces with hyphens, remove unsafe chars."""
+    # Replace spaces with hyphens
+    name = name.replace(" ", "-")
+    # Remove or replace unsafe characters
+    name = re.sub(r"[<>:\"/\\|?*]", "", name)
+    # Collapse multiple hyphens
+    name = re.sub(r"-+", "-", name)
+    return name.strip("-")
 
 # NOTE: Module cleanup removed - causes KeyError crashes on Python 3.13/Streamlit Cloud
 # The previous approach of clearing sys.modules broke nested imports
@@ -618,11 +630,21 @@ with tab_view:
                     if exporter is None:
                         st.info("Export helpers unavailable (missing dependencies).")
                     else:
-                        include_images = st.checkbox(
-                            "Include image/chart placeholders in Markdown",
-                            value=True,
-                            key=f"md_img_{f.name}",
-                        )
+                        opt1, opt2 = st.columns(2)
+                        with opt1:
+                            include_images = st.checkbox(
+                                "Include image/chart placeholders in Markdown",
+                                value=True,
+                                key=f"md_img_{f.name}",
+                            )
+                        with opt2:
+                            quality = st.selectbox(
+                                "Image Quality",
+                                options=["medium", "high", "low"],
+                                index=0,
+                                key=f"quality_{f.name}",
+                                help="High: 800px/90% (printing) | Medium: 600px/85% (default) | Low: 400px/75% (email)",
+                            )
 
                         exp1, exp2, exp3 = st.columns(3)
 
@@ -635,10 +657,11 @@ with tab_view:
                                         data, include_images=include_images
                                     )
                             if md_state_key in st.session_state:
+                                safe_name = sanitize_filename(f.stem)
                                 st.download_button(
                                     "⬇️ Markdown",
                                     data=st.session_state[md_state_key],
-                                    file_name=f"{f.stem}.md",
+                                    file_name=f"{safe_name}.md",
                                     mime="text/markdown",
                                     key=f"dl_md_{f.name}",
                                     width="stretch",
@@ -649,12 +672,13 @@ with tab_view:
                         with exp2:
                             if st.button("Prepare HTML", key=f"prep_html_{f.name}", width="stretch"):
                                 with st.spinner("Preparing HTML…"):
-                                    st.session_state[html_state_key] = exporter.generate_html(data)
+                                    st.session_state[html_state_key] = exporter.generate_html(data, quality=quality)
                             if html_state_key in st.session_state:
+                                safe_name = sanitize_filename(f.stem)
                                 st.download_button(
                                     "⬇️ HTML",
                                     data=st.session_state[html_state_key],
-                                    file_name=f"{f.stem}.html",
+                                    file_name=f"{safe_name}.html",
                                     mime="text/html",
                                     key=f"dl_html_{f.name}",
                                     width="stretch",
@@ -665,12 +689,13 @@ with tab_view:
                         with exp3:
                             if st.button("Prepare PDF", key=f"prep_pdf_{f.name}", width="stretch"):
                                 with st.spinner("Preparing PDF…"):
-                                    st.session_state[pdf_state_key] = exporter.generate_pdf(data)
+                                    st.session_state[pdf_state_key] = exporter.generate_pdf(data, quality=quality)
                             if pdf_state_key in st.session_state:
+                                safe_name = sanitize_filename(f.stem)
                                 st.download_button(
                                     "⬇️ PDF",
                                     data=st.session_state[pdf_state_key],
-                                    file_name=f"{f.stem}.pdf",
+                                    file_name=f"{safe_name}.pdf",
                                     mime="application/pdf",
                                     key=f"dl_pdf_{f.name}",
                                     width="stretch",

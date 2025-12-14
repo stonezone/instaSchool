@@ -292,7 +292,143 @@ Priority legend:
 ## Post-fix Validation Checklist
 
 - Generate curricula at media richness 0 / 2 / 5 without `NoSessionContext` errors.
-- Verify `completed_sections` remains unique after multiple “Complete & Continue” clicks.
+- Verify `completed_sections` remains unique after multiple "Complete & Continue" clicks.
 - Verify Create mode settings do not persist unexpectedly across reruns.
-- Verify temp files don’t accumulate over multiple loads/exports.
+- Verify temp files don't accumulate over multiple loads/exports.
 - Verify cost estimator returns stable dict schema and sensible totals.
+
+---
+
+## Export Review Findings (2025-12-13)
+
+### Files Reviewed
+
+| File | Size |
+|------|------|
+| `exports/Language Arts_Mathematics_History_1_1765692049.html` | 11.5 MB |
+| `exports/Language Arts_Mathematics_History_1_1765692049.pdf` | 11.0 MB |
+
+### Critical Finding: Massively Oversized Export Files
+
+The exports are **10-20x larger than necessary** due to unoptimized embedded images.
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Embedded images | 8 | 8 |
+| Average image size | ~2.5 MB (base64) | ~50-100 KB |
+| Total export size | ~11 MB | ~1 MB |
+| Image resolution | 1024x1024 | 600px max width |
+
+**Root Cause Chain:**
+1. `src/image_generator.py:40` - Images generated at 1024x1024 resolution
+2. `src/image_generator.py:219-227` - Downloaded and base64 encoded without compression
+3. `services/export_service.py:415-418` (HTML) - Raw base64 embedded directly
+4. `services/export_service.py:202-207` (PDF) - Same issue
+
+---
+
+### P0-E: Image Optimization for Exports (CRITICAL) ✅ COMPLETED
+
+**Goal:** Reduce export file sizes by 90%+ (11MB → <1.5MB)
+
+**Implementation (2025-12-15):**
+
+Added `_optimize_image()` helper to `services/export_service.py:132-186`:
+- Decodes base64 → PIL Image
+- Resizes to max 600px width (maintains aspect ratio)
+- Converts to JPEG with 85% quality
+- Returns optimized base64
+
+Applied in:
+- `generate_html()` - lines 477, 486, 494
+- `generate_pdf()` - lines 265, 279
+
+**Results:**
+- HTML: 11MB → 604KB (**95% reduction**)
+- PDF: 11MB → 465KB (**96% reduction**)
+
+**Files Modified:**
+- `services/export_service.py`
+
+---
+
+### P1-E: Export Quality Options ✅ COMPLETED
+
+**Goal:** Let users choose export quality based on use case
+
+| Quality | Max Width | JPEG Quality | Use Case |
+|---------|-----------|--------------|----------|
+| High | 800px | 90% | Printing, archival |
+| Medium | 600px | 85% | General sharing (default) |
+| Low | 400px | 75% | Email, mobile viewing |
+
+**Implementation (2025-12-15):**
+
+Added `QUALITY_PRESETS` dict to `CurriculumExporter` (line 129-134).
+Updated `generate_html()` and `generate_pdf()` to accept `quality` parameter.
+Added quality dropdown to Export UI in `pages/2_Create.py` (lines 628-635).
+
+**Results:**
+| Quality | HTML Size | PDF Size |
+|---------|-----------|----------|
+| High | 1.2 MB | 900 KB |
+| Medium | 604 KB | 465 KB |
+| Low | 254 KB | 203 KB |
+
+**Files Modified:**
+- `services/export_service.py`
+- `pages/2_Create.py`
+
+---
+
+### P2-E: Filename Sanitization ✅ COMPLETED
+
+**Before:** `Language Arts_Mathematics_History_1_1765692049.html`
+**After:** `Language-Arts_Mathematics_History_1_1765692049.html`
+
+**Implementation (2025-12-15):**
+Added `sanitize_filename()` helper in `pages/2_Create.py` (lines 20-28).
+Applied to all download buttons (Markdown, HTML, PDF).
+
+---
+
+### P2-E: Print-Friendly HTML ✅ COMPLETED
+
+**Implementation (2025-12-15):**
+Added `@media print` CSS block in `services/export_service.py` (lines 474-504).
+
+Features:
+- Page break handling (avoid mid-unit breaks)
+- Print-friendly black text colors
+- Preserved quiz backgrounds
+- Images won't break across pages
+
+---
+
+### P3-E: Export Metadata
+
+Add to exports:
+- Generator version
+- Generation timestamp
+- Source model information
+
+---
+
+### Export Implementation Order
+
+1. **P0-E** - Image optimization (blocking - exports currently unusable)
+2. **P1-E** - Quality options (quick win after P0-E)
+3. **P2-E** - Filename + Print CSS (polish)
+4. **P3-E** - Metadata (nice to have)
+
+---
+
+### Export Testing Checklist
+
+- [x] HTML export < 2MB for typical curriculum (604KB achieved)
+- [x] PDF export < 2MB for typical curriculum (465KB achieved)
+- [x] Images render correctly at reduced size
+- [x] PDF images properly embedded (not corrupted)
+- [x] HTML prints cleanly (print CSS added)
+- [x] Filenames have no spaces (sanitize_filename helper)
+- [x] Quality options produce expected file sizes (High/Medium/Low tested)

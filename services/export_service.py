@@ -4,6 +4,7 @@ Provides PDF, HTML, and Markdown export functionality using pure Python librarie
 """
 
 import os
+import io
 import json
 import base64
 import tempfile
@@ -12,6 +13,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from fpdf import FPDF
 import markdown
+from PIL import Image
 
 
 class CurriculumPDF(FPDF):
@@ -123,20 +125,89 @@ class CurriculumPDF(FPDF):
 
 class CurriculumExporter:
     """Main export service for curricula"""
-    
+
+    # Quality presets: (max_width, jpeg_quality)
+    QUALITY_PRESETS = {
+        "high": (800, 90),      # Printing, archival
+        "medium": (600, 85),    # General sharing (default)
+        "low": (400, 75),       # Email, mobile viewing
+    }
+
     def __init__(self):
         self.temp_files = []
-        
-    def generate_pdf(self, curriculum: Dict[str, Any]) -> bytes:
+
+    def _optimize_image(
+        self,
+        base64_data: str,
+        max_width: int = 600,
+        quality: int = 85,
+    ) -> str:
+        """
+        Optimize a base64 image for export by resizing and compressing.
+
+        Args:
+            base64_data: Base64 encoded image (with or without data URI prefix)
+            max_width: Maximum width in pixels (maintains aspect ratio)
+            quality: JPEG quality (1-100)
+
+        Returns:
+            Optimized base64 string (without data URI prefix)
+        """
+        try:
+            # Strip data URI prefix if present
+            if "," in base64_data:
+                base64_data = base64_data.split(",")[1]
+
+            # Decode base64 to image
+            img_bytes = base64.b64decode(base64_data)
+            img = Image.open(io.BytesIO(img_bytes))
+
+            # Convert RGBA to RGB if needed (JPEG doesn't support alpha)
+            if img.mode in ("RGBA", "P"):
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode == "P":
+                    img = img.convert("RGBA")
+                background.paste(img, mask=img.split()[3])
+                img = background
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
+
+            # Resize if wider than max_width
+            if img.width > max_width:
+                ratio = max_width / img.width
+                new_height = int(img.height * ratio)
+                img = img.resize((max_width, new_height), Image.LANCZOS)
+
+            # Save as JPEG with compression
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=quality, optimize=True)
+            buffer.seek(0)
+
+            # Return base64 encoded
+            return base64.b64encode(buffer.read()).decode("utf-8")
+
+        except Exception as e:
+            # If optimization fails, return original (without prefix)
+            if "," in base64_data:
+                return base64_data.split(",")[1]
+            return base64_data
+
+    def generate_pdf(
+        self, curriculum: Dict[str, Any], quality: str = "medium"
+    ) -> bytes:
         """
         Generate PDF from curriculum data using fpdf2
-        
+
         Args:
             curriculum: Curriculum dictionary with metadata and units
-            
+            quality: Image quality preset ("high", "medium", "low")
+
         Returns:
             PDF file as bytes
         """
+        max_width, jpeg_quality = self.QUALITY_PRESETS.get(
+            quality, self.QUALITY_PRESETS["medium"]
+        )
         try:
             meta = curriculum.get("meta") or curriculum.get("metadata") or {}
             if not isinstance(meta, dict):
@@ -204,8 +275,9 @@ class CurriculumExporter:
                 if img_b64:
                     pdf.set_font('Helvetica', 'B', 12)
                     pdf.cell(0, 8, pdf.pdf_text('Illustration'), 0, 1)
-                    pdf.add_image_from_base64(img_b64)
-                
+                    optimized_img = self._optimize_image(img_b64, max_width, jpeg_quality)
+                    pdf.add_image_from_base64(optimized_img)
+
                 # Chart
                 if unit.get('chart'):
                     pdf.set_font('Helvetica', 'B', 12)
@@ -217,8 +289,9 @@ class CurriculumExporter:
                     elif isinstance(chart, str):
                         chart_b64 = chart
                     if chart_b64:
-                        pdf.add_image_from_base64(chart_b64)
-                
+                        optimized_chart = self._optimize_image(chart_b64, max_width, jpeg_quality)
+                        pdf.add_image_from_base64(optimized_chart)
+
                 # Quiz
                 if unit.get('quiz'):
                     pdf.set_font('Helvetica', 'B', 12)
@@ -315,16 +388,22 @@ class CurriculumExporter:
         except Exception as e:
             raise Exception(f"PDF generation failed: {str(e)}")
     
-    def generate_html(self, curriculum: Dict[str, Any]) -> str:
+    def generate_html(
+        self, curriculum: Dict[str, Any], quality: str = "medium"
+    ) -> str:
         """
         Generate HTML from curriculum data
-        
+
         Args:
             curriculum: Curriculum dictionary
-            
+            quality: Image quality preset ("high", "medium", "low")
+
         Returns:
             HTML string
         """
+        max_width, jpeg_quality = self.QUALITY_PRESETS.get(
+            quality, self.QUALITY_PRESETS["medium"]
+        )
         meta = curriculum.get("meta") or curriculum.get("metadata") or {}
         if not isinstance(meta, dict):
             meta = {}
@@ -392,6 +471,38 @@ class CurriculumExporter:
         .question {{
             margin: 15px 0;
         }}
+        /* Print-friendly styles */
+        @media print {{
+            body {{
+                max-width: 100%;
+                padding: 0;
+                font-size: 11pt;
+            }}
+            h1 {{
+                color: #000;
+                border-bottom-color: #000;
+            }}
+            h2, h3 {{
+                color: #000;
+            }}
+            .unit {{
+                border: 1px solid #ccc;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }}
+            .quiz {{
+                background-color: #f0f0f0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }}
+            img {{
+                max-width: 80%;
+                page-break-inside: avoid;
+            }}
+            h2 {{
+                page-break-after: avoid;
+            }}
+        }}
     </style>
 </head>
 <body>
@@ -414,25 +525,25 @@ class CurriculumExporter:
             
             img_b64 = unit.get('selected_image_b64') or unit.get('image')
             if img_b64:
-                src = img_b64 if isinstance(img_b64, str) and img_b64.startswith("data:") else f"data:image/png;base64,{img_b64}"
-                html += f'<h3>Illustration</h3>\n<img src="{src}" alt="Unit illustration">\n'
-            
+                optimized_img = self._optimize_image(img_b64, max_width, jpeg_quality)
+                html += f'<h3>Illustration</h3>\n<img src="data:image/jpeg;base64,{optimized_img}" alt="Unit illustration">\n'
+
             if unit.get('chart'):
                 chart = unit.get("chart")
                 html += f'<h3>Data Visualization</h3>\n'
                 if isinstance(chart, dict):
                     chart_b64 = chart.get("b64")
                     if chart_b64:
-                        src = chart_b64 if str(chart_b64).startswith("data:") else f"data:image/png;base64,{chart_b64}"
-                        html += f'<img src="{src}" alt="Chart">\n'
+                        optimized_chart = self._optimize_image(chart_b64, max_width, jpeg_quality)
+                        html += f'<img src="data:image/jpeg;base64,{optimized_chart}" alt="Chart">\n'
                     elif chart.get("plotly_config"):
                         chart_id = f"chart_{idx}"
                         fig_json = json.dumps(chart.get("plotly_config"))
                         html += f'<div id="{chart_id}" style="width: 100%; height: 420px;"></div>\n'
                         html += f'<script>const fig_{idx} = {fig_json}; Plotly.newPlot("{chart_id}", fig_{idx}.data, fig_{idx}.layout);</script>\n'
                 elif isinstance(chart, str):
-                    src = chart if chart.startswith("data:") else f"data:image/png;base64,{chart}"
-                    html += f'<img src="{src}" alt="Chart">\n'
+                    optimized_chart = self._optimize_image(chart, max_width, jpeg_quality)
+                    html += f'<img src="data:image/jpeg;base64,{optimized_chart}" alt="Chart">\n'
             
             if unit.get('quiz'):
                 html += '<div class="quiz">\n<h3>Assessment Questions</h3>\n'
