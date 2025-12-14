@@ -405,12 +405,18 @@ Features:
 
 ---
 
-### P3-E: Export Metadata
+### P3-E: Export Metadata ✅ COMPLETED
 
-Add to exports:
-- Generator version
-- Generation timestamp
-- Source model information
+**Implementation (2025-12-15):**
+Added metadata footer to both HTML and PDF exports.
+
+Includes:
+- Generator version (InstaSchool v1.0.0)
+- Export timestamp
+- AI model used
+
+**Files Modified:**
+- `services/export_service.py` (VERSION constant + footer sections)
 
 ---
 

@@ -126,6 +126,8 @@ class CurriculumPDF(FPDF):
 class CurriculumExporter:
     """Main export service for curricula"""
 
+    VERSION = "1.0.0"
+
     # Quality presets: (max_width, jpeg_quality)
     QUALITY_PRESETS = {
         "high": (800, 90),      # Printing, archival
@@ -381,10 +383,22 @@ class CurriculumExporter:
                                             new_y="NEXT",
                                         )
                     pdf.ln(3)
-            
+
+            # Add metadata footer
+            pdf.add_page()
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.set_text_color(128, 128, 128)
+            pdf.cell(0, 10, pdf.pdf_text('Export Metadata'), 0, 1)
+            pdf.set_font('Helvetica', '', 11)
+            pdf.cell(0, 8, pdf.pdf_text(f'Generator: InstaSchool v{self.VERSION}'), 0, 1)
+            generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            pdf.cell(0, 8, pdf.pdf_text(f'Exported: {generated_at}'), 0, 1)
+            model_info = meta.get("model") or meta.get("ai_model") or "Not specified"
+            pdf.cell(0, 8, pdf.pdf_text(f'Model: {model_info}'), 0, 1)
+
             # Return PDF as bytes
             return bytes(pdf.output())
-            
+
         except Exception as e:
             raise Exception(f"PDF generation failed: {str(e)}")
     
@@ -595,11 +609,22 @@ class CurriculumExporter:
                             html += "</ul>\n"
             
             html += '</div>\n'
-        
-        html += """
+
+        # Add metadata footer
+        generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        model_info = meta.get("model") or meta.get("ai_model") or "Not specified"
+        html += f'''
+    <footer style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 0.85em; color: #666;">
+        <p><strong>Export Metadata</strong></p>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+            <li>Generator: InstaSchool v{self.VERSION}</li>
+            <li>Exported: {generated_at}</li>
+            <li>Model: {model_info}</li>
+        </ul>
+    </footer>
 </body>
-</html>"""
-        
+</html>'''
+
         return html
     
     def generate_markdown(self, curriculum: Dict[str, Any], include_images: bool = True) -> str:
