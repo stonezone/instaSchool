@@ -154,6 +154,7 @@ desktop.ini
 # =============================================================================
 .claude/
 .claude-os/
+.mcp.json
 .gemini-clipboard/
 .serena/
 .cursor/
