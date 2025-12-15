@@ -231,26 +231,35 @@ class CurriculumExporter:
             pdf.set_text_color(0, 0, 0)
             pdf.cell(0, 10, pdf.pdf_text(f"Grade Level: {grade}"), 0, 1, 'C')
             
-            # Add metadata
-            if meta:
+            # Add select metadata (exclude internal/generation fields)
+            # Keys to exclude: plan (generation prompt), style, language, extra, and already-shown fields
+            EXCLUDED_META_KEYS = {
+                'subject', 'grade', 'grade_level', 'title',  # Already shown in header
+                'plan', 'style', 'language', 'extra',        # Internal generation config
+                'prompt', 'system_prompt', 'raw_response',   # Debug/internal data
+            }
+            display_meta = {k: v for k, v in meta.items() if k not in EXCLUDED_META_KEYS and v}
+            if display_meta:
                 pdf.ln(10)
                 pdf.set_font('Helvetica', 'B', 12)
                 pdf.cell(0, 10, pdf.pdf_text('Curriculum Details'), 0, 1, 'L')
                 pdf.set_font('Helvetica', '', 11)
-                
-                for key, value in meta.items():
-                    if key not in ['subject', 'grade', 'grade_level']:
-                        try:
-                            display_value = json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else str(value)
-                        except Exception:
-                            display_value = str(value)
-                        pdf.multi_cell(
-                            0,
-                            6,
-                            pdf.pdf_text(f"{key.replace('_', ' ').title()}: {display_value}"),
-                            new_x="LMARGIN",
-                            new_y="NEXT",
-                        )
+
+                for key, value in display_meta.items():
+                    try:
+                        display_value = json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else str(value)
+                    except Exception:
+                        display_value = str(value)
+                    # Truncate very long values (e.g., if something slipped through)
+                    if len(display_value) > 200:
+                        display_value = display_value[:200] + "..."
+                    pdf.multi_cell(
+                        0,
+                        6,
+                        pdf.pdf_text(f"{key.replace('_', ' ').title()}: {display_value}"),
+                        new_x="LMARGIN",
+                        new_y="NEXT",
+                    )
             
             # Add units
             units = curriculum.get('units', [])
