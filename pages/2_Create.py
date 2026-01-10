@@ -657,8 +657,24 @@ with tab_gen:
                 if isinstance(logs, list) and logs:
                     tail = logs[-24:]
                     pre = html.escape("\n".join(str(x) for x in tail))
+                    # Use inline styles to ensure visibility - Streamlit may override external CSS
                     st.markdown(
-                        f'<div class="matrix-terminal"><pre>{pre}</pre></div>',
+                        f'''<div class="matrix-terminal" style="
+                            background: linear-gradient(180deg, rgba(5, 15, 10, 0.98) 0%, rgba(3, 12, 8, 0.98) 100%);
+                            border: 2px solid rgba(0, 255, 120, 0.35);
+                            border-radius: 16px;
+                            padding: 20px;
+                            max-height: 480px;
+                            overflow-y: auto;
+                        "><pre style="
+                            margin: 0;
+                            white-space: pre-wrap;
+                            font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+                            font-size: 13px;
+                            line-height: 1.6;
+                            color: #00FF78 !important;
+                            text-shadow: 0 0 8px rgba(0, 255, 120, 0.4);
+                        ">{pre}</pre></div>''',
                         unsafe_allow_html=True,
                     )
                 else:
