@@ -13,6 +13,8 @@ httpx>=0.23.0,<0.29
 requests>=2.28.0
 markdown>=3.4.0
 filelock>=3.12.0
+# Supabase for persistent curriculum storage
+supabase>=2.0.0
 
 # Development dependencies (optional - install with: pip install -r requirements.txt)
 pytest>=7.0.0

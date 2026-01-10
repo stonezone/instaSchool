@@ -250,42 +250,21 @@ defaults:
   language: "English"
 
   # Default AI models to use.
-  # GPT-5-nano for testing (cheapest), switch to gpt-5.1 for production
-  text_model: "gpt-5-nano"  # Default to nano for cost efficiency during testing
+  # GPT-4.1-nano for testing (most affordable), gpt-4.1 for production
+  text_model: "gpt-4.1-nano"  # Default to nano for cost efficiency during testing
   # Text model for worker agents (most economical option)
-  worker_model: "gpt-5-nano"  # Nano model for content generation (testing)
+  worker_model: "gpt-4.1-nano"  # Nano model for content generation (testing)
   # Default image model
   image_model: "gpt-image-1-mini"  # Use mini for testing, gpt-image-1 for production
   # Available image models (ONLY gpt-image models)
   image_models:
     - "gpt-image-1"
     - "gpt-image-1-mini"
-  # Available text models (OpenAI + Kimi + DeepSeek) - CANONICAL LIST
+  # Available text models - GPT-4.1 SERIES ONLY (locked for reliability)
   text_models:
-    # OpenAI models
-    - "gpt-4-turbo"
-    - "gpt-4.1-mini"
-    - "gpt-4.1-nano"
-    - "gpt-5-mini"
-    - "gpt-5-nano"
-    # Kimi K2 models
-    - "kimi-k2-thinking"
-    - "kimi-k2-turbo-preview"
-    - "kimi-k2-thinking-turbo"
-    - "kimi-k2-0905-preview"
-    - "kimi-k2-0711-preview"
-    - "kimi-latest"
-    # Moonshot v1 models
-    - "moonshot-v1-128k"
-    - "moonshot-v1-128k-vision-preview"
-    - "moonshot-v1-32k"
-    - "moonshot-v1-32k-vision-preview"
-    - "moonshot-v1-8k"
-    - "moonshot-v1-8k-vision-preview"
-    - "moonshot-v1-auto"
-    # DeepSeek models
-    - "deepseek-chat"
-    - "deepseek-reasoner"
+    - "gpt-4.1"       # Best quality, most capable
+    - "gpt-4.1-mini"  # Good balance of quality and cost
+    - "gpt-4.1-nano"  # Most affordable, good for testing
 
   # Default states for the feature toggles.
   include_quizzes: true
@@ -302,43 +281,21 @@ defaults:
 
 
 # === AI Provider Configuration ===
-# Supported providers: OpenAI, Kimi, DeepSeek
+# Currently locked to OpenAI GPT-4.1 series for reliability
 ai_providers:
   # Which provider to use by default
   default: "openai"
 
-  # Provider definitions
+  # Provider definitions (GPT-4.1 series only)
   providers:
     openai:
       name: "OpenAI"
       api_base: "https://api.openai.com/v1"
       api_key_env: "OPENAI_API_KEY"
       models:
-        main: "gpt-5-nano"
-        worker: "gpt-5-nano"
-        image: "gpt-image-1"
-      settings:
-        temperature: 0.7
-
-    kimi:
-      name: "Kimi K2 (Moonshot)"
-      api_base: "https://api.moonshot.ai/v1"
-      api_key_env: "MOONSHOT_API_KEY"
-      models:
-        main: "kimi-k2-thinking"      # Smart reasoning (orchestrator)
-        worker: "kimi-k2-turbo-preview"  # Fast processing
-        image: null  # Use OpenAI for images
-      settings:
-        temperature: 1.0  # Recommended for kimi-k2-thinking
-
-    deepseek:
-      name: "DeepSeek"
-      api_base: "https://api.deepseek.com/v1"
-      api_key_env: "DEEPSEEK_API_KEY"
-      models:
-        main: "deepseek-chat"         # General purpose, fast
-        worker: "deepseek-chat"       # Cost-effective worker
-        image: null  # Use OpenAI for images
+        main: "gpt-4.1-nano"      # Orchestrator (affordable for testing)
+        worker: "gpt-4.1-nano"    # Workers (affordable for testing)
+        image: "gpt-image-1-mini" # Images
       settings:
         temperature: 0.7
 
@@ -376,19 +333,14 @@ info_texts:
     - **Summary Specialist**: Crafts concise lesson summaries for reinforcement
     - **Resource Curator**: Suggests extension activities for deeper learning
 
-    **AI Model Selection:**
-    - **gpt-5**: Highest quality, most capable model (recommended for complex subjects)
-    - **gpt-5-mini**: Good balance of quality and efficiency
-    - **gpt-5-nano**: Fastest, most economical option (default for testing)
-    - **gpt-4o/gpt-4.1**: Alternative models for backward compatibility
-    - **kimi-k2-thinking**: Smart reasoning model from Moonshot (orchestrator)
-    - **kimi-k2-turbo-preview**: Fast Kimi model for worker tasks
-    - **deepseek-chat**: Fast, affordable general-purpose model from DeepSeek
-    - **deepseek-reasoner**: Chain-of-thought reasoning model (R1)
+    **AI Model Selection (GPT-4.1 Series):**
+    - **gpt-4.1**: Best quality, most capable model (recommended for production)
+    - **gpt-4.1-mini**: Good balance of quality and cost
+    - **gpt-4.1-nano**: Most affordable option (default for testing)
 
     **Image Models:**
     - **gpt-image-1**: Highest quality educational illustrations (recommended)
-    - **gpt-image-1-mini**: Lighter, faster variant for testing and cost savings
+    - **gpt-image-1-mini**: Faster variant for testing and cost savings
 
     This collaborative approach ensures each component is optimized for educational quality while maintaining a cohesive learning experience.
 
@@ -435,6 +387,6 @@ student_mode:
   # Tutor configuration
   tutor_enabled: true
   tutor_max_history: 5
-  tutor_model: "gpt-5-nano"  # Use nano for cost efficiency
+  tutor_model: "gpt-4.1-nano"  # Use nano for cost efficiency
   tutor_temperature: 0.7
   tutor_max_tokens: 500

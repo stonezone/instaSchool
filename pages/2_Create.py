@@ -44,6 +44,15 @@ from src.agent_framework import OrchestratorAgent
 from services.session_service import InputValidator
 from src.cost_estimator import estimate_curriculum_cost
 
+# Supabase integration for persistent storage
+try:
+    from services.supabase_service import get_supabase_service, GenerationLogger
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    get_supabase_service = None
+    GenerationLogger = None
+
 # Page config
 setup_page(title="InstaSchool - Create", icon="✨")
 config = load_config()
@@ -57,6 +66,19 @@ if provider_service is None:
 
 # --- SIDEBAR: Configuration ---
 st.sidebar.markdown("## ⚙️ Settings")
+
+# Supabase connection status
+if SUPABASE_AVAILABLE and get_supabase_service is not None:
+    try:
+        _supabase = get_supabase_service()
+        if _supabase.is_available:
+            st.sidebar.success("☁️ Cloud sync: Connected")
+        else:
+            st.sidebar.warning("☁️ Cloud sync: Not configured")
+    except Exception:
+        st.sidebar.warning("☁️ Cloud sync: Unavailable")
+else:
+    st.sidebar.info("☁️ Cloud sync: Not installed")
 
 # 1. Basic Config
 with st.sidebar.expander("Curriculum Basics", expanded=True):
@@ -208,7 +230,24 @@ with tab_gen:
                 with open(save_path, "w", encoding="utf-8") as f:
                     json.dump(final_curriculum, f, indent=2, ensure_ascii=False)
 
+                # Save to Supabase for persistent cloud storage
+                supabase_id = None
+                if SUPABASE_AVAILABLE and get_supabase_service is not None:
+                    try:
+                        supabase = get_supabase_service()
+                        if supabase.is_available:
+                            status = "partial" if cancelled else "complete"
+                            supabase_id = supabase.save_curriculum(final_curriculum, status=status)
+                            if supabase_id:
+                                final_curriculum["meta"]["supabase_id"] = supabase_id
+                                # Re-save with supabase_id
+                                with open(save_path, "w", encoding="utf-8") as f:
+                                    json.dump(final_curriculum, f, indent=2, ensure_ascii=False)
+                    except Exception as e:
+                        print(f"Supabase save error (non-fatal): {e}")
+
                 StateManager.set_state("generation_last_filename", filename)
+                StateManager.set_state("generation_last_supabase_id", supabase_id)
                 StateManager.set_state("generation_last_error", None)
                 st.session_state["last_generated"] = filename
                 StateManager.set_state("preferred_curriculum_file", filename)
@@ -402,12 +441,21 @@ with tab_gen:
     # Show last generation outcome (if any)
     last_err = StateManager.get_state("generation_last_error")
     last_file = StateManager.get_state("generation_last_filename")
+    last_supabase_id = StateManager.get_state("generation_last_supabase_id")
     if last_err:
         st.error(f"Generation failed: {last_err}")
     elif last_file:
-        st.success(f"✅ Curriculum saved to {last_file}")
-        if st.button("👀 View Now", width="stretch"):
-            st.switch_page("pages/1_Student.py")
+        if last_supabase_id:
+            st.success(f"✅ Curriculum saved to {last_file} and synced to cloud")
+        else:
+            st.success(f"✅ Curriculum saved to {last_file}")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("👀 View Now", key="view_btn", use_container_width=True):
+                st.switch_page("pages/1_Student.py")
+        with col2:
+            if st.button("📚 Go to Library", key="lib_btn", use_container_width=True):
+                st.switch_page("pages/4_Library.py")
 
     if is_generating:
         st.info("⚙️ Curriculum generation is currently in progress.")

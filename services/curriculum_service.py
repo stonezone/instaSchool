@@ -11,6 +11,14 @@ from typing import Dict, Any, List, Optional
 from src.agent_framework import OrchestratorAgent
 from src.image_generator import ImageGenerator
 
+# Import Supabase service for persistent storage
+try:
+    from services.supabase_service import get_supabase_service
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    get_supabase_service = None
+
 
 class CurriculumService:
     """Service class for curriculum generation business logic"""
@@ -26,9 +34,14 @@ class CurriculumService:
         self.config = config or {}
 
         defaults = self.config.get("defaults") or {}
-        text_model = defaults.get("text_model") or "gpt-5-nano"
+        text_model = defaults.get("text_model") or "gpt-4.1-nano"
         worker_model = defaults.get("worker_model") or text_model
-        image_model = defaults.get("image_model") or "gpt-image-1"
+        image_model = defaults.get("image_model") or "gpt-image-1-mini"
+
+        # Initialize Supabase service for persistent storage
+        self._supabase = None
+        if SUPABASE_AVAILABLE and get_supabase_service:
+            self._supabase = get_supabase_service()
         
         # Initialize orchestrator
         self.orchestrator = OrchestratorAgent(
@@ -160,16 +173,142 @@ class CurriculumService:
         
         # Generate using orchestrator
         generated_curriculum = orchestrator.create_curriculum(
-            params["subject_str"], 
-            params["grade"], 
-            params["lesson_style"], 
-            params["language"], 
-            params.get("custom_prompt", ""), 
+            params["subject_str"],
+            params["grade"],
+            params["lesson_style"],
+            params["language"],
+            params.get("custom_prompt", ""),
             current_config
         )
-        
+
         return generated_curriculum
-        
+
+    # =========================================================================
+    # Supabase Persistence Methods
+    # =========================================================================
+
+    def save_to_supabase(
+        self,
+        curriculum: Dict[str, Any],
+        status: str = "complete"
+    ) -> Optional[str]:
+        """Save curriculum to Supabase for persistent storage.
+
+        Args:
+            curriculum: The curriculum to save.
+            status: Status of the curriculum ('generating', 'partial', 'complete').
+
+        Returns:
+            The Supabase UUID if successful, None otherwise.
+        """
+        if not self._supabase or not self._supabase.is_available:
+            return None
+
+        curriculum_id = self._supabase.save_curriculum(curriculum, status=status)
+        if curriculum_id and "meta" in curriculum:
+            curriculum["meta"]["supabase_id"] = curriculum_id
+        return curriculum_id
+
+    def update_supabase_status(
+        self,
+        curriculum_id: str,
+        status: str,
+        curriculum: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """Update curriculum status in Supabase.
+
+        Args:
+            curriculum_id: The Supabase UUID.
+            status: New status ('generating', 'partial', 'complete').
+            curriculum: Optional updated curriculum content.
+
+        Returns:
+            True if successful.
+        """
+        if not self._supabase or not self._supabase.is_available:
+            return False
+
+        return self._supabase.update_curriculum_status(curriculum_id, status, curriculum)
+
+    def load_from_supabase(self, curriculum_id: str) -> Optional[Dict[str, Any]]:
+        """Load a curriculum from Supabase.
+
+        Args:
+            curriculum_id: The Supabase UUID.
+
+        Returns:
+            The curriculum dictionary or None.
+        """
+        if not self._supabase or not self._supabase.is_available:
+            return None
+
+        return self._supabase.get_curriculum(curriculum_id)
+
+    def list_supabase_curricula(
+        self,
+        subject: Optional[str] = None,
+        grade: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """List curricula from Supabase with optional filters.
+
+        Args:
+            subject: Filter by subject.
+            grade: Filter by grade.
+            status: Filter by status.
+            limit: Maximum results.
+
+        Returns:
+            List of curriculum metadata (not full content).
+        """
+        if not self._supabase or not self._supabase.is_available:
+            return []
+
+        return self._supabase.list_curricula(
+            subject=subject, grade=grade, status=status, limit=limit
+        )
+
+    def delete_from_supabase(self, curriculum_id: str) -> bool:
+        """Delete a curriculum from Supabase.
+
+        Args:
+            curriculum_id: The Supabase UUID.
+
+        Returns:
+            True if successful.
+        """
+        if not self._supabase or not self._supabase.is_available:
+            return False
+
+        return self._supabase.delete_curriculum(curriculum_id)
+
+    def duplicate_in_supabase(self, curriculum_id: str) -> Optional[str]:
+        """Duplicate a curriculum in Supabase.
+
+        Args:
+            curriculum_id: The Supabase UUID to duplicate.
+
+        Returns:
+            The new curriculum UUID or None.
+        """
+        if not self._supabase or not self._supabase.is_available:
+            return None
+
+        return self._supabase.duplicate_curriculum(curriculum_id)
+
+    @property
+    def supabase_available(self) -> bool:
+        """Check if Supabase is available."""
+        return self._supabase is not None and self._supabase.is_available
+
+    def get_supabase_stats(self) -> Dict[str, Any]:
+        """Get Supabase storage statistics."""
+        if not self._supabase or not self._supabase.is_available:
+            return {"available": False}
+
+        return self._supabase.get_stats()
+
     def estimate_costs(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Estimate costs for curriculum generation
         
