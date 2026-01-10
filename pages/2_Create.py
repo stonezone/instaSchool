@@ -170,8 +170,25 @@ with st.sidebar.expander("Content Options", expanded=False):
         inc_keys = st.checkbox("Key Points", True)
 
 # --- MAIN PAGE ---
-st.markdown("# ✨ Create Curriculum")
-st.caption("Tip: Settings live in the sidebar. On mobile, tap the ☰ button to open it.")
+st.markdown("""
+<div style="margin-bottom: 24px;">
+    <h1 style="
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 44px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #2D5A3D 0%, #B8860B 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+    ">✨ Create Curriculum</h1>
+    <p style="
+        font-size: 15px;
+        color: #524F47;
+        margin: 0;
+    ">Configure your curriculum settings in the sidebar, then generate AI-powered learning content.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Tabs for workflow
 tab_gen, tab_view = st.tabs(["🚀 Generate", "📂 Library"])
@@ -411,7 +428,7 @@ with tab_gen:
     if StateManager.get_state("generating", False) != is_generating:
         StateManager.set_state("generating", is_generating)
 
-    # Cost Estimation
+    # Cost Estimation with modern card
     est_cost_data = estimate_curriculum_cost(
         orchestrator_model=main_model,
         worker_model=worker_model,
@@ -427,9 +444,41 @@ with tab_gen:
     )
 
     if est_cost > 0.5:
-        st.warning(f"💰 Estimated cost: ${est_cost:.2f}")
+        st.markdown(f"""
+        <div style="
+            background: rgba(212, 133, 74, 0.08);
+            border: 2px solid rgba(212, 133, 74, 0.25);
+            border-left: 4px solid #D4854A;
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+        ">
+            <div style="
+                font-size: 15px;
+                font-weight: 600;
+                color: #C2785C;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            ">
+                <span style="font-size: 20px;">💰</span>
+                Estimated cost: ${est_cost:.2f}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.caption(f"💰 Est. cost: ${est_cost:.2f}")
+        st.markdown(f"""
+        <div style="
+            font-size: 13px;
+            color: #6B6558;
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        ">
+            <span>💰</span> Estimated cost: ${est_cost:.2f}
+        </div>
+        """, unsafe_allow_html=True)
 
     # Extra Guidelines
     extra_instructions = st.text_area(
@@ -458,7 +507,35 @@ with tab_gen:
                 st.switch_page("pages/4_Library.py")
 
     if is_generating:
-        st.info("⚙️ Curriculum generation is currently in progress.")
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, rgba(45, 90, 61, 0.08) 0%, rgba(184, 134, 11, 0.06) 100%);
+            border: 2px solid rgba(45, 90, 61, 0.2);
+            border-radius: 20px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(61, 58, 51, 0.08);
+        ">
+            <div style="
+                font-size: 16px;
+                font-weight: 600;
+                color: #2D5A3D;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 6px;
+            ">
+                <span style="font-size: 24px;">⚙️</span>
+                Generation in Progress
+            </div>
+            <div style="
+                font-size: 14px;
+                color: #524F47;
+            ">
+                Your AI-powered curriculum is being created. This may take a few minutes.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         @st.fragment(run_every="1s")
         def _generation_status_fragment():
@@ -497,11 +574,27 @@ with tab_gen:
             st.progress(percent)
 
             # Live feed ("Matrix"-style) so users can see what's happening.
+            st.markdown("""
+            <div style="
+                font-size: 14px;
+                font-weight: 600;
+                color: #3D3A33;
+                margin-top: 20px;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            ">
+                <span style="font-size: 18px;">📡</span>
+                Live Generation Feed
+            </div>
+            """, unsafe_allow_html=True)
+
             show_feed = st.toggle(
-                "Show live generation feed",
+                "Show API communication log",
                 value=True,
                 key="show_generation_feed",
-                help="Shows a running log of the generation phases (and unit titles).",
+                help="Shows a running log of the generation phases and AI interactions.",
             )
             capture_trace = st.toggle(
                 "Capture model prompts/responses",
