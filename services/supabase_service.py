@@ -7,7 +7,7 @@ import os
 import json
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from functools import lru_cache
 
 # Import supabase client
@@ -67,16 +67,74 @@ class SupabaseService:
     # Curriculum Operations
     # =========================================================================
 
+    def _strip_images_from_curriculum(self, curriculum: Dict[str, Any]) -> Dict[str, Any]:
+        """Remove base64 images from curriculum to reduce payload size.
+
+        Args:
+            curriculum: Original curriculum with potential images.
+
+        Returns:
+            Copy of curriculum with images replaced by placeholders.
+        """
+        import copy
+        stripped = copy.deepcopy(curriculum)
+
+        units = stripped.get("units", [])
+        images_stripped = 0
+
+        # Image field names to check (different curriculum versions use different names)
+        image_fields = [
+            "image_base64",
+            "selected_image_b64",
+            "image",
+            "image_data",
+            "thumbnail_b64",
+        ]
+
+        for unit in units:
+            if not isinstance(unit, dict):
+                continue
+
+            # Check all known image field names
+            for field in image_fields:
+                if unit.get(field) and isinstance(unit.get(field), str) and len(unit.get(field)) > 1000:
+                    unit[field] = None
+                    unit["_image_stripped"] = True
+                    images_stripped += 1
+
+            # Also check for any field containing 'b64' or 'base64' with large content
+            for key, val in list(unit.items()):
+                if isinstance(val, str) and len(val) > 10000:
+                    if "b64" in key.lower() or "base64" in key.lower() or "image" in key.lower():
+                        unit[key] = None
+                        unit["_image_stripped"] = True
+                        images_stripped += 1
+
+        if images_stripped > 0:
+            stripped["_images_stripped"] = images_stripped
+            stripped["_storage_note"] = "Images stored locally only due to size limits"
+
+        return stripped
+
+    def _estimate_json_size(self, obj: Any) -> int:
+        """Estimate JSON size in bytes without full serialization."""
+        try:
+            return len(json.dumps(obj))
+        except Exception:
+            return 0
+
     def save_curriculum(
         self,
         curriculum: Dict[str, Any],
-        status: str = "complete"
+        status: str = "complete",
+        strip_images: bool = True
     ) -> Optional[str]:
         """Save a curriculum to Supabase.
 
         Args:
             curriculum: Full curriculum dictionary with meta and units.
             status: Status string ('generating', 'partial', 'complete').
+            strip_images: If True (default), remove base64 images to reduce size.
 
         Returns:
             The curriculum UUID if successful, None otherwise.
@@ -91,13 +149,23 @@ class SupabaseService:
             # Generate title from subject/grade if not provided
             title = meta.get("title") or f"{meta.get('subject', 'Curriculum')} - Grade {meta.get('grade', 'N/A')}"
 
+            # Strip images if content is large (> 1MB) or strip_images is True
+            content_to_save = curriculum
+            estimated_size = self._estimate_json_size(curriculum)
+
+            if strip_images and estimated_size > 1_000_000:  # 1MB threshold
+                print(f"Stripping images from curriculum ({estimated_size / 1_000_000:.1f}MB)")
+                content_to_save = self._strip_images_from_curriculum(curriculum)
+                new_size = self._estimate_json_size(content_to_save)
+                print(f"Reduced to {new_size / 1_000_000:.1f}MB")
+
             record = {
                 "title": title,
                 "subject": meta.get("subject", "Unknown"),
                 "grade": str(meta.get("grade", "N/A")),
                 "style": meta.get("style", "Standard"),
                 "language": meta.get("language", "English"),
-                "content": curriculum,  # Full JSON stored in JSONB column
+                "content": content_to_save,
                 "unit_count": len(units),
                 "status": status,
             }
@@ -124,7 +192,8 @@ class SupabaseService:
         self,
         curriculum_id: str,
         status: str,
-        content: Optional[Dict[str, Any]] = None
+        content: Optional[Dict[str, Any]] = None,
+        strip_images: bool = True
     ) -> bool:
         """Update the status of a curriculum.
 
@@ -132,6 +201,7 @@ class SupabaseService:
             curriculum_id: The UUID of the curriculum.
             status: New status ('generating', 'partial', 'complete').
             content: Optional updated content.
+            strip_images: If True (default), remove base64 images to reduce size.
 
         Returns:
             True if successful, False otherwise.
@@ -145,7 +215,14 @@ class SupabaseService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             if content:
-                update_data["content"] = content
+                # Strip images if content is large
+                content_to_save = content
+                estimated_size = self._estimate_json_size(content)
+
+                if strip_images and estimated_size > 1_000_000:  # 1MB threshold
+                    content_to_save = self._strip_images_from_curriculum(content)
+
+                update_data["content"] = content_to_save
                 update_data["unit_count"] = len(content.get("units", []))
 
             result = self.client.table("curricula").update(update_data).eq("id", curriculum_id).execute()
