@@ -247,21 +247,12 @@ with tab_gen:
                 with open(save_path, "w", encoding="utf-8") as f:
                     json.dump(final_curriculum, f, indent=2, ensure_ascii=False)
 
-                # Save to Supabase for persistent cloud storage
-                supabase_id = None
-                if SUPABASE_AVAILABLE and get_supabase_service is not None:
-                    try:
-                        supabase = get_supabase_service()
-                        if supabase.is_available:
-                            status = "partial" if cancelled else "complete"
-                            supabase_id = supabase.save_curriculum(final_curriculum, status=status)
-                            if supabase_id:
-                                final_curriculum["meta"]["supabase_id"] = supabase_id
-                                # Re-save with supabase_id
-                                with open(save_path, "w", encoding="utf-8") as f:
-                                    json.dump(final_curriculum, f, indent=2, ensure_ascii=False)
-                    except Exception as e:
-                        print(f"Supabase save error (non-fatal): {e}")
+                # Get Supabase ID from incremental saves (already saved during generation)
+                supabase_id = final_curriculum.get("meta", {}).get("supabase_id")
+                if not supabase_id:
+                    # Fallback: check progress_state for ID
+                    progress_state = StateManager.get_state("generation_progress_state") or {}
+                    supabase_id = progress_state.get("supabase_id")
 
                 StateManager.set_state("generation_last_filename", filename)
                 StateManager.set_state("generation_last_supabase_id", supabase_id)
@@ -300,6 +291,42 @@ with tab_gen:
         progress_lock: threading.Lock,
     ) -> Dict[str, Any]:
         orchestrator = OrchestratorAgent(client, main_model, worker_model)
+
+        # Initialize Supabase for incremental saves
+        supabase_id = None
+        supabase = None
+        if SUPABASE_AVAILABLE and get_supabase_service is not None:
+            try:
+                supabase = get_supabase_service()
+                if supabase.is_available:
+                    # Create initial record with status='generating'
+                    initial_curriculum = {
+                        "meta": {
+                            "subject": subject_str,
+                            "grade": grade,
+                            "style": style,
+                            "language": language,
+                            "extra": extra_instructions,
+                            "text_model": main_model,
+                            "worker_model": worker_model,
+                        },
+                        "units": []
+                    }
+                    supabase_id = supabase.save_curriculum(initial_curriculum, status="generating")
+                    with progress_lock:
+                        progress_state["supabase_id"] = supabase_id
+            except Exception as e:
+                print(f"Supabase init error (non-fatal): {e}")
+
+        def checkpoint_callback(curriculum: Dict[str, Any]) -> None:
+            """Save partial progress to Supabase after each unit."""
+            nonlocal supabase_id
+            if supabase is None or not supabase.is_available or supabase_id is None:
+                return
+            try:
+                supabase.update_curriculum_status(supabase_id, "generating", curriculum)
+            except Exception as e:
+                print(f"Checkpoint save error (non-fatal): {e}")
 
         def _push_log(line: str) -> None:
             if not line:
@@ -412,7 +439,7 @@ with tab_gen:
                 else:
                     _push_log(f"[{ts}] {event}: {data}")
 
-        return orchestrator.create_curriculum(
+        result = orchestrator.create_curriculum(
             subject=subject_str,
             grade=grade,
             style=style,
@@ -421,7 +448,20 @@ with tab_gen:
             config=run_config,
             cancellation_event=cancel_event,
             progress_callback=progress_callback,
+            checkpoint_callback=checkpoint_callback,
         )
+
+        # Final save: mark as complete (or partial if cancelled)
+        if supabase is not None and supabase.is_available and supabase_id is not None:
+            try:
+                is_cancelled = result.get("meta", {}).get("cancelled", False)
+                final_status = "partial" if is_cancelled else "complete"
+                supabase.update_curriculum_status(supabase_id, final_status, result)
+                result["meta"]["supabase_id"] = supabase_id
+            except Exception as e:
+                print(f"Final Supabase save error (non-fatal): {e}")
+
+        return result
 
     gen_future = StateManager.get_state("generation_future")
     is_generating = bool(gen_future is not None and not gen_future.done())

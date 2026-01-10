@@ -95,12 +95,16 @@ class OrchestratorAgent(BaseAgent):
         config,
         cancellation_event: Optional[threading.Event] = None,
         progress_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        checkpoint_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ):
         """Main entry point for curriculum generation.
 
         The optional ``cancellation_event`` allows cooperative cancellation from
         the caller or UI layer without touching Streamlit session state from
         background threads.
+
+        The optional ``checkpoint_callback`` is called with the full curriculum
+        after each unit completes, allowing incremental saves to persistent storage.
         """
 
         def is_cancelled() -> bool:
@@ -245,6 +249,14 @@ class OrchestratorAgent(BaseAgent):
                 topics_completed=i + 1,
                 topic_title=topic.get("title", "Untitled Topic"),
             )
+
+            # Checkpoint: save partial progress for resilience
+            if checkpoint_callback is not None:
+                try:
+                    checkpoint_callback(curriculum)
+                except Exception:
+                    # Never let checkpoint failures break generation
+                    pass
 
         # Check for cancellation before refinement
         if is_cancelled():
