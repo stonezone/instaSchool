@@ -221,10 +221,34 @@ with parent_tab3:
                         if meta.get('style'):
                             st.write(f"**Style:** {meta.get('style')}")
                         st.write(f"**File:** {json_file.name}")
-                        if st.button("👀 Open in Student Mode", key=f"open_student_{json_file.stem}"):
-                            # Remember this curriculum for the student page and switch
-                            StateManager.set_state("preferred_curriculum_file", json_file.name)
-                            st.switch_page("pages/1_Student.py")
+
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button("👀 Student Mode", key=f"open_student_{json_file.stem}", use_container_width=True):
+                                StateManager.set_state("preferred_curriculum_file", json_file.name)
+                                st.switch_page("pages/1_Student.py")
+                        with btn_col2:
+                            preview_key = f"preview_{json_file.stem}"
+                            if st.button("📖 Quick Preview", key=preview_key, use_container_width=True):
+                                st.session_state[f"show_preview_{json_file.stem}"] = True
+
+                        # Quick Preview Panel
+                        if st.session_state.get(f"show_preview_{json_file.stem}"):
+                            st.markdown("---")
+                            st.markdown("#### 📖 Curriculum Preview")
+                            for i, unit in enumerate(data.get('units', [])):
+                                unit_title = unit.get('title', f'Unit {i+1}')
+                                with st.expander(f"📚 {unit_title}", expanded=(i == 0)):
+                                    content = unit.get('content', '')
+                                    if content:
+                                        st.markdown(content[:2000] + ('...' if len(content) > 2000 else ''))
+                                    if unit.get('image_base64'):
+                                        st.image(f"data:image/png;base64,{unit['image_base64']}", width=300)
+                                    if unit.get('quiz', {}).get('questions'):
+                                        st.caption(f"📝 Quiz: {len(unit['quiz']['questions'])} questions")
+                            if st.button("Close Preview", key=f"close_preview_{json_file.stem}"):
+                                st.session_state[f"show_preview_{json_file.stem}"] = False
+                                st.rerun()
                 except Exception:
                     pass
         else:
