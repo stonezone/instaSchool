@@ -335,8 +335,49 @@ class ImageGenerator:
                     "model": "placeholder",
                     "is_placeholder": True
                 })
-        
+
+        # Optimize all generated images for storage efficiency
+        results = self._optimize_results(results)
+
         return results
+
+    def _optimize_results(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Optimize all images in results for storage efficiency.
+
+        Reduces 1024x1024 images to 800x800 max with JPEG compression.
+        This typically reduces file size by 60-80% while maintaining quality.
+        """
+        try:
+            from services.image_optimization_service import optimize_image
+        except ImportError:
+            print("Image optimization service not available, using original images")
+            return results
+
+        optimized_results = []
+        for img_dict in results:
+            if not isinstance(img_dict, dict):
+                optimized_results.append(img_dict)
+                continue
+
+            b64_data = img_dict.get("b64")
+            if not b64_data:
+                optimized_results.append(img_dict)
+                continue
+
+            # Skip optimization for placeholders (already small)
+            if img_dict.get("is_placeholder"):
+                optimized_results.append(img_dict)
+                continue
+
+            # Optimize the image
+            optimized_b64 = optimize_image(b64_data, preset="storage")
+            if optimized_b64:
+                img_dict["b64"] = optimized_b64
+                img_dict["optimized"] = True
+
+            optimized_results.append(img_dict)
+
+        return optimized_results
     
     def _create_placeholder_image(self, text: str) -> Optional[str]:
         """Creates a simple placeholder image with an error message"""

@@ -67,6 +67,37 @@ class SupabaseService:
     # Curriculum Operations
     # =========================================================================
 
+    def _optimize_curriculum_for_storage(self, curriculum: Dict[str, Any]) -> Dict[str, Any]:
+        """Optimize curriculum images for cloud storage.
+
+        First tries to compress/resize images. If still too large, strips them.
+
+        Args:
+            curriculum: Original curriculum with potential images.
+
+        Returns:
+            Copy of curriculum with optimized or stripped images.
+        """
+        import copy
+
+        # First, try to optimize images
+        try:
+            from services.image_optimization_service import optimize_curriculum_images
+            optimized = optimize_curriculum_images(curriculum, preset="storage", in_place=False)
+
+            # Check if optimized version is small enough (< 5MB)
+            optimized_size = self._estimate_json_size(optimized)
+            if optimized_size < 5_000_000:
+                print(f"Curriculum optimized to {optimized_size / 1_000_000:.1f}MB")
+                return optimized
+            else:
+                print(f"Optimized curriculum still {optimized_size / 1_000_000:.1f}MB, stripping images")
+        except ImportError:
+            print("Image optimization service not available, falling back to stripping")
+
+        # Fallback: strip images entirely if optimization isn't enough
+        return self._strip_images_from_curriculum(curriculum)
+
     def _strip_images_from_curriculum(self, curriculum: Dict[str, Any]) -> Dict[str, Any]:
         """Remove base64 images from curriculum to reduce payload size.
 
@@ -149,13 +180,13 @@ class SupabaseService:
             # Generate title from subject/grade if not provided
             title = meta.get("title") or f"{meta.get('subject', 'Curriculum')} - Grade {meta.get('grade', 'N/A')}"
 
-            # Strip images if content is large (> 1MB) or strip_images is True
+            # Optimize images if content is large (> 1MB)
             content_to_save = curriculum
             estimated_size = self._estimate_json_size(curriculum)
 
             if strip_images and estimated_size > 1_000_000:  # 1MB threshold
-                print(f"Stripping images from curriculum ({estimated_size / 1_000_000:.1f}MB)")
-                content_to_save = self._strip_images_from_curriculum(curriculum)
+                print(f"Optimizing curriculum for storage ({estimated_size / 1_000_000:.1f}MB)")
+                content_to_save = self._optimize_curriculum_for_storage(curriculum)
                 new_size = self._estimate_json_size(content_to_save)
                 print(f"Reduced to {new_size / 1_000_000:.1f}MB")
 
@@ -215,12 +246,12 @@ class SupabaseService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             if content:
-                # Strip images if content is large
+                # Optimize images if content is large
                 content_to_save = content
                 estimated_size = self._estimate_json_size(content)
 
                 if strip_images and estimated_size > 1_000_000:  # 1MB threshold
-                    content_to_save = self._strip_images_from_curriculum(content)
+                    content_to_save = self._optimize_curriculum_for_storage(content)
 
                 update_data["content"] = content_to_save
                 update_data["unit_count"] = len(content.get("units", []))
