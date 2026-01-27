@@ -1,94 +1,63 @@
-/* InstaSchool Design System - Warm Scholar Theme */
-/* A distinctive educational aesthetic: warm, inviting, scholarly */
-
-/* Typography - System fonts with elegant fallbacks for reliability */
-/* NOTE: External fonts (Lora, Source Sans 3) removed due to rendering issues on Streamlit Cloud */
+/* InstaSchool Design System - Modern 2025 Theme */
+/* Clean, professional design inspired by Linear, Vercel, Notion */
 
 /* =============================================================================
-   CSS VARIABLES - Warm Scholar Theme
+   CSS VARIABLES - Light Theme (Default)
    ============================================================================= */
 :root {
-    /* Primary Palette - Warm & Scholarly */
-    --scholar-gold: #B8860B;
-    --scholar-gold-light: #D4A84B;
-    --scholar-gold-dark: #8B6914;
-    --scholar-forest: #2D5A3D;
-    --scholar-forest-light: #3D7A52;
-    --scholar-forest-dark: #1E3D29;
+    /* Background Colors */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #f1f5f9;
+    --bg-elevated: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
+    --bg-input: #ffffff;
+    --bg-overlay: rgba(0, 0, 0, 0.5);
 
-    /* Accent Colors - Natural & Warm */
-    --accent-primary: var(--scholar-forest);
-    --accent-primary-light: var(--scholar-forest-light);
-    --accent-primary-dark: var(--scholar-forest-dark);
-    --accent-secondary: var(--scholar-gold);
-    --accent-gradient: linear-gradient(135deg, var(--scholar-forest) 0%, var(--scholar-gold) 100%);
+    /* Text Colors */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #64748b;
+    --text-muted: #94a3b8;
+    --text-on-accent: #ffffff;
 
-    /* Warm Neutrals */
-    --cream: #FFFEF5;
-    --cream-dark: #F5F0E1;
-    --parchment: #FAF8F0;
-    --linen: #F0EBE0;
-    --warm-gray: #6B6558;
-    --charcoal: #3D3A33;
+    /* Border Colors */
+    --border-primary: #e2e8f0;
+    --border-secondary: #cbd5e1;
+    --border-hover: #94a3b8;
+    --border-focus: #6366f1;
 
-    /* Secondary Accents */
-    --terracotta: #C2785C;
-    --sage: #87A878;
-    --dusty-rose: #C9A9A6;
-    --navy-ink: #2C3E50;
-    --burgundy: #722F37;
+    /* Accent Colors - Indigo */
+    --accent: #6366f1;
+    --accent-light: #818cf8;
+    --accent-lighter: #a5b4fc;
+    --accent-dark: #4f46e5;
+    --accent-bg: rgba(99, 102, 241, 0.08);
+    --accent-bg-hover: rgba(99, 102, 241, 0.12);
 
-    /* Surface Colors - Paper-like Textures */
-    --surface-primary: var(--cream);
-    --surface-secondary: var(--parchment);
-    --surface-tertiary: var(--linen);
-    --surface-elevated: rgba(255, 254, 245, 0.97);
+    /* Status Colors */
+    --success: #22c55e;
+    --success-bg: rgba(34, 197, 94, 0.1);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.1);
+    --error: #ef4444;
+    --error-bg: rgba(239, 68, 68, 0.1);
+    --info: #3b82f6;
+    --info-bg: rgba(59, 130, 246, 0.1);
 
-    /* Warm Glass Effect */
-    --glass-blur: 24px;
-    --glass-saturation: 120%;
-    --glass-bg-light: rgba(255, 254, 245, 0.75);
-    --glass-bg-medium: rgba(255, 254, 245, 0.88);
-    --glass-bg-strong: rgba(255, 254, 245, 0.95);
-    --glass-border: rgba(184, 134, 11, 0.15);
-    --glass-border-light: rgba(184, 134, 11, 0.08);
-    --glass-highlight: rgba(255, 255, 255, 0.6);
-    --glass-shadow: 0 8px 32px rgba(61, 58, 51, 0.08),
-                    0 2px 8px rgba(61, 58, 51, 0.04),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
 
-    /* Warm Background with Subtle Texture */
-    --bg-base: var(--cream-dark);
-    --bg-mesh:
-        radial-gradient(ellipse 100% 80% at 0% 0%, rgba(184, 134, 11, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse 80% 60% at 100% 100%, rgba(45, 90, 61, 0.04) 0%, transparent 50%),
-        radial-gradient(ellipse 60% 40% at 50% 50%, rgba(194, 120, 92, 0.03) 0%, transparent 50%);
+    /* Glass Effect */
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.2);
 
-    /* Text Colors - Warm & Readable */
-    --text-primary: var(--charcoal);
-    --text-secondary: #524F47;
-    --text-tertiary: var(--warm-gray);
-    --text-quaternary: #9A9589;
-    --text-on-accent: #FFFEF5;
-
-    /* Separators */
-    --separator: rgba(107, 101, 88, 0.12);
-    --separator-strong: rgba(107, 101, 88, 0.24);
-
-    /* System Colors - Warm Variations */
-    --system-red: #B54242;
-    --system-orange: #D4854A;
-    --system-yellow: #D4A84B;
-    --system-green: var(--scholar-forest);
-    --system-mint: #6B9E8A;
-    --system-teal: #5A8A8A;
-    --system-cyan: #5A8AA8;
-    --system-blue: #4A7A9A;
-    --system-indigo: #5A5A8A;
-    --system-purple: #7A5A8A;
-    --system-pink: #A86A7A;
-
-    /* Spacing Scale */
+    /* Spacing */
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;
@@ -99,1180 +68,633 @@
     --space-10: 40px;
     --space-12: 48px;
 
-    /* Typography - System Font Stack (reliable cross-platform) */
-    --font-display: Georgia, 'Times New Roman', serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-    --font-family: var(--font-body);
+    /* Typography */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 
-    --text-xs: 11px;
+    --text-xs: 12px;
     --text-sm: 13px;
-    --text-base: 15px;
-    --text-lg: 17px;
-    --text-xl: 20px;
-    --text-2xl: 24px;
-    --text-3xl: 28px;
-    --text-4xl: 36px;
-    --text-5xl: 44px;
+    --text-base: 14px;
+    --text-lg: 16px;
+    --text-xl: 18px;
+    --text-2xl: 20px;
+    --text-3xl: 24px;
+    --text-4xl: 30px;
+    --text-5xl: 36px;
 
-    /* Font Weights */
-    --weight-light: 300;
-    --weight-regular: 400;
-    --weight-medium: 500;
-    --weight-semibold: 600;
-    --weight-bold: 700;
-
-    /* Border Radius - Softer, More Organic */
+    /* Border Radius */
     --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
-    --radius-xl: 20px;
-    --radius-2xl: 26px;
-    --radius-3xl: 32px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
     --radius-full: 9999px;
 
-    /* Shadows - Warmer, Softer */
-    --shadow-xs: 0 1px 3px rgba(61, 58, 51, 0.05);
-    --shadow-sm: 0 2px 8px rgba(61, 58, 51, 0.07), 0 1px 2px rgba(61, 58, 51, 0.05);
-    --shadow-md: 0 4px 16px rgba(61, 58, 51, 0.09), 0 2px 4px rgba(61, 58, 51, 0.05);
-    --shadow-lg: 0 8px 32px rgba(61, 58, 51, 0.11), 0 4px 8px rgba(61, 58, 51, 0.05);
-    --shadow-xl: 0 16px 48px rgba(61, 58, 51, 0.14), 0 8px 16px rgba(61, 58, 51, 0.07);
-    --shadow-glow-gold: 0 0 32px rgba(184, 134, 11, 0.20);
-    --shadow-glow-forest: 0 0 32px rgba(45, 90, 61, 0.18);
-
-    /* Transitions - Slightly Slower, More Elegant */
-    --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 0.45s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-spring: 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.2s ease;
+    --transition-slow: 0.3s ease;
 }
+
+/* =============================================================================
+   DARK THEME
+   ============================================================================= */
+[data-theme="dark"] {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #111118;
+    --bg-tertiary: #18181f;
+    --bg-elevated: #1a1a22;
+    --bg-card: rgba(255, 255, 255, 0.03);
+    --bg-card-hover: rgba(255, 255, 255, 0.05);
+    --bg-input: #111118;
+    --bg-overlay: rgba(0, 0, 0, 0.7);
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+    --text-muted: #475569;
+
+    --border-primary: rgba(255, 255, 255, 0.08);
+    --border-secondary: rgba(255, 255, 255, 0.12);
+    --border-hover: rgba(255, 255, 255, 0.2);
+
+    --accent-bg: rgba(99, 102, 241, 0.15);
+    --accent-bg-hover: rgba(99, 102, 241, 0.2);
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+
+    --glass-bg: rgba(17, 17, 24, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+/* =============================================================================
+   FONT IMPORT
+   ============================================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* =============================================================================
    BASE APP STYLING
    ============================================================================= */
 .stApp {
-    font-family: var(--font-body) !important;
-    background: var(--bg-base) !important;
-    background-image: var(--bg-mesh) !important;
-    background-attachment: fixed !important;
+    font-family: var(--font-sans) !important;
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
     min-height: 100vh !important;
 }
 
-/* Paper texture overlay removed for compatibility with Streamlit Cloud */
-
-/* =============================================================================
-   SIDEBAR - Warm Parchment Style
-   ============================================================================= */
-.stApp [data-testid="stSidebar"] {
-    background: var(--glass-bg-strong) !important;
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
-    border-right: 1px solid var(--glass-border) !important;
-    box-shadow: 4px 0 24px rgba(61, 58, 51, 0.05) !important;
+.stApp [data-testid="stAppViewContainer"] {
+    background: var(--bg-primary) !important;
 }
 
+/* Hide Streamlit chrome */
+.stApp > header { display: none !important; }
+#MainMenu { display: none !important; }
+.stDeployButton { display: none !important; }
+footer { display: none !important; }
+
+/* =============================================================================
+   SIDEBAR
+   ============================================================================= */
+.stApp [data-testid="stSidebar"] {
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border-primary) !important;
+}
+
+.stApp [data-testid="stSidebar"] > div:first-child {
+    background: transparent !important;
+    padding-top: var(--space-6) !important;
+}
+
+/* Sidebar header text */
+.stApp [data-testid="stSidebar"] .stMarkdown h1,
+.stApp [data-testid="stSidebar"] .stMarkdown h2,
+.stApp [data-testid="stSidebar"] .stMarkdown h3 {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.stApp [data-testid="stSidebar"] .stMarkdown p,
+.stApp [data-testid="stSidebar"] .stMarkdown span {
+    color: var(--text-secondary) !important;
+}
+
+/* Hide broken Material Icons text */
+.stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] span:not([class]) {
+    font-size: 0 !important;
+    visibility: hidden !important;
+}
+
+/* Sidebar collapse button */
 .stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
-    background: var(--glass-bg-medium) !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
     border-radius: var(--radius-md) !important;
-    border: 1px solid var(--separator) !important;
-    padding: 8px !important;
     transition: all var(--transition-fast) !important;
 }
 
 .stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
-    background: var(--scholar-forest) !important;
-    border-color: var(--scholar-forest) !important;
-}
-
-.stApp [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover svg {
-    fill: var(--cream) !important;
-}
-
-.stApp [data-testid="stSidebar"] > div {
-    background: transparent !important;
-}
-
-.stApp [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
-    color: var(--text-secondary) !important;
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
 }
 
 /* =============================================================================
-   MAIN CONTENT AREA
-   ============================================================================= */
-.stApp [data-testid="stAppViewContainer"] {
-    background: transparent !important;
-}
-
-.stApp [data-testid="block-container"] {
-    padding: var(--space-6) !important;
-}
-
-/* =============================================================================
-   TYPOGRAPHY - Elegant Scholarly Style
+   TYPOGRAPHY
    ============================================================================= */
 .stApp h1 {
-    font-family: var(--font-display) !important;
-    font-weight: var(--weight-semibold) !important;
-    font-size: var(--text-5xl) !important;
-    letter-spacing: -0.5px !important;
     color: var(--text-primary) !important;
-    line-height: 1.15 !important;
+    font-weight: 700 !important;
+    font-size: var(--text-4xl) !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.2 !important;
 }
 
 .stApp h2 {
-    font-family: var(--font-display) !important;
-    font-weight: var(--weight-medium) !important;
-    font-size: var(--text-2xl) !important;
-    letter-spacing: -0.2px !important;
     color: var(--text-primary) !important;
-    line-height: 1.25 !important;
+    font-weight: 600 !important;
+    font-size: var(--text-2xl) !important;
+    letter-spacing: -0.01em !important;
 }
 
 .stApp h3 {
-    font-family: var(--font-display) !important;
-    font-weight: var(--weight-medium) !important;
-    font-size: var(--text-xl) !important;
     color: var(--text-primary) !important;
-    line-height: 1.35 !important;
+    font-weight: 600 !important;
+    font-size: var(--text-xl) !important;
 }
 
-.stApp p,
-.stApp label,
-.stApp span:not(.material-icons):not(.material-icons-round):not(.material-icons-outlined):not(.material-icons-two-tone):not(.material-icons-sharp):not(.material-symbols-outlined):not(.material-symbols-rounded):not(.material-symbols-sharp) {
-    font-family: var(--font-body) !important;
+.stApp p, .stApp span, .stApp label {
     color: var(--text-secondary) !important;
     font-size: var(--text-base) !important;
-    line-height: 1.65 !important;
-}
-
-/* Ensure Streamlit's Material icons keep their icon font (otherwise the icon name
-   like "keyboard_arrow_down" renders as visible text). */
-.stApp span.material-icons,
-.stApp i.material-icons,
-.stApp span.material-icons-round,
-.stApp i.material-icons-round,
-.stApp span.material-icons-outlined,
-.stApp i.material-icons-outlined,
-.stApp span.material-icons-two-tone,
-.stApp i.material-icons-two-tone,
-.stApp span.material-icons-sharp,
-.stApp i.material-icons-sharp {
-    font-family: "Material Icons" !important;
-    font-weight: normal !important;
-    font-style: normal !important;
-    letter-spacing: normal !important;
-    text-transform: none !important;
-    display: inline-block !important;
-    white-space: nowrap !important;
-    word-wrap: normal !important;
-    direction: ltr !important;
-}
-
-.stApp span.material-symbols-outlined {
-    font-family: "Material Symbols Outlined" !important;
-    font-weight: normal !important;
-    font-style: normal !important;
-    letter-spacing: normal !important;
-    text-transform: none !important;
-    display: inline-block !important;
-    white-space: nowrap !important;
-    word-wrap: normal !important;
-    direction: ltr !important;
-}
-
-.stApp span.material-symbols-rounded {
-    font-family: "Material Symbols Rounded" !important;
-    font-weight: normal !important;
-    font-style: normal !important;
-    letter-spacing: normal !important;
-    text-transform: none !important;
-    display: inline-block !important;
-    white-space: nowrap !important;
-    word-wrap: normal !important;
-    direction: ltr !important;
-}
-
-.stApp span.material-symbols-sharp {
-    font-family: "Material Symbols Sharp" !important;
-    font-weight: normal !important;
-    font-style: normal !important;
-    letter-spacing: normal !important;
-    text-transform: none !important;
-    display: inline-block !important;
-    white-space: nowrap !important;
-    word-wrap: normal !important;
-    direction: ltr !important;
+    line-height: 1.6 !important;
 }
 
 /* =============================================================================
-   BUTTONS - Warm Forest & Gold
+   BUTTONS
    ============================================================================= */
 .stApp .stButton > button {
-    background: linear-gradient(135deg, var(--scholar-forest) 0%, var(--scholar-forest-dark) 100%) !important;
-    color: #FFFFFF !important;
+    background: var(--accent) !important;
+    color: var(--text-on-accent) !important;
     border: none !important;
-    border-radius: var(--radius-lg) !important;
-    padding: 14px 28px !important;
-    font-family: var(--font-body) !important;
-    font-weight: var(--weight-semibold) !important;
-    font-size: var(--text-base) !important;
-    box-shadow: var(--shadow-md),
-                0 4px 16px rgba(45, 90, 61, 0.30),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
-    transition: all var(--transition-normal) !important;
-    position: relative !important;
-    overflow: hidden !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Force white text on ALL button text elements - fixes Streamlit primary button */
-.stApp .stButton > button * {
-    color: #FFFFFF !important;
-}
-
-.stApp .stButton > button p,
-.stApp .stButton > button span,
-.stApp .stButton > button div {
-    color: #FFFFFF !important;
-}
-
-/* Target Streamlit's BaseWeb button internals */
-.stApp button[data-testid="baseButton-primary"],
-.stApp button[data-testid="baseButton-primary"] * {
-    color: #FFFFFF !important;
-}
-
-.stApp button[kind="primary"],
-.stApp button[kind="primary"] * {
-    color: #FFFFFF !important;
-}
-
-.stApp .stButton > button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-    transition: left 0.5s ease;
+    border-radius: var(--radius-md) !important;
+    padding: 10px 20px !important;
+    font-weight: 500 !important;
+    font-size: var(--text-sm) !important;
+    font-family: var(--font-sans) !important;
+    transition: all var(--transition-fast) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
 .stApp .stButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: var(--shadow-lg),
-                0 8px 28px rgba(45, 90, 61, 0.38),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-}
-
-.stApp .stButton > button:hover::before {
-    left: 100%;
+    background: var(--accent-dark) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
 .stApp .stButton > button:active {
     transform: translateY(0) !important;
 }
 
-/* Secondary/Outline Buttons - Gold Accent */
-.stApp .stButton > button[kind="secondary"],
-.stApp .stButton > button[data-testid="baseButton-secondary"] {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(16px) saturate(120%) !important;
-    color: var(--scholar-forest-dark) !important;
-    border: 2px solid var(--scholar-gold-light) !important;
-    box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight) !important;
-    text-shadow: none !important;
+/* Fix button text visibility */
+.stApp .stButton > button,
+.stApp .stButton > button * {
+    color: white !important;
+    -webkit-text-fill-color: white !important;
+}
+
+/* Secondary/outline buttons */
+.stApp .stButton > button[kind="secondary"] {
+    background: transparent !important;
+    border: 1px solid var(--border-primary) !important;
+    color: var(--text-primary) !important;
 }
 
 .stApp .stButton > button[kind="secondary"]:hover {
-    background: rgba(184, 134, 11, 0.08) !important;
-    border-color: var(--scholar-gold) !important;
-    box-shadow: var(--shadow-md), var(--shadow-glow-gold) !important;
+    background: var(--bg-card-hover) !important;
+    border-color: var(--border-hover) !important;
+}
+
+.stApp .stButton > button[kind="secondary"],
+.stApp .stButton > button[kind="secondary"] * {
+    color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
 }
 
 /* =============================================================================
-   INPUT FIELDS - Warm Paper Style
+   INPUTS
    ============================================================================= */
 .stApp .stTextInput > div > div > input,
 .stApp .stTextArea > div > div > textarea,
-.stApp .stNumberInput > div > div > input {
-    background: var(--surface-primary) !important;
-    border: 1.5px solid var(--separator) !important;
+.stApp .stSelectbox > div > div,
+.stApp .stMultiSelect > div > div {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border-primary) !important;
     border-radius: var(--radius-md) !important;
     color: var(--text-primary) !important;
-    font-family: var(--font-body) !important;
+    font-family: var(--font-sans) !important;
     font-size: var(--text-base) !important;
-    padding: 14px 18px !important;
     transition: all var(--transition-fast) !important;
-    box-shadow: inset 0 2px 4px rgba(61, 58, 51, 0.03) !important;
 }
 
 .stApp .stTextInput > div > div > input:focus,
 .stApp .stTextArea > div > div > textarea:focus {
-    border-color: var(--scholar-forest) !important;
-    box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.10),
-                inset 0 2px 4px rgba(61, 58, 51, 0.03) !important;
-    outline: none !important;
-    background: var(--cream) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-bg) !important;
 }
 
-.stApp .stTextInput > div > div > input::placeholder,
-.stApp .stTextArea > div > div > textarea::placeholder {
-    color: var(--text-quaternary) !important;
-}
-
-/* =============================================================================
-   SELECT BOXES - Warm Dropdown
-   ============================================================================= */
-.stApp .stSelectbox > div > div {
-    background: var(--surface-primary) !important;
-    border: 1.5px solid var(--separator) !important;
-    border-radius: var(--radius-md) !important;
-    transition: all var(--transition-fast) !important;
-}
-
-.stApp .stSelectbox > div > div:hover {
-    border-color: var(--scholar-gold) !important;
-    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.08) !important;
-}
-
-/* =============================================================================
-   MULTISELECT - Improved Chip Styling
-   ============================================================================= */
-.stApp .stMultiSelect [data-baseweb="tag"] {
-    background: var(--scholar-forest-light) !important;
-    color: var(--cream) !important;
-    border: 1px solid var(--scholar-forest) !important;
-    border-radius: var(--radius-md) !important;
-    padding: 4px 10px !important;
-    font-family: var(--font-body) !important;
+.stApp .stTextInput > label,
+.stApp .stTextArea > label,
+.stApp .stSelectbox > label,
+.stApp .stMultiSelect > label {
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
     font-size: var(--text-sm) !important;
-    font-weight: var(--weight-medium) !important;
-}
-
-.stApp .stMultiSelect [data-baseweb="tag"] span {
-    color: var(--cream) !important;
-}
-
-.stApp .stMultiSelect [data-baseweb="tag"]:hover {
-    background: var(--scholar-forest) !important;
-    box-shadow: var(--shadow-sm) !important;
-}
-
-/* Multiselect remove button */
-.stApp .stMultiSelect [data-baseweb="tag"] svg {
-    fill: var(--cream) !important;
-    opacity: 0.9 !important;
-}
-
-.stApp .stMultiSelect [data-baseweb="tag"]:hover svg {
-    opacity: 1 !important;
-}
-
-/* Multiselect dropdown container */
-.stApp .stMultiSelect > div > div {
-    background: var(--surface-primary) !important;
-    border: 1.5px solid var(--separator) !important;
-    border-radius: var(--radius-md) !important;
-    transition: all var(--transition-fast) !important;
-}
-
-.stApp .stMultiSelect > div > div:hover,
-.stApp .stMultiSelect > div > div:focus-within {
-    border-color: var(--scholar-forest) !important;
-    box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.10) !important;
 }
 
 /* =============================================================================
-   TABS - Elegant Book Tabs
+   CARDS
+   ============================================================================= */
+.modern-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: var(--space-6) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all var(--transition-fast) !important;
+}
+
+.modern-card:hover {
+    border-color: var(--border-hover) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.modern-card-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: var(--space-4) !important;
+    margin-bottom: var(--space-4) !important;
+}
+
+.modern-card-title {
+    color: var(--text-primary) !important;
+    font-size: var(--text-lg) !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    line-height: 1.4 !important;
+}
+
+.modern-card-subtitle {
+    color: var(--text-tertiary) !important;
+    font-size: var(--text-sm) !important;
+    margin: var(--space-1) 0 0 0 !important;
+}
+
+.modern-card-content {
+    color: var(--text-secondary) !important;
+    font-size: var(--text-base) !important;
+    line-height: 1.6 !important;
+}
+
+/* =============================================================================
+   STATS CARDS
+   ============================================================================= */
+.stats-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: var(--space-6) !important;
+    text-align: center !important;
+}
+
+.stats-value {
+    font-size: var(--text-3xl) !important;
+    font-weight: 700 !important;
+    color: var(--accent) !important;
+    margin-bottom: var(--space-1) !important;
+}
+
+.stats-label {
+    font-size: var(--text-sm) !important;
+    color: var(--text-tertiary) !important;
+    font-weight: 500 !important;
+}
+
+/* =============================================================================
+   STATUS BADGES
+   ============================================================================= */
+.status-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 4px 10px !important;
+    border-radius: var(--radius-full) !important;
+    font-size: var(--text-xs) !important;
+    font-weight: 500 !important;
+    text-transform: capitalize !important;
+}
+
+.status-badge.success {
+    background: var(--success-bg) !important;
+    color: var(--success) !important;
+}
+
+.status-badge.warning {
+    background: var(--warning-bg) !important;
+    color: var(--warning) !important;
+}
+
+.status-badge.error {
+    background: var(--error-bg) !important;
+    color: var(--error) !important;
+}
+
+.status-badge.info {
+    background: var(--info-bg) !important;
+    color: var(--info) !important;
+}
+
+/* =============================================================================
+   PROGRESS INDICATORS
+   ============================================================================= */
+.stApp .stProgress > div > div > div {
+    background: var(--accent) !important;
+    border-radius: var(--radius-full) !important;
+}
+
+.stApp .stProgress > div > div {
+    background: var(--bg-tertiary) !important;
+    border-radius: var(--radius-full) !important;
+}
+
+/* =============================================================================
+   EXPANDERS
+   ============================================================================= */
+.stApp .stExpander {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-lg) !important;
+    overflow: hidden !important;
+}
+
+.stApp .stExpander > div:first-child {
+    background: transparent !important;
+    border: none !important;
+}
+
+.stApp .stExpander summary {
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
+}
+
+/* =============================================================================
+   TABS
    ============================================================================= */
 .stApp .stTabs [data-baseweb="tab-list"] {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(20px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
-    border-radius: var(--radius-xl) !important;
-    padding: 5px !important;
-    gap: 4px !important;
-    border: 1px solid var(--glass-border) !important;
-    box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight) !important;
+    background: transparent !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+    gap: 0 !important;
 }
 
 .stApp .stTabs [data-baseweb="tab"] {
     background: transparent !important;
-    border-radius: var(--radius-lg) !important;
-    color: var(--text-secondary) !important;
-    font-family: var(--font-body) !important;
-    font-weight: var(--weight-medium) !important;
-    font-size: var(--text-sm) !important;
-    padding: 12px 24px !important;
-    transition: all var(--transition-fast) !important;
+    color: var(--text-tertiary) !important;
     border: none !important;
+    border-bottom: 2px solid transparent !important;
+    padding: var(--space-3) var(--space-4) !important;
+    font-weight: 500 !important;
+    transition: all var(--transition-fast) !important;
 }
 
 .stApp .stTabs [data-baseweb="tab"]:hover {
-    background: rgba(45, 90, 61, 0.06) !important;
-    color: var(--scholar-forest) !important;
+    color: var(--text-primary) !important;
 }
 
 .stApp .stTabs [aria-selected="true"] {
-    background: var(--surface-primary) !important;
-    color: var(--scholar-forest) !important;
-    font-weight: var(--weight-semibold) !important;
-    box-shadow: var(--shadow-sm) !important;
-}
-
-.stApp .stTabs [data-baseweb="tab-highlight"],
-.stApp .stTabs [data-baseweb="tab-border"] {
-    display: none !important;
+    color: var(--accent) !important;
+    border-bottom-color: var(--accent) !important;
 }
 
 /* =============================================================================
-   EXPANDERS - Accordion with Gold Accent
-   NOTE: Minimal styling to avoid interference with Streamlit's label rendering
-   FIX: Hide keyboard-navigation accessibility labels that leak into visible UI
+   ALERTS
    ============================================================================= */
-.stApp [data-testid="stExpander"] {
-    border: 1px solid var(--separator) !important;
-    border-left: 3px solid var(--scholar-gold) !important;
+.stApp .stAlert {
     border-radius: var(--radius-lg) !important;
-    background: var(--glass-bg-medium) !important;
-    overflow: hidden !important;
-    margin-bottom: var(--space-3) !important;
+    border: 1px solid var(--border-primary) !important;
 }
 
-/* Hide Streamlit's internal screen-reader-only labels without affecting icons. */
-.stApp [data-testid="stExpander"] .sr-only {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
+.stApp .stAlert[data-baseweb="notification"] {
+    background: var(--bg-card) !important;
 }
 
-/* Ensure expander header text renders cleanly */
-.stApp [data-testid="stExpander"] summary {
-    padding: 14px 18px !important;
-    cursor: pointer !important;
-    transition: background var(--transition-fast) !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
+/* Success alert */
+.stApp div[data-testid="stNotification"][data-type="success"] {
+    background: var(--success-bg) !important;
+    border-color: var(--success) !important;
 }
 
-/* Reset any text-rendering issues */
-.stApp [data-testid="stExpander"] summary > div {
-    font-family: var(--font-body) !important;
-    font-size: var(--text-base) !important;
-    color: var(--text-primary) !important;
-    line-height: 1.65 !important;
+/* Warning alert */
+.stApp div[data-testid="stNotification"][data-type="warning"] {
+    background: var(--warning-bg) !important;
+    border-color: var(--warning) !important;
 }
 
-/* Force expander icon to use correct font */
-.stApp [data-testid="stExpander"] summary > span:first-child {
-    font-family: "Material Symbols Rounded", "Material Symbols Outlined", "Material Symbols Sharp", "Material Icons" !important;
-    font-weight: normal !important;
-    font-style: normal !important;
-    display: inline-block !important;
-    vertical-align: middle !important;
-    white-space: nowrap !important;
-    text-transform: none !important;
-    direction: ltr !important;
+/* Error alert */
+.stApp div[data-testid="stNotification"][data-type="error"] {
+    background: var(--error-bg) !important;
+    border-color: var(--error) !important;
 }
 
-.stApp [data-testid="stExpander"] summary:hover {
-    background: var(--glass-bg-strong) !important;
-}
-
-.stApp [data-testid="stExpander"] > div[data-testid="stExpanderDetails"] {
-    background: var(--surface-primary) !important;
-    border-top: 1px solid var(--separator) !important;
-    padding: 18px !important;
+/* Info alert */
+.stApp div[data-testid="stNotification"][data-type="info"] {
+    background: var(--info-bg) !important;
+    border-color: var(--info) !important;
 }
 
 /* =============================================================================
-   METRICS - Stat Cards with Warm Style
+   METRICS
    ============================================================================= */
 .stApp [data-testid="stMetric"] {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(20px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
-    border: 1px solid var(--glass-border) !important;
-    border-radius: var(--radius-xl) !important;
-    padding: 22px 26px !important;
-    box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight) !important;
-    transition: all var(--transition-normal) !important;
-}
-
-.stApp [data-testid="stMetric"]:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: var(--shadow-md), var(--shadow-glow-gold) !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: var(--space-4) !important;
 }
 
 .stApp [data-testid="stMetricLabel"] {
     color: var(--text-tertiary) !important;
-    font-family: var(--font-body) !important;
-    font-size: var(--text-xs) !important;
-    font-weight: var(--weight-semibold) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1px !important;
+    font-size: var(--text-sm) !important;
 }
 
 .stApp [data-testid="stMetricValue"] {
-    color: var(--scholar-forest) !important;
-    font-family: var(--font-display) !important;
-    font-size: var(--text-3xl) !important;
-    font-weight: var(--weight-bold) !important;
-    letter-spacing: -0.5px !important;
-}
-
-/* =============================================================================
-   FORMS - Warm Container
-   ============================================================================= */
-.stApp [data-testid="stForm"] {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(20px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
-    border: 1px solid var(--glass-border) !important;
-    border-radius: var(--radius-xl) !important;
-    padding: 28px !important;
-    box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-highlight) !important;
-}
-
-/* Form Submit Button - Ensure white text */
-.stApp [data-testid="stForm"] button[type="submit"],
-.stApp [data-testid="stForm"] button[kind="primaryFormSubmit"],
-.stApp [data-testid="stFormSubmitButton"] button,
-.stApp .stFormSubmitButton button {
-    color: #FFFFFF !important;
-}
-
-.stApp [data-testid="stForm"] button[type="submit"] *,
-.stApp [data-testid="stFormSubmitButton"] button *,
-.stApp .stFormSubmitButton button * {
-    color: #FFFFFF !important;
-}
-
-/* =============================================================================
-   ALERTS - Warm Notification Style
-   ============================================================================= */
-.stApp .stAlert {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(16px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
-    border-radius: var(--radius-lg) !important;
-    border: 1px solid var(--separator) !important;
-    padding: 18px 22px !important;
-    box-shadow: var(--shadow-xs) !important;
-}
-
-.stApp .stAlert[data-baseweb="notification"] {
-    border-left: 4px solid var(--scholar-gold) !important;
-}
-
-/* =============================================================================
-   PROGRESS BARS - Enhanced Warm Gradient
-   ============================================================================= */
-.stApp .stProgress > div > div {
-    background: rgba(107, 101, 88, 0.15) !important;
-    border-radius: var(--radius-full) !important;
-    height: 12px !important;
-    overflow: hidden !important;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-}
-
-.stApp .stProgress > div > div > div {
-    background: linear-gradient(90deg, var(--scholar-forest) 0%, var(--scholar-forest-light) 50%, var(--scholar-gold) 100%) !important;
-    border-radius: var(--radius-full) !important;
-    box-shadow: 0 0 16px rgba(184, 134, 11, 0.45),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    position: relative !important;
-    overflow: hidden !important;
-}
-
-.stApp .stProgress > div > div > div::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 200%;
-    height: 100%;
-    background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.2) 40%,
-        rgba(255, 255, 255, 0.3) 50%,
-        rgba(255, 255, 255, 0.2) 60%,
-        transparent 100%);
-    animation: progress-shimmer 2s linear infinite;
-}
-
-@keyframes progress-shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
-
-/* =============================================================================
-   GENERATION STATUS / "MATRIX" FEED - ENHANCED READABILITY
-   ============================================================================= */
-
-.status-line {
-    font-family: var(--font-body);
-    font-size: 17px;
-    font-weight: var(--weight-semibold);
-    color: var(--text-primary);
-    margin: 8px 0 12px 0;
-    padding: 12px 16px;
-    background: var(--glass-bg-medium);
-    border-left: 4px solid var(--scholar-gold);
-    border-radius: var(--radius-md);
-    overflow-wrap: anywhere;
-}
-
-.matrix-terminal {
-    background: radial-gradient(ellipse 100% 100% at 0% 0%, rgba(0, 255, 120, 0.12) 0%, rgba(0, 0, 0, 0.0) 55%),
-                linear-gradient(180deg, rgba(5, 15, 10, 0.98) 0%, rgba(3, 12, 8, 0.98) 100%);
-    border: 2px solid rgba(0, 255, 120, 0.25);
-    border-radius: var(--radius-xl);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28),
-                0 4px 12px rgba(0, 255, 120, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    padding: 20px 22px;
-    margin-top: 14px;
-    position: relative;
-    overflow: hidden;
-    max-height: 480px;
-    overflow-y: auto;
-}
-
-.matrix-terminal::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-        180deg,
-        rgba(0, 255, 120, 0.08) 0px,
-        rgba(0, 255, 120, 0.08) 1px,
-        rgba(0, 0, 0, 0.0) 3px,
-        rgba(0, 0, 0, 0.0) 6px
-    );
-    opacity: 0.25;
-    pointer-events: none;
-    animation: matrix-scan 4.2s linear infinite;
-}
-
-.matrix-terminal pre {
-    position: relative;
-    margin: 0;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 15px;
-    line-height: 1.7;
-    font-weight: 500;
-    letter-spacing: 0.2px;
-    color: rgba(240, 255, 248, 0.98);
-    text-shadow: 0 0 12px rgba(0, 255, 120, 0.22),
-                 0 1px 0 rgba(0, 0, 0, 0.5);
-}
-
-@keyframes matrix-scan {
-    0% { transform: translateY(-10%); }
-    100% { transform: translateY(10%); }
-}
-
-/* Custom scrollbar for terminal */
-.matrix-terminal::-webkit-scrollbar {
-    width: 8px;
-}
-
-.matrix-terminal::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-}
-
-.matrix-terminal::-webkit-scrollbar-thumb {
-    background: rgba(0, 255, 120, 0.3);
-    border-radius: 4px;
-}
-
-.matrix-terminal::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 255, 120, 0.5);
-}
-
-/* =============================================================================
-   DOWNLOAD BUTTON - Forest Green
-   ============================================================================= */
-.stApp .stDownloadButton > button {
-    background: linear-gradient(135deg, var(--sage) 0%, var(--scholar-forest) 100%) !important;
-    box-shadow: var(--shadow-md), 0 4px 16px rgba(45, 90, 61, 0.30) !important;
-    color: var(--text-on-accent) !important;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25) !important;
-}
-
-.stApp .stDownloadButton > button:hover {
-    box-shadow: var(--shadow-lg), 0 8px 28px rgba(45, 90, 61, 0.40) !important;
-}
-
-/* =============================================================================
-   SLIDERS - Warm Track
-   ============================================================================= */
-.stApp .stSlider > div > div > div {
-    background: var(--separator) !important;
-    height: 6px !important;
-    border-radius: var(--radius-full) !important;
-}
-
-.stApp .stSlider > div > div > div > div {
-    background: linear-gradient(90deg, var(--scholar-forest), var(--scholar-gold)) !important;
-    border-radius: var(--radius-full) !important;
-}
-
-.stApp .stSlider [data-testid="stThumbValue"] {
-    background: var(--surface-primary) !important;
-    border: 2px solid var(--scholar-forest) !important;
-    box-shadow: var(--shadow-md) !important;
-}
-
-/* =============================================================================
-   CHECKBOXES & RADIO BUTTONS
-   ============================================================================= */
-.stApp .stCheckbox label span,
-.stApp .stRadio label span {
-    color: var(--text-secondary) !important;
-    font-family: var(--font-body) !important;
-    font-size: var(--text-base) !important;
-}
-
-.stApp .stCheckbox input:checked + span,
-.stApp .stRadio input:checked + span {
     color: var(--text-primary) !important;
+    font-weight: 600 !important;
 }
 
 /* =============================================================================
-   DATA TABLES - Warm Container
+   DATA TABLES
    ============================================================================= */
-.stApp [data-testid="stDataFrame"] {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(16px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
-    border-radius: var(--radius-xl) !important;
-    border: 1px solid var(--separator) !important;
-    overflow: hidden !important;
-    box-shadow: var(--shadow-sm) !important;
-}
-
-/* =============================================================================
-   CODE BLOCKS - Scholarly Monospace
-   ============================================================================= */
-.stApp code {
-    background: var(--linen) !important;
-    border-radius: var(--radius-sm) !important;
-    padding: 3px 8px !important;
-    font-size: var(--text-sm) !important;
-    border: 1px solid var(--separator) !important;
-    color: var(--burgundy) !important;
-}
-
-.stApp pre {
-    background: var(--charcoal) !important;
-    color: var(--cream) !important;
+.stApp .stDataFrame {
+    border: 1px solid var(--border-primary) !important;
     border-radius: var(--radius-lg) !important;
-    border: 1px solid var(--separator) !important;
-    padding: 18px !important;
+    overflow: hidden !important;
+}
+
+.stApp .stDataFrame thead th {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+.stApp .stDataFrame tbody td {
+    color: var(--text-secondary) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
 }
 
 /* =============================================================================
-   TOAST NOTIFICATIONS
+   SPINNERS & LOADING
    ============================================================================= */
-.stApp [data-testid="stToast"] {
-    background: var(--glass-bg-strong) !important;
-    backdrop-filter: blur(32px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(32px) saturate(140%) !important;
-    border-radius: var(--radius-xl) !important;
-    border: 1px solid var(--glass-border) !important;
-    box-shadow: var(--shadow-xl) !important;
+.stApp .stSpinner > div {
+    border-color: var(--accent) transparent transparent transparent !important;
 }
 
 /* =============================================================================
-   CUSTOM SCROLLBAR - Warm Style
+   SCROLLBARS (Webkit)
    ============================================================================= */
 .stApp ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px !important;
+    height: 8px !important;
 }
 
 .stApp ::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--bg-secondary) !important;
 }
 
 .stApp ::-webkit-scrollbar-thumb {
-    background: var(--text-quaternary);
-    border-radius: var(--radius-full);
-    border: 2px solid transparent;
-    background-clip: padding-box;
+    background: var(--border-secondary) !important;
+    border-radius: var(--radius-full) !important;
 }
 
 .stApp ::-webkit-scrollbar-thumb:hover {
-    background: var(--warm-gray);
-    border: 2px solid transparent;
-    background-clip: padding-box;
+    background: var(--text-muted) !important;
 }
 
 /* =============================================================================
-   ANIMATIONS
+   BLOCK CONTAINER
    ============================================================================= */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(16px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.stApp [data-testid="block-container"] {
+    padding: var(--space-6) var(--space-8) !important;
+    max-width: 1200px !important;
 }
 
-@keyframes pulse-glow {
-    0%, 100% {
-        box-shadow: 0 0 16px rgba(184, 134, 11, 0.25);
-    }
-    50% {
-        box-shadow: 0 0 32px rgba(184, 134, 11, 0.40);
-    }
+/* =============================================================================
+   RADIO & CHECKBOX
+   ============================================================================= */
+.stApp .stRadio > label,
+.stApp .stCheckbox > label {
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
 }
 
-@keyframes shimmer {
-    0% {
-        background-position: -200% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
+.stApp .stRadio > div,
+.stApp .stCheckbox > div {
+    color: var(--text-secondary) !important;
 }
 
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-6px);
-    }
+/* =============================================================================
+   SLIDER
+   ============================================================================= */
+.stApp .stSlider > div > div > div {
+    background: var(--accent) !important;
+}
+
+.stApp .stSlider > div > div > div > div {
+    background: var(--bg-primary) !important;
+    border: 2px solid var(--accent) !important;
+}
+
+/* =============================================================================
+   FILE UPLOADER
+   ============================================================================= */
+.stApp .stFileUploader > div {
+    background: var(--bg-card) !important;
+    border: 2px dashed var(--border-primary) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.stApp .stFileUploader > div:hover {
+    border-color: var(--accent) !important;
+}
+
+/* =============================================================================
+   CODE BLOCKS
+   ============================================================================= */
+.stApp .stCodeBlock {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+.stApp code {
+    background: var(--bg-tertiary) !important;
+    color: var(--accent) !important;
+    padding: 2px 6px !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font-mono) !important;
+    font-size: var(--text-sm) !important;
+}
+
+/* =============================================================================
+   DIVIDERS
+   ============================================================================= */
+.stApp hr {
+    border: none !important;
+    border-top: 1px solid var(--border-primary) !important;
+    margin: var(--space-6) 0 !important;
+}
+
+/* =============================================================================
+   TOOLTIPS
+   ============================================================================= */
+.stApp [data-baseweb="tooltip"] {
+    background: var(--bg-elevated) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-lg) !important;
 }
 
 /* =============================================================================
    UTILITY CLASSES
    ============================================================================= */
-.animate-fade-in {
-    animation: fadeInUp 0.45s ease-out;
-}
+.text-accent { color: var(--accent) !important; }
+.text-success { color: var(--success) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-error { color: var(--error) !important; }
+.text-muted { color: var(--text-muted) !important; }
 
-.animate-pulse-glow {
-    animation: pulse-glow 2.5s ease-in-out infinite;
-}
-
-.animate-float {
-    animation: float 3.5s ease-in-out infinite;
-}
-
-.gradient-text {
-    background: var(--accent-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.gold-text {
-    color: var(--scholar-gold) !important;
-}
-
-.forest-text {
-    color: var(--scholar-forest) !important;
-}
-
-.glass-card {
-    background: var(--glass-bg-medium) !important;
-    backdrop-filter: blur(20px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
-    border: 1px solid var(--glass-border) !important;
-    border-radius: var(--radius-xl) !important;
-    padding: 24px !important;
-    box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-highlight) !important;
-    transition: all var(--transition-normal) !important;
-}
-
-.glass-card:hover {
-    transform: translateY(-3px) !important;
-    box-shadow: var(--shadow-lg), var(--shadow-glow-gold) !important;
-}
-
-.glass-card-elevated {
-    background: var(--glass-bg-strong) !important;
-    backdrop-filter: blur(28px) saturate(130%) !important;
-    -webkit-backdrop-filter: blur(28px) saturate(130%) !important;
-    border: 1px solid var(--glass-highlight) !important;
-    border-radius: var(--radius-2xl) !important;
-    box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight) !important;
-}
-
-/* Hero Section - Warm Scholar */
-.hero-glass {
-    background: linear-gradient(135deg,
-        rgba(184, 134, 11, 0.08) 0%,
-        rgba(45, 90, 61, 0.06) 50%,
-        rgba(194, 120, 92, 0.04) 100%) !important;
-    backdrop-filter: blur(24px) saturate(130%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(130%) !important;
-    border-radius: var(--radius-2xl) !important;
-    padding: 48px !important;
-    border: 1px solid var(--glass-border) !important;
-    box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight) !important;
-}
-
-.hero-title {
-    font-family: var(--font-display);
-    font-size: clamp(30px, 6vw, 44px);
-    font-weight: var(--weight-semibold);
-    line-height: 1.08;
-    margin: 0;
-}
-
-.hero-version {
-    color: var(--text-tertiary);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-semibold);
-    letter-spacing: 0.5px;
-    margin-top: 6px;
-}
-
-.hero-lead {
-    margin-top: 14px;
-    font-size: var(--text-lg);
-    color: var(--text-secondary);
-}
-
-/* Badge Styles - Warm Palette */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 6px 14px;
-    border-radius: var(--radius-full);
-    font-family: var(--font-body);
-    font-size: var(--text-xs);
-    font-weight: var(--weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-}
-
-.badge-primary {
-    background: rgba(45, 90, 61, 0.12);
-    color: var(--scholar-forest);
-    border: 1px solid rgba(45, 90, 61, 0.18);
-}
-
-.badge-secondary {
-    background: rgba(184, 134, 11, 0.12);
-    color: var(--scholar-gold-dark);
-    border: 1px solid rgba(184, 134, 11, 0.18);
-}
-
-.badge-success {
-    background: rgba(135, 168, 120, 0.15);
-    color: var(--sage);
-    border: 1px solid rgba(135, 168, 120, 0.22);
-}
-
-.badge-warning {
-    background: rgba(212, 133, 74, 0.15);
-    color: var(--terracotta);
-    border: 1px solid rgba(212, 133, 74, 0.22);
-}
-
-.badge-error {
-    background: rgba(181, 66, 66, 0.12);
-    color: var(--system-red);
-    border: 1px solid rgba(181, 66, 66, 0.18);
-}
-
-/* Decorative Book Spine Accent */
-.book-spine-accent {
-    position: relative;
-    padding-left: 20px;
-}
-
-.book-spine-accent::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, var(--scholar-gold) 0%, var(--scholar-forest) 100%);
-    border-radius: 2px;
-}
-
-/* Subtle Paper Edge Effect */
-.paper-edge {
-    position: relative;
-}
-
-.paper-edge::after {
-    content: '';
-    position: absolute;
-    right: -1px;
-    top: 4px;
-    bottom: 4px;
-    width: 3px;
-    background: linear-gradient(180deg,
-        transparent 0%,
-        rgba(61, 58, 51, 0.06) 10%,
-        rgba(61, 58, 51, 0.08) 50%,
-        rgba(61, 58, 51, 0.06) 90%,
-        transparent 100%);
-    border-radius: 0 2px 2px 0;
-}
-
-/* Specular Highlight - Softer for Warm Theme */
-.specular-highlight::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
-    background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.20) 0%,
-        rgba(255, 255, 255, 0.08) 50%,
-        transparent 100%);
-    border-radius: inherit;
-    pointer-events: none;
-}
+.bg-accent { background: var(--accent-bg) !important; }
+.bg-success { background: var(--success-bg) !important; }
+.bg-warning { background: var(--warning-bg) !important; }
+.bg-error { background: var(--error-bg) !important; }
 
 /* =============================================================================
-   RESPONSIVE / MOBILE
+   ANIMATIONS
    ============================================================================= */
-
-.nav-divider {
-    height: 1px;
-    background: var(--separator);
-    margin: var(--space-4) 0 var(--space-6) 0;
-    border-radius: 1px;
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-@media (min-width: 1025px) {
-    /* Fixed sidebar width on desktop */
-    .stApp [data-testid="stSidebar"],
-    .stApp [data-testid="stSidebar"] > div:first-child,
-    .stApp [data-testid="stSidebarContent"] {
-        width: 360px !important;
-        min-width: 360px !important;
-        max-width: 360px !important;
-    }
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-    /* Slightly tighter layout for tablets */
-    .stApp [data-testid="block-container"] {
-        padding: var(--space-5) !important;
-    }
-
-    .stApp [data-testid="stSidebar"],
-    .stApp [data-testid="stSidebar"] > div:first-child,
-    .stApp [data-testid="stSidebarContent"] {
-        width: 320px !important;
-        min-width: 320px !important;
-        max-width: 320px !important;
-    }
+.animate-fade-in {
+    animation: fadeIn 0.3s ease forwards;
 }
 
-@media (max-width: 768px) {
-    /* Reduce expensive fixed backgrounds on mobile */
-    .stApp {
-        background-attachment: scroll !important;
-    }
-
-    .nav-divider {
-        margin: var(--space-3) 0 var(--space-4) 0;
-    }
-
-    /* Make sidebar usable in Streamlit's mobile drawer */
-    .stApp [data-testid="stSidebar"],
-    .stApp [data-testid="stSidebar"] > div:first-child,
-    .stApp [data-testid="stSidebarContent"] {
-        min-width: 0 !important;
-        max-width: 92vw !important;
-    }
-
-    /* Compact page padding */
-    .stApp [data-testid="block-container"] {
-        padding: calc(var(--space-4) + env(safe-area-inset-top))
-            calc(var(--space-3) + env(safe-area-inset-right))
-            var(--space-4)
-            calc(var(--space-3) + env(safe-area-inset-left)) !important;
-    }
-
-    /* Scale typography down */
-    .stApp h1 {
-        font-size: 34px !important;
-    }
-    .stApp h2 {
-        font-size: 22px !important;
-    }
-    .stApp h3 {
-        font-size: 18px !important;
-    }
-
-    /* Stack columns vertically on narrow screens */
-    .stApp [data-testid="block-container"] [data-testid="stHorizontalBlock"] {
-        flex-direction: column !important;
-        gap: var(--space-3) !important;
-    }
-    .stApp [data-testid="block-container"] [data-testid="column"] {
-        width: 100% !important;
-        flex: 1 1 100% !important;
-    }
-
-    /* Buttons / inputs */
-    .stApp .stButton > button,
-    .stApp .stDownloadButton > button {
-        width: 100% !important;
-        padding: 12px 16px !important;
-    }
-
-    .stApp .stTextInput > div > div > input,
-    .stApp .stTextArea > div > div > textarea,
-    .stApp .stNumberInput > div > div > input {
-        padding: 12px 14px !important;
-    }
-
-    /* Tabs should wrap instead of forcing horizontal scroll */
-    .stApp .stTabs [data-baseweb="tab-list"] {
-        flex-wrap: wrap !important;
-        row-gap: 6px !important;
-    }
-    .stApp .stTabs [data-baseweb="tab"] {
-        padding: 10px 14px !important;
-    }
-
-    /* Reduce card padding */
-    .stApp [data-testid="stForm"],
-    .glass-card,
-    .hero-glass {
-        padding: 18px !important;
-    }
-
-    .stApp [data-testid="stMetric"] {
-        padding: 18px 18px !important;
-    }
-}
-
-@media (max-width: 480px) {
-    .stApp h1 {
-        font-size: 30px !important;
-    }
-
-    .stApp [data-testid="stMetricValue"] {
-        font-size: 26px !important;
-    }
+.animate-pulse {
+    animation: pulse 2s infinite;
 }

@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Import shared initialization
 from src.shared_init import setup_page, init_session_state, load_config
-from src.ui_components import ThemeManager, FamilyDashboard
+from src.ui_components import FamilyDashboard
 from src.state_manager import StateManager
 from services.user_service import UserService
 from services.family_service import get_family_service
@@ -32,12 +32,8 @@ try:
 except Exception:
     get_certificate_service = None  # type: ignore[assignment]
 
-# Page config
+# Page config (includes theme application)
 setup_page(title="InstaSchool - Parent", icon="👨‍👩‍👧")
-
-# Apply theme
-if "theme" in st.session_state:
-    ThemeManager.apply_theme(st.session_state.theme)
 
 st.markdown("# 👨‍👩‍👧 Parent Dashboard")
 
@@ -264,7 +260,7 @@ with parent_tab4:
 
     with settings_col1:
         st.markdown("#### 🎨 Appearance")
-        ThemeManager.get_theme_toggle()
+        st.info("Use the theme toggle (🌙/☀️) in the navigation bar above to switch between light and dark mode.")
 
     with settings_col2:
         st.markdown("#### 👥 Manage Children")

@@ -186,7 +186,7 @@ def check_authentication() -> bool:
 
 
 def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wide"):
-    """Common page setup"""
+    """Common page setup with modern design system and theme support"""
     st.set_page_config(
         page_title=title,
         page_icon=icon,
@@ -202,32 +202,41 @@ def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wi
     except Exception:
         pass
 
-    # Load CSS
+    # Load CSS design system
     css_path = Path("static/css/design_system.css")
     if css_path.exists():
         with open(css_path, 'r') as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+    # Apply theme from session state
+    from src.ui_components import ThemeManager
+    theme = ThemeManager.init_theme()
+    ThemeManager.apply_theme(theme)
+
     # Initialize session state
     init_session_state()
 
-    # Lightweight top navigation (helps on mobile when the sidebar is collapsed)
-    with st.container():
-        nav_cols = st.columns(4)
-        with nav_cols[0]:
-            if st.button("🏠 Home", width="stretch", key="nav_home"):
-                st.switch_page("main.py")
-        with nav_cols[1]:
-            if st.button("🎓 Student", width="stretch", key="nav_student"):
-                st.switch_page("pages/1_Student.py")
-        with nav_cols[2]:
-            if st.button("✨ Create", width="stretch", key="nav_create"):
-                st.switch_page("pages/2_Create.py")
-        with nav_cols[3]:
-            if st.button("👨‍👩‍👧 Parent", width="stretch", key="nav_parent"):
-                st.switch_page("pages/3_Parent.py")
+    # Navigation bar with theme toggle
+    nav_cols = st.columns([1, 1, 1, 1, 0.5])
+    with nav_cols[0]:
+        if st.button("🏠 Home", use_container_width=True, key="nav_home"):
+            st.switch_page("main.py")
+    with nav_cols[1]:
+        if st.button("🎓 Student", use_container_width=True, key="nav_student"):
+            st.switch_page("pages/1_Student.py")
+    with nav_cols[2]:
+        if st.button("✨ Create", use_container_width=True, key="nav_create"):
+            st.switch_page("pages/2_Create.py")
+    with nav_cols[3]:
+        if st.button("👨‍👩‍👧 Parent", use_container_width=True, key="nav_parent"):
+            st.switch_page("pages/3_Parent.py")
+    with nav_cols[4]:
+        theme_icon = "🌙" if theme == "light" else "☀️"
+        if st.button(theme_icon, key="nav_theme_toggle", help="Toggle theme"):
+            ThemeManager.toggle_theme()
+            st.rerun()
 
-    st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
+    st.markdown("---")
 
 
 def get_version_display() -> str:
