@@ -308,7 +308,7 @@
    ============================================================================= */
 .stApp .stButton > button {
     background: linear-gradient(135deg, var(--scholar-forest) 0%, var(--scholar-forest-dark) 100%) !important;
-    color: var(--text-on-accent) !important;
+    color: #FFFFFF !important;
     border: none !important;
     border-radius: var(--radius-lg) !important;
     padding: 14px 28px !important;
@@ -321,7 +321,29 @@
     transition: all var(--transition-normal) !important;
     position: relative !important;
     overflow: hidden !important;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Force white text on ALL button text elements - fixes Streamlit primary button */
+.stApp .stButton > button * {
+    color: #FFFFFF !important;
+}
+
+.stApp .stButton > button p,
+.stApp .stButton > button span,
+.stApp .stButton > button div {
+    color: #FFFFFF !important;
+}
+
+/* Target Streamlit's BaseWeb button internals */
+.stApp button[data-testid="baseButton-primary"],
+.stApp button[data-testid="baseButton-primary"] * {
+    color: #FFFFFF !important;
+}
+
+.stApp button[kind="primary"],
+.stApp button[kind="primary"] * {
+    color: #FFFFFF !important;
 }
 
 .stApp .stButton > button::before {
@@ -617,6 +639,20 @@
     border-radius: var(--radius-xl) !important;
     padding: 28px !important;
     box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-highlight) !important;
+}
+
+/* Form Submit Button - Ensure white text */
+.stApp [data-testid="stForm"] button[type="submit"],
+.stApp [data-testid="stForm"] button[kind="primaryFormSubmit"],
+.stApp [data-testid="stFormSubmitButton"] button,
+.stApp .stFormSubmitButton button {
+    color: #FFFFFF !important;
+}
+
+.stApp [data-testid="stForm"] button[type="submit"] *,
+.stApp [data-testid="stFormSubmitButton"] button *,
+.stApp .stFormSubmitButton button * {
+    color: #FFFFFF !important;
 }
 
 /* =============================================================================

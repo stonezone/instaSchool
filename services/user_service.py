@@ -4,20 +4,24 @@ User Service - Database-backed user management with PIN authentication
 Migrated from JSON file storage to SQLite database via DatabaseService.
 Maintains backward compatibility with existing username-salted PIN hashes.
 
-NOTE: This is a simple PIN-based system for educational context.
-For production use, consider a proper authentication system with:
-- Secure password hashing (bcrypt/argon2)
-- Database storage
-- Session management
-- Rate limiting
+Security features:
+- PBKDF2 password hashing with 100,000 iterations
+- Rate limiting: 5 attempts per 5 minutes per username
+- Account lockout: 15 minute lockout after 5 failed attempts
 """
 
 import json
 import hashlib
 import secrets
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Tuple, TYPE_CHECKING
+
+# Rate limiting configuration
+MAX_ATTEMPTS = 5  # Maximum failed attempts before lockout
+LOCKOUT_DURATION = 900  # 15 minutes in seconds
+ATTEMPT_WINDOW = 300  # 5 minutes in seconds
 
 if TYPE_CHECKING:  # For type checkers only; avoids import-time issues
     from services.database_service import DatabaseService
@@ -26,6 +30,10 @@ if TYPE_CHECKING:  # For type checkers only; avoids import-time issues
 class UserService:
     """Database-backed user management with simple PIN authentication."""
 
+    # Class-level rate limiting tracker (shared across instances)
+    _failed_attempts: Dict[str, list] = {}  # username -> list of timestamps
+    _lockouts: Dict[str, float] = {}  # username -> lockout expiry timestamp
+
     def __init__(self, users_dir: str = "users", db_path: str = "instaschool.db") -> None:
         from services.database_service import DatabaseService
 
@@ -33,6 +41,60 @@ class UserService:
         self.users_dir.mkdir(exist_ok=True)  # Keep for backward compatibility
         self.db = DatabaseService(db_path)
         self._migrate_existing_users()
+
+    def _check_rate_limit(self, username: str) -> Tuple[bool, str]:
+        """Check if user is rate limited or locked out.
+
+        Returns:
+            Tuple of (allowed, message)
+            - If allowed: (True, "")
+            - If locked out: (False, "Account locked. Try again in X minutes.")
+            - If rate limited: (False, "Too many attempts. Try again in X seconds.")
+        """
+        username_lower = username.lower()
+        current_time = time.time()
+
+        # Check for active lockout
+        if username_lower in self._lockouts:
+            lockout_expiry = self._lockouts[username_lower]
+            if current_time < lockout_expiry:
+                remaining = int(lockout_expiry - current_time)
+                minutes = remaining // 60
+                return False, f"Account locked. Try again in {minutes + 1} minute(s)."
+            else:
+                # Lockout expired, clear it
+                del self._lockouts[username_lower]
+                self._failed_attempts.pop(username_lower, None)
+
+        # Check recent failed attempts
+        if username_lower in self._failed_attempts:
+            # Filter to only attempts within the window
+            recent = [t for t in self._failed_attempts[username_lower]
+                     if current_time - t < ATTEMPT_WINDOW]
+            self._failed_attempts[username_lower] = recent
+
+            if len(recent) >= MAX_ATTEMPTS:
+                # Trigger lockout
+                self._lockouts[username_lower] = current_time + LOCKOUT_DURATION
+                return False, f"Too many failed attempts. Account locked for {LOCKOUT_DURATION // 60} minutes."
+
+        return True, ""
+
+    def _record_failed_attempt(self, username: str) -> None:
+        """Record a failed authentication attempt."""
+        username_lower = username.lower()
+        current_time = time.time()
+
+        if username_lower not in self._failed_attempts:
+            self._failed_attempts[username_lower] = []
+
+        self._failed_attempts[username_lower].append(current_time)
+
+    def _clear_failed_attempts(self, username: str) -> None:
+        """Clear failed attempts on successful login."""
+        username_lower = username.lower()
+        self._failed_attempts.pop(username_lower, None)
+        self._lockouts.pop(username_lower, None)
 
     def _hash_pin_legacy(self, username: str, pin: str) -> str:
         """Legacy PIN hash using simple SHA-256 with username salt."""
@@ -162,7 +224,13 @@ class UserService:
             - If user exists but wrong PIN: (None, "invalid_pin")
             - If new user created: (user_dict, "created")
             - If PIN required for existing user: (None, "pin_required")
+            - If rate limited: (None, "rate_limited")
         """
+        # Check rate limiting before attempting authentication
+        allowed, rate_msg = self._check_rate_limit(username)
+        if not allowed:
+            return None, f"rate_limited:{rate_msg}"
+
         # Get user from database
         user = self.db.get_user_by_username(username)
 
@@ -174,14 +242,19 @@ class UserService:
 
                 # Verify PIN (supports legacy + PBKDF2 formats, migrates on success)
                 if not self._verify_and_maybe_upgrade_pin(user, pin):
+                    # Record failed attempt for rate limiting
+                    self._record_failed_attempt(username)
                     return None, "invalid_pin"
+
+            # Successful login - clear any failed attempts
+            self._clear_failed_attempts(username)
 
             # Update last login
             self.db.update_last_login(user["id"])
-            
+
             # Reload user to get updated timestamp
             user = self.db.get_user(user["id"])
-            
+
             # Format response to match expected structure
             return self._format_user_response(user), "success"
 

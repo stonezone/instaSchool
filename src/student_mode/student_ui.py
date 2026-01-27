@@ -371,6 +371,9 @@ def render_student_mode(config: Dict[str, Any], client: Any):
     gate_message = ""
 
     if section_in_unit == 4:  # Quiz section
+        # Reload progress data to pick up quiz score that may have been recorded during render
+        # (Quiz submission creates a separate StudentProgress instance)
+        progress.data = progress._load_progress()
         can_advance, gate_message = progress.can_advance_from_section(section_idx, len(units))
 
     col1, col2, col3 = st.columns([1, 2, 1])

@@ -203,9 +203,10 @@ class DatabaseService:
                 conn.commit()
                 return True
         except sqlite3.Error as e:
+            # Log error without exposing sensitive parameter values
             print(f"Error executing SQL: {e}")
             print(f"SQL: {sql}")
-            print(f"Params: {params}")
+            # Don't log params - may contain sensitive data (PIN hashes, etc.)
             return False
             
     def fetch_one(self, sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
@@ -326,27 +327,37 @@ class DatabaseService:
                 
         return user
         
+    # Allowed columns for dynamic updates (security: prevent SQL injection via column names)
+    _ALLOWED_USER_COLUMNS = {'username', 'pin_hash', 'last_login', 'total_xp', 'preferences'}
+
     def update_user(self, user_id: str, **kwargs) -> bool:
         """Update user fields
-        
+
         Args:
             user_id: User ID to update
             **kwargs: Fields to update (last_login, total_xp, preferences, etc.)
-            
+
         Returns:
             True if successful, False otherwise
         """
         if not kwargs:
             return False
-            
+
+        # Security: Validate column names against whitelist
+        invalid_cols = set(kwargs.keys()) - self._ALLOWED_USER_COLUMNS
+        if invalid_cols:
+            # Log attempt but don't expose column names in error
+            print(f"Warning: Rejected invalid column names in update_user")
+            return False
+
         # Handle JSON serialization for preferences
         if 'preferences' in kwargs and isinstance(kwargs['preferences'], dict):
             kwargs['preferences'] = json.dumps(kwargs['preferences'])
-            
-        # Build UPDATE query dynamically
+
+        # Build UPDATE query dynamically (column names validated above)
         set_clause = ", ".join([f"{key} = ?" for key in kwargs.keys()])
         values = tuple(kwargs.values()) + (user_id,)
-        
+
         sql = f"UPDATE users SET {set_clause} WHERE id = ?"
         return self.execute(sql, values)
         
@@ -742,22 +753,32 @@ class DatabaseService:
             print(f"Error deleting curriculum: {e}")
             return False
             
+    # Allowed columns for curriculum updates (security: prevent SQL injection via column names)
+    _ALLOWED_CURRICULUM_COLUMNS = {'title', 'subject', 'grade', 'style', 'language', 'file_path', 'created_by'}
+
     def update_curriculum(self, curriculum_id: str, **kwargs) -> bool:
         """Update curriculum metadata fields
-        
+
         Args:
             curriculum_id: Curriculum ID
             **kwargs: Fields to update
-            
+
         Returns:
             True if successful
         """
         if not kwargs:
             return False
-            
+
+        # Security: Validate column names against whitelist
+        invalid_cols = set(kwargs.keys()) - self._ALLOWED_CURRICULUM_COLUMNS
+        if invalid_cols:
+            # Log attempt but don't expose column names in error
+            print(f"Warning: Rejected invalid column names in update_curriculum")
+            return False
+
         set_clause = ", ".join([f"{key} = ?" for key in kwargs.keys()])
         values = tuple(kwargs.values()) + (curriculum_id,)
-        
+
         sql = f"UPDATE curricula SET {set_clause} WHERE id = ?"
         return self.execute(sql, values)
         

@@ -66,6 +66,10 @@ if not current_user:
                         StateManager.set_state("current_user", user)
                         StateManager.set_state('login_needs_pin', False)
                         st.rerun()
+                    elif msg.startswith("rate_limited:"):
+                        # Show rate limit message
+                        rate_msg = msg.split(":", 1)[1]
+                        st.sidebar.error(f"🔒 {rate_msg}")
                     else:
                         st.sidebar.error("Incorrect PIN. Try again.")
                 else:

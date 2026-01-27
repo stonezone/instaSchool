@@ -464,9 +464,26 @@ def get_local_curricula() -> List[Dict[str, Any]]:
     return local_curricula
 
 
+def _validate_path_within_directory(base_dir: Path, filepath: Path) -> bool:
+    """Validate that filepath stays within base_dir (prevent path traversal)."""
+    try:
+        base_resolved = base_dir.resolve()
+        file_resolved = filepath.resolve()
+        # Check if the resolved path starts with the base directory
+        return str(file_resolved).startswith(str(base_resolved) + "/") or file_resolved == base_resolved
+    except (OSError, ValueError):
+        return False
+
+
 def load_local_curriculum(filename: str) -> bool:
     """Load a local curriculum JSON file into session state."""
-    filepath = Path("curricula") / filename
+    base_dir = Path("curricula")
+    filepath = base_dir / filename
+
+    # Security: Validate path stays within curricula directory
+    if not _validate_path_within_directory(base_dir, filepath):
+        return False
+
     if not filepath.exists():
         return False
 
@@ -482,6 +499,12 @@ def load_local_curriculum(filename: str) -> bool:
 
 
 def main():
+    # Handle navigation to Student view (set by "Open Student View" button)
+    if StateManager.get_state("lib_navigate_to_student"):
+        StateManager.set_state("lib_navigate_to_student", None)
+        st.switch_page("pages/1_Student.py")
+        return
+
     st.title("📚 Curriculum Library")
     st.markdown("Browse, manage, and export your saved curricula.")
 
@@ -549,15 +572,17 @@ def main():
             if source == "local":
                 if load_local_curriculum(curriculum_id):
                     st.success("✅ Curriculum loaded!")
-                    if st.button("🎓 Open Student View"):
-                        st.switch_page("pages/1_Student.py")
+                    if st.button("🎓 Open Student View", type="primary"):
+                        StateManager.set_state("lib_navigate_to_student", True)
+                        st.rerun()
                 else:
                     st.error("Failed to load curriculum.")
             else:
                 if supabase and load_curriculum_to_session(supabase, curriculum_id):
                     st.success("✅ Curriculum loaded!")
-                    if st.button("🎓 Open Student View"):
-                        st.switch_page("pages/1_Student.py")
+                    if st.button("🎓 Open Student View", type="primary"):
+                        StateManager.set_state("lib_navigate_to_student", True)
+                        st.rerun()
                 else:
                     st.error("Failed to load curriculum.")
 
@@ -608,8 +633,10 @@ def main():
             if st.button("Yes, Delete", type="primary"):
                 success = False
                 if source == "local":
-                    filepath = Path("curricula") / curriculum_id
-                    if filepath.exists():
+                    base_dir = Path("curricula")
+                    filepath = base_dir / curriculum_id
+                    # Security: Validate path stays within curricula directory
+                    if _validate_path_within_directory(base_dir, filepath) and filepath.exists():
                         filepath.unlink()
                         success = True
                 elif source == "cloud" and supabase:

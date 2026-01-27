@@ -99,6 +99,7 @@ class CurriculumPDF(FPDF):
         
     def add_image_from_base64(self, base64_data: str, w: int = 150):
         """Add image from base64 data"""
+        tmp_path = None
         try:
             # Create temporary file for image
             with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
@@ -108,19 +109,23 @@ class CurriculumPDF(FPDF):
                 img_data = base64.b64decode(base64_data)
                 tmp.write(img_data)
                 tmp_path = tmp.name
-            
+
             # Add image to PDF
             self.image(tmp_path, x=30, w=w)
             self.ln(5)
-            
-            # Clean up temp file
-            os.unlink(tmp_path)
         except Exception as e:
             # If image fails, add error message
             self.set_font('Helvetica', 'I', 10)
             self.set_text_color(255, 0, 0)
             self.cell(0, 10, self.pdf_text(f'[Image could not be loaded: {str(e)}]'), 0, 1)
             self.ln(3)
+        finally:
+            # Always clean up temp file, even on exception
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass  # Best effort cleanup
 
 
 class CurriculumExporter:
