@@ -166,6 +166,11 @@ def render_curriculum_card(
                     f"📝 **{stats['questions']}** quiz questions | "
                     f"⏱️ ~{stats['est_time_min']} min"
                 )
+                # Show model info if available
+                meta = curriculum_data.get("meta", {})
+                model = meta.get("text_model") or meta.get("model")
+                if model:
+                    st.caption(f"🤖 Generated with **{model}**")
             else:
                 st.caption(f"📚 **{units}** units | {status}")
 
@@ -542,6 +547,52 @@ def main():
         else:
             st.warning("Cloud: Offline")
 
+    # Bulk sync option (only show if there are local curricula and Supabase is connected)
+    if local_curricula and supabase_available:
+        with st.expander("☁️ Sync Local Curricula to Cloud", expanded=False):
+            st.markdown("""
+            **Upload all local curricula to Supabase cloud storage.**
+
+            This allows your curricula to be accessible on Streamlit Cloud
+            and other deployments where local files aren't available.
+            """)
+
+            # Show count of already synced vs not synced
+            local_not_synced = [c for c in local_curricula if not c.get("_data", {}).get("meta", {}).get("supabase_id")]
+            st.caption(f"📊 {len(local_not_synced)} of {len(local_curricula)} local curricula not yet synced to cloud")
+
+            if st.button("☁️ Sync All to Cloud", type="primary", key="bulk_sync_btn"):
+                synced = 0
+                failed = 0
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+
+                for i, curriculum in enumerate(local_curricula):
+                    try:
+                        if curriculum.get("_data"):
+                            status_text.text(f"Syncing: {curriculum.get('title', 'Unknown')}...")
+                            new_id = supabase.save_curriculum(curriculum["_data"], status="complete")
+                            if new_id:
+                                synced += 1
+                            else:
+                                failed += 1
+                    except Exception as e:
+                        failed += 1
+                        print(f"Sync error: {e}")
+
+                    progress_bar.progress((i + 1) / len(local_curricula))
+
+                status_text.empty()
+                progress_bar.empty()
+
+                if synced > 0:
+                    st.success(f"✅ Synced {synced} curricula to cloud!")
+                if failed > 0:
+                    st.warning(f"⚠️ {failed} curricula failed to sync (may be too large)")
+
+                if synced > 0:
+                    st.rerun()
+
     st.divider()
 
     # Search and filter
@@ -729,7 +780,12 @@ def main():
         all_curricula = filter_and_sort(all_curricula)
 
         if not all_curricula:
-            st.info("📭 No curricula found. Generate some on the Create page!")
+            st.info("📭 No curricula found.")
+            st.markdown("""
+            **To populate your library:**
+            1. Go to the **Create** page to generate new curricula
+            2. Or if running locally, use "Sync All to Cloud" above to upload existing files
+            """)
         else:
             st.subheader(f"Showing {len(all_curricula)} curricula")
             for idx, (curriculum, source) in enumerate(all_curricula):
@@ -769,6 +825,12 @@ def main():
 
             if not cloud_filtered:
                 st.info("📭 No cloud curricula found.")
+                st.markdown("""
+                **Cloud storage is connected but empty.**
+
+                Curricula created on this deployment will automatically save to the cloud.
+                If you have local curricula, run locally and use "Sync All to Cloud" to upload them.
+                """)
             else:
                 st.subheader(f"Showing {len(cloud_filtered)} cloud curricula")
                 for idx, (curriculum, source) in enumerate(cloud_filtered):
