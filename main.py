@@ -140,20 +140,19 @@ footer,
    FIXED HEADER - Glassmorphism
    ============================================ */
 .site-header {{
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 999999 !important;
     height: 72px;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: space-between;
     padding: 0 48px;
-    background: {('rgba(9,9,11,0.7)' if is_dark else 'rgba(255,255,255,0.7)')};
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid {('rgba(255,255,255,0.06)' if is_dark else 'rgba(0,0,0,0.06)')};
+    background: {('#09090b' if is_dark else '#ffffff')} !important;
+    border-bottom: 1px solid {('rgba(255,255,255,0.08)' if is_dark else 'rgba(0,0,0,0.08)')};
+    box-shadow: 0 1px 3px {('rgba(0,0,0,0.3)' if is_dark else 'rgba(0,0,0,0.05)')};
 }}
 
 .header-logo {{
@@ -163,16 +162,12 @@ footer,
     text-decoration: none;
 }}
 
-.logo-icon {{
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+.logo-svg {{
+    width: 40px;
+    height: 40px;
     border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    flex-shrink: 0;
 }}
 
 .logo-text {{
@@ -747,7 +742,22 @@ version = get_version_display()
 st.markdown(f'''
 <header class="site-header">
     <a href="/" class="header-logo">
-        <div class="logo-icon">IS</div>
+        <svg class="logo-svg" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#6366f1"/>
+                    <stop offset="50%" style="stop-color:#8b5cf6"/>
+                    <stop offset="100%" style="stop-color:#ec4899"/>
+                </linearGradient>
+            </defs>
+            <rect width="40" height="40" rx="10" fill="url(#logoGrad)"/>
+            <path d="M12 28L20 12L28 28" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="20" cy="24" r="2" fill="white"/>
+            <path d="M14 18L20 8L26 18" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+            <circle cx="28" cy="12" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="12" cy="14" r="1" fill="white" opacity="0.6"/>
+            <circle cx="30" cy="22" r="1" fill="white" opacity="0.5"/>
+        </svg>
         <span class="logo-text">InstaSchool</span>
     </a>
     <nav class="header-nav">
