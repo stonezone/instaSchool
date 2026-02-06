@@ -34,6 +34,70 @@ class FamilyService:
         """
         return self.user_service.list_users()
 
+    @staticmethod
+    def _load_curriculum_units_from_metadata(
+        curriculum_meta: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        """Load curriculum units from a DB metadata record.
+
+        Compatibility mode:
+        - Prefer exact `file_path` recorded in DB.
+        - Fallback to legacy glob/id naming patterns if file_path is missing.
+        """
+        # Preferred path: DB-backed file path
+        file_path = curriculum_meta.get("file_path")
+        if isinstance(file_path, str) and file_path.strip():
+            candidate = Path(file_path)
+            if candidate.exists():
+                try:
+                    with open(candidate, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    units = data.get("units", [])
+                    return units if isinstance(units, list) else []
+                except Exception:
+                    pass
+
+        curriculum_id = curriculum_meta.get("id")
+        if not curriculum_id:
+            return []
+
+        curricula_dir = Path("curricula")
+
+        # Compatibility fallback #1: canonical save pattern
+        for candidate in curricula_dir.glob(f"curriculum_{curriculum_id}_*.json"):
+            try:
+                with open(candidate, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                units = data.get("units", [])
+                if isinstance(units, list):
+                    return units
+            except Exception:
+                continue
+
+        # Compatibility fallback #2: older patterns
+        for candidate in curricula_dir.glob(f"*_{curriculum_id}.json"):
+            try:
+                with open(candidate, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                units = data.get("units", [])
+                if isinstance(units, list):
+                    return units
+            except Exception:
+                continue
+
+        # Compatibility fallback #3: direct id filename
+        candidate = curricula_dir / f"{curriculum_id}.json"
+        if candidate.exists():
+            try:
+                with open(candidate, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                units = data.get("units", [])
+                return units if isinstance(units, list) else []
+            except Exception:
+                pass
+
+        return []
+
     def get_child_summary(self, user_id_or_username: str) -> Dict[str, Any]:
         """Get comprehensive summary for a single child
 
@@ -87,7 +151,7 @@ class FamilyService:
             if updated:
                 if isinstance(updated, str):
                     try:
-                        updated = datetime.fromisoformat(updated.replace('Z', '+00:00'))
+                        updated = datetime.fromisoformat(updated.replace("Z", "+00:00"))
                     except:
                         updated = None
                 if updated and (last_active is None or updated > last_active):
@@ -119,7 +183,7 @@ class FamilyService:
             "total_sections_completed": total_sections_completed,
             "due_cards": due_cards,
             "last_active": last_active_str,
-            "progress_list": progress_list
+            "progress_list": progress_list,
         }
 
     def get_family_summary(self) -> Dict[str, Any]:
@@ -136,7 +200,7 @@ class FamilyService:
             "total_curricula": 0,
             "total_sections": 0,
             "total_due_cards": 0,
-            "active_today": 0
+            "active_today": 0,
         }
 
         for child in children:
@@ -159,7 +223,7 @@ class FamilyService:
         return {
             "children": children_summaries,
             "totals": family_totals,
-            "generated_at": datetime.now().isoformat()
+            "generated_at": datetime.now().isoformat(),
         }
 
     def _get_due_cards_count(self, user_id: str) -> int:
@@ -172,10 +236,13 @@ class FamilyService:
             Number of due cards
         """
         now = datetime.now().isoformat()
-        result = self.db.fetch_one("""
+        result = self.db.fetch_one(
+            """
             SELECT COUNT(*) as count FROM review_items
             WHERE user_id = ? AND (next_review IS NULL OR next_review <= ?)
-        """, (user_id, now))
+        """,
+            (user_id, now),
+        )
 
         return result.get("count", 0) if result else 0
 
@@ -202,19 +269,16 @@ class FamilyService:
         for progress in progress_list:
             curriculum_id = progress.get("curriculum_id")
 
-            # Load curriculum to get total units
-            curriculum_file = Path("curricula") / f"{curriculum_id}.json"
             total_sections = 0
-
-            if curriculum_file.exists():
-                try:
-                    with open(curriculum_file, 'r') as f:
-                        curriculum_data = json.load(f)
-                    units = curriculum_data.get("units", [])
-                    # Each unit has ~6 sections
-                    total_sections = len(units) * 6
-                except:
-                    pass
+            curriculum_meta = (
+                self.db.get_curriculum_meta(curriculum_id) if curriculum_id else None
+            ) or {}
+            if curriculum_id and not curriculum_meta.get("id"):
+                curriculum_meta["id"] = curriculum_id
+            units = self._load_curriculum_units_from_metadata(curriculum_meta)
+            if units:
+                # Each unit has ~6 sections in Student mode.
+                total_sections = len(units) * 6
 
             current = progress.get("current_section", 0)
             completed = len(progress.get("completed_sections", []))
@@ -224,18 +288,20 @@ class FamilyService:
             else:
                 pct = 0
 
-            detailed.append({
-                "curriculum_id": curriculum_id,
-                "title": progress.get("curriculum_title", "Unknown"),
-                "subject": progress.get("subject", ""),
-                "grade": progress.get("grade", ""),
-                "current_section": current,
-                "completed_sections": completed,
-                "total_sections": total_sections,
-                "progress_percent": pct,
-                "xp": progress.get("xp", 0),
-                "updated_at": progress.get("updated_at")
-            })
+            detailed.append(
+                {
+                    "curriculum_id": curriculum_id,
+                    "title": progress.get("curriculum_title", "Unknown"),
+                    "subject": progress.get("subject", ""),
+                    "grade": progress.get("grade", ""),
+                    "current_section": current,
+                    "completed_sections": completed,
+                    "total_sections": total_sections,
+                    "progress_percent": pct,
+                    "xp": progress.get("xp", 0),
+                    "updated_at": progress.get("updated_at"),
+                }
+            )
 
         return detailed
 
@@ -261,7 +327,7 @@ class FamilyService:
                 "period": "Last 7 days",
                 "summary": summary,
                 "curricula": curricula,
-                "generated_at": datetime.now().isoformat()
+                "generated_at": datetime.now().isoformat(),
             }
         else:
             # Family report
@@ -272,7 +338,7 @@ class FamilyService:
                 "period": "Last 7 days",
                 "children": family["children"],
                 "totals": family["totals"],
-                "generated_at": datetime.now().isoformat()
+                "generated_at": datetime.now().isoformat(),
             }
 
 

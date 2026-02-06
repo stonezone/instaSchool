@@ -11,7 +11,8 @@ import sys
 # This prevents shared_init from deleting itself during import
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 
 import streamlit as st
 import yaml
@@ -22,6 +23,7 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
 
 def _apply_streamlit_secrets_to_env() -> None:
     """Populate common env vars from Streamlit secrets when present.
@@ -90,7 +92,7 @@ _apply_streamlit_secrets_to_env()
 def load_config(path: str = "config.yaml") -> Dict[str, Any]:
     """Load configuration from YAML file with caching"""
     try:
-        with open(path, "r", encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
             # Treat config as immutable: callers should not mutate cached objects.
             return copy.deepcopy(cfg)
@@ -100,39 +102,64 @@ def load_config(path: str = "config.yaml") -> Dict[str, Any]:
 
 
 @st.cache_resource
-def get_openai_client():
-    """Get cached OpenAI client"""
+def _build_openai_client(api_key: str, org_id: Optional[str]):
+    """Build and cache OpenAI client for a specific credential tuple."""
     from openai import OpenAI
-    api_key = os.getenv("OPENAI_API_KEY")
-    org_id = os.getenv("OPENAI_ORG_ID")
-    if not api_key:
-        return None
+
     return OpenAI(api_key=api_key, organization=org_id)
 
 
+def get_openai_client():
+    """Get OpenAI client.
+
+    Do not cache the missing-key state; once a key is provided during the same
+    process, client initialization should recover without a manual cache clear.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    org_id = os.getenv("OPENAI_ORG_ID")
+    api_key = str(api_key).strip() if api_key is not None else ""
+    org_id = str(org_id).strip() if org_id is not None else None
+    if not api_key:
+        return None
+    return _build_openai_client(api_key, org_id)
+
+
 @st.cache_resource
-def get_provider_service():
-    """Get cached AI Provider Service"""
+def _build_provider_service(config: Dict[str, Any]):
+    """Build and cache provider service per effective config."""
     from services.provider_service import AIProviderService
-    config = load_config()
+
     return AIProviderService(config)
 
 
+def get_provider_service():
+    """Get AI Provider Service."""
+    config = load_config()
+    return _build_provider_service(config)
+
+
 @st.cache_resource
-def get_curriculum_service():
-    """Get cached Curriculum Service"""
+def _build_curriculum_service(client, config: Dict[str, Any]):
+    """Build and cache curriculum service for a specific client/config pair."""
     from services.curriculum_service import CurriculumService
+
+    return CurriculumService(client, config)
+
+
+def get_curriculum_service():
+    """Get Curriculum Service."""
     config = load_config()
     client = get_openai_client()
     if client is None:
         return None
-    return CurriculumService(client, config)
+    return _build_curriculum_service(client, config)
 
 
 @st.cache_resource
 def get_database_service():
     """Get cached Database Service"""
     from services.database_service import DatabaseService
+
     return DatabaseService()
 
 
@@ -140,6 +167,7 @@ def get_database_service():
 def get_user_service():
     """Get cached User Service"""
     from services.user_service import UserService
+
     return UserService()
 
 
@@ -148,11 +176,11 @@ def init_session_state():
     from src.state_manager import StateManager
 
     defaults = {
-        'authenticated': False,
-        'current_user': None,
-        'app_mode': 'student',
-        'curriculum': None,
-        'theme': 'light',
+        "authenticated": False,
+        "current_user": None,
+        "app_mode": "student",
+        "curriculum": None,
+        "theme": "light",
     }
 
     for key, value in defaults.items():
@@ -168,7 +196,7 @@ def check_authentication() -> bool:
     if not app_password:
         return True
 
-    if st.session_state.get('authenticated', False):
+    if st.session_state.get("authenticated", False):
         return True
 
     # Show login form
@@ -177,7 +205,7 @@ def check_authentication() -> bool:
 
     if st.button("Login"):
         if password == app_password:
-            st.session_state['authenticated'] = True
+            st.session_state["authenticated"] = True
             st.rerun()
         else:
             st.error("Invalid password")
@@ -188,16 +216,14 @@ def check_authentication() -> bool:
 def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wide"):
     """Common page setup with modern design system and theme support"""
     st.set_page_config(
-        page_title=title,
-        page_icon=icon,
-        layout=layout,
-        initial_sidebar_state="auto"
+        page_title=title, page_icon=icon, layout=layout, initial_sidebar_state="auto"
     )
 
     # Ensure process-wide temp file cleanup is initialized even if a page is
     # run directly (e.g., `streamlit run pages/2_Create.py`).
     try:
         from services.session_service import init_tempfile_cleanup
+
         init_tempfile_cleanup(max_age_hours=24)
     except Exception:
         pass
@@ -205,11 +231,12 @@ def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wi
     # Load CSS design system
     css_path = Path("static/css/design_system.css")
     if css_path.exists():
-        with open(css_path, 'r') as f:
+        with open(css_path, "r") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     # Apply theme from session state
     from src.ui_components import ThemeManager
+
     theme = ThemeManager.init_theme()
     ThemeManager.apply_theme(theme)
 
@@ -243,6 +270,7 @@ def get_version_display() -> str:
     """Get version string for display"""
     try:
         from version import get_version_display as gvd
+
         return gvd()
     except:
         return "v1.7.0"

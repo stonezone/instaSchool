@@ -18,6 +18,7 @@ from services.database_service import DatabaseService
 @dataclass
 class StudentStats:
     """Statistics for a single student"""
+
     user_id: str
     username: str
     total_xp: int = 0
@@ -33,6 +34,7 @@ class StudentStats:
 @dataclass
 class CurriculumStats:
     """Statistics for a single curriculum"""
+
     curriculum_id: str
     title: str = "Unknown"
     total_students: int = 0
@@ -46,6 +48,7 @@ class CurriculumStats:
 @dataclass
 class AnalyticsSummary:
     """Overall analytics summary"""
+
     total_students: int = 0
     total_curricula: int = 0
     active_students_7d: int = 0
@@ -72,6 +75,55 @@ class AnalyticsService:
         self.db = DatabaseService(db_path)
         self.curricula_dir = Path(curricula_dir)
 
+    def _load_curriculum_from_meta(
+        self, curriculum_meta: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Load curriculum JSON using DB metadata, with legacy compatibility fallbacks."""
+        file_path = curriculum_meta.get("file_path")
+        if isinstance(file_path, str) and file_path.strip():
+            candidate = Path(file_path)
+            if candidate.exists():
+                try:
+                    with open(candidate, "r", encoding="utf-8") as f:
+                        return json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    pass
+
+        curriculum_id = curriculum_meta.get("id")
+        if not curriculum_id:
+            return None
+
+        # Compatibility fallback #1: canonical save pattern
+        for candidate in self.curricula_dir.glob(f"curriculum_{curriculum_id}_*.json"):
+            try:
+                with open(candidate, "r", encoding="utf-8") as file:
+                    data = json.load(file)
+                    if isinstance(data, dict):
+                        return data
+            except (json.JSONDecodeError, IOError):
+                continue
+
+        # Compatibility fallback #2: legacy suffix pattern
+        for candidate in self.curricula_dir.glob(f"*_{curriculum_id}.json"):
+            try:
+                with open(candidate, "r", encoding="utf-8") as file:
+                    data = json.load(file)
+                    if isinstance(data, dict):
+                        return data
+            except (json.JSONDecodeError, IOError):
+                continue
+
+        # Compatibility fallback #3: direct ID file
+        candidate = self.curricula_dir / f"{curriculum_id}.json"
+        if candidate.exists():
+            try:
+                with open(candidate, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+
+        return None
+
     def get_all_students(self) -> List[Dict[str, Any]]:
         """Get all registered students from database."""
         return self.db.list_users()
@@ -82,37 +134,24 @@ class AnalyticsService:
         Note: Curriculum content is still stored as JSON files, only progress
         and user data is in the database.
         """
-        # Try to find the curriculum file by ID pattern
-        for f in self.curricula_dir.glob(f"*_{curriculum_id}.json"):
-            try:
-                with open(f, 'r') as file:
-                    data = json.load(file)
-                    if 'meta' in data or 'units' in data:
-                        return data
-            except (json.JSONDecodeError, IOError):
-                continue
-
-        # Try direct match
-        curriculum_file = self.curricula_dir / f"{curriculum_id}.json"
-        if curriculum_file.exists():
-            try:
-                with open(curriculum_file, 'r') as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError):
-                pass
-
+        curriculum_meta = self.db.get_curriculum_meta(curriculum_id) or {}
+        if curriculum_id and not curriculum_meta.get("id"):
+            curriculum_meta["id"] = curriculum_id
+        data = self._load_curriculum_from_meta(curriculum_meta)
+        if data and ("meta" in data or "units" in data):
+            return data
         return None
 
     def calculate_student_stats(self, user_data: Dict[str, Any]) -> StudentStats:
         """Calculate statistics for a single student using database data."""
-        user_id = user_data.get('id', 'unknown')
-        username = user_data.get('username', 'Unknown')
+        user_id = user_data.get("id", "unknown")
+        username = user_data.get("username", "Unknown")
 
         stats = StudentStats(
             user_id=user_id,
             username=username,
-            total_xp=user_data.get('total_xp', 0),
-            level=user_data.get('level', 0)
+            total_xp=user_data.get("total_xp", 0),
+            level=user_data.get("level", 0),
         )
 
         # Get all progress records for this user from database
@@ -123,7 +162,7 @@ class AnalyticsService:
             stats.curricula_started += 1
 
             # Get completed sections
-            completed_sections = progress.get('completed_sections', [])
+            completed_sections = progress.get("completed_sections", [])
             if isinstance(completed_sections, str):
                 try:
                     completed_sections = json.loads(completed_sections)
@@ -133,7 +172,7 @@ class AnalyticsService:
             stats.total_sections_completed += len(completed_sections)
 
             # Parse stats JSON if needed
-            progress_stats = progress.get('stats', {})
+            progress_stats = progress.get("stats", {})
             if isinstance(progress_stats, str):
                 try:
                     progress_stats = json.loads(progress_stats)
@@ -141,16 +180,16 @@ class AnalyticsService:
                     progress_stats = {}
 
             # Track max XP and level based on XP column
-            progress_xp = progress.get('xp', 0) or 0
+            progress_xp = progress.get("xp", 0) or 0
             stats.total_xp = max(stats.total_xp, progress_xp)
             stats.level = max(stats.level, progress_xp // 100)
 
             # Check if curriculum is completed
-            if progress_stats.get('curricula_completed', 0) > 0:
+            if progress_stats.get("curricula_completed", 0) > 0:
                 stats.curricula_completed += 1
 
             # Track last activity
-            last_updated = progress.get('updated_at')
+            last_updated = progress.get("updated_at")
             if last_updated:
                 if not latest_activity or str(last_updated) > str(latest_activity):
                     latest_activity = last_updated
@@ -165,15 +204,18 @@ class AnalyticsService:
         # Get curriculum info from JSON
         curriculum = self.get_curriculum_info(curriculum_id)
         if curriculum:
-            meta = curriculum.get('meta', {})
-            stats.title = meta.get('subject', curriculum.get('title', 'Unknown Curriculum'))
-            units = curriculum.get('units', [])
+            meta = curriculum.get("meta", {})
+            stats.title = meta.get("subject", curriculum.get("title", "Unknown Curriculum"))
+            units = curriculum.get("units", [])
             stats.total_sections = len(units)
 
         # Get all progress records for this curriculum from database
-        progress_records = self.db.fetch_all("""
+        progress_records = self.db.fetch_all(
+            """
             SELECT * FROM progress WHERE curriculum_id = ?
-        """, (curriculum_id,))
+        """,
+            (curriculum_id,),
+        )
 
         stats.total_students = len(progress_records)
 
@@ -186,15 +228,18 @@ class AnalyticsService:
 
         for progress in progress_records:
             # Parse completed sections
-            completed = progress.get('completed_sections', [])
+            completed = progress.get("completed_sections", [])
             if isinstance(completed, str):
                 try:
                     completed = json.loads(completed)
                 except json.JSONDecodeError:
                     completed = []
 
-            total = stats.total_sections or 1
-            completion_pct = len(completed) / total if total > 0 else 0
+            if stats.total_sections > 0:
+                completion_pct = len(completed) / stats.total_sections
+            else:
+                # Unknown curriculum size: do not infer percentages from a fake denominator.
+                completion_pct = 0
             total_completion += completion_pct
 
             # Track which sections are completed
@@ -237,12 +282,12 @@ class AnalyticsService:
             # Check if active in last 7 days
             if stats.last_active:
                 try:
-                    last_active_str = str(stats.last_active).replace('Z', '+00:00')
+                    last_active_str = str(stats.last_active).replace("Z", "+00:00")
                     # Handle both ISO format and simple date strings
-                    if 'T' in last_active_str or ' ' in last_active_str:
-                        last_active = datetime.fromisoformat(last_active_str.split('+')[0])
+                    if "T" in last_active_str or " " in last_active_str:
+                        last_active = datetime.fromisoformat(last_active_str.split("+")[0])
                     else:
-                        last_active = datetime.strptime(last_active_str[:10], '%Y-%m-%d')
+                        last_active = datetime.strptime(last_active_str[:10], "%Y-%m-%d")
 
                     if last_active >= seven_days_ago:
                         summary.active_students_7d += 1
@@ -258,7 +303,7 @@ class AnalyticsService:
         curriculum_records = self.db.fetch_all("""
             SELECT DISTINCT curriculum_id FROM progress
         """)
-        curriculum_ids = {r['curriculum_id'] for r in curriculum_records if r.get('curriculum_id')}
+        curriculum_ids = {r["curriculum_id"] for r in curriculum_records if r.get("curriculum_id")}
 
         summary.total_curricula = len(curriculum_ids)
 
@@ -283,25 +328,27 @@ class AnalyticsService:
         # Build section-by-section breakdown
         sections = []
         if curriculum:
-            units = curriculum.get('units', [])
+            units = curriculum.get("units", [])
             for i, unit in enumerate(units):
                 section_data = {
-                    'index': i,
-                    'title': unit.get('title', f'Section {i+1}'),
-                    'completions': stats.section_completion.get(i, 0),
-                    'completion_rate': (
+                    "index": i,
+                    "title": unit.get("title", f"Section {i + 1}"),
+                    "completions": stats.section_completion.get(i, 0),
+                    "completion_rate": (
                         stats.section_completion.get(i, 0) / stats.total_students * 100
-                    ) if stats.total_students > 0 else 0,
-                    'is_struggle_point': i in stats.struggle_sections
+                    )
+                    if stats.total_students > 0
+                    else 0,
+                    "is_struggle_point": i in stats.struggle_sections,
                 }
                 sections.append(section_data)
 
         return {
-            'curriculum_id': curriculum_id,
-            'title': stats.title,
-            'total_students': stats.total_students,
-            'completion_rate': stats.completion_rate,
-            'total_sections': stats.total_sections,
-            'sections': sections,
-            'struggle_sections': stats.struggle_sections
+            "curriculum_id": curriculum_id,
+            "title": stats.title,
+            "total_students": stats.total_students,
+            "completion_rate": stats.completion_rate,
+            "total_sections": stats.total_sections,
+            "sections": sections,
+            "struggle_sections": stats.struggle_sections,
         }
