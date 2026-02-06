@@ -33,16 +33,16 @@ except Exception:
     get_certificate_service = None  # type: ignore[assignment]
 
 # Page config (includes theme application)
-setup_page(title="InstaSchool - Parent", icon="👨‍👩‍👧")
+setup_page(title="InstaSchool - Parent", icon=":material/family_restroom:")
 
-st.markdown("# 👨‍👩‍👧 Parent Dashboard")
+st.header("Family dashboard", anchor=False)
 
 # Parent mode tabs
 parent_tab1, parent_tab2, parent_tab3, parent_tab4 = st.tabs([
-    "👨‍👩‍👧‍👦 Family Overview",
-    "📊 Reports & Certificates",
-    "📚 Curricula",
-    "⚙️ Settings"
+    ":material/family_restroom: Family overview",
+    ":material/analytics: Reports & certificates",
+    ":material/library_books: Curricula",
+    ":material/settings: Settings"
 ])
 
 # Tab 1: Family Overview
@@ -52,32 +52,32 @@ with parent_tab1:
     children = user_service.list_users()
 
     if not children:
-        # Empty state with onboarding
-        st.markdown(
-            """
-            <div class="hero-glass animate-fade-in" style="text-align: center; margin: 20px 0;">
-                <div style="font-size: 48px; margin-bottom: 10px;">👨‍👩‍👧‍👦</div>
-                <h2 style="margin: 0 0 10px 0;">Welcome to InstaSchool!</h2>
-                <p style="max-width: 520px; margin: 0 auto;">
-                    Get started by adding your children's profiles. Each child gets their own
-                    personalized learning experience with progress tracking.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        with st.container(border=True, horizontal_alignment="center"):
+            st.subheader("Welcome to InstaSchool!", anchor=False)
+            st.write(
+                "Get started by adding your children's profiles. Each child gets their own "
+                "personalized learning experience with progress tracking."
+            )
 
-        st.markdown("### 🎯 Quick Start")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.info("**Step 1:** Add your children below")
-        with col2:
-            st.info("**Step 2:** Switch to Create mode to build curricula")
-        with col3:
-            st.info("**Step 3:** Children learn in Student mode")
+        st.space("small")
 
-        st.markdown("---")
-        st.markdown("### ➕ Add Your First Child")
+        st.subheader("Quick start", anchor=False)
+        cols = st.columns(3)
+        with cols[0]:
+            with st.container(border=True):
+                st.markdown(":material/person_add: **Step 1**")
+                st.caption("Add your children below")
+        with cols[1]:
+            with st.container(border=True):
+                st.markdown(":material/auto_awesome: **Step 2**")
+                st.caption("Switch to Create to build curricula")
+        with cols[2]:
+            with st.container(border=True):
+                st.markdown(":material/school: **Step 3**")
+                st.caption("Children learn in Student mode")
+
+        st.space("small")
+        st.subheader("Add your first child", anchor=False)
         new_child_data = FamilyDashboard.render_add_child_form(
             form_key="add_child_overview_form",
             show_header=False
@@ -115,7 +115,7 @@ with parent_tab2:
             report_col, cert_col = st.columns(2)
 
             with report_col:
-                st.markdown("### 📊 Progress Reports")
+                st.subheader("Progress reports", anchor=False)
                 selected_child = st.selectbox(
                     "Select Child",
                     options=["All Children"] + children,
@@ -140,7 +140,7 @@ with parent_tab2:
                         )
 
             with cert_col:
-                st.markdown("### 🏆 Certificates")
+                st.subheader("Certificates", anchor=False)
                 cert_child = st.selectbox(
                     "Select Child",
                     options=children,
@@ -190,8 +190,8 @@ with parent_tab2:
 
 # Tab 3: Curricula Overview
 with parent_tab3:
-    st.markdown("### 📚 Available Curricula")
-    st.caption("View curricula created in Create mode. Switch to Create mode to add new ones.")
+    st.subheader("Available curricula", anchor=False)
+    st.caption("View curricula created in Create mode. Switch to Create to add new ones.")
 
     curricula_dir = Path("curricula")
     if curricula_dir.exists():
@@ -230,8 +230,7 @@ with parent_tab3:
 
                         # Quick Preview Panel
                         if st.session_state.get(f"show_preview_{json_file.stem}"):
-                            st.markdown("---")
-                            st.markdown("#### 📖 Curriculum Preview")
+                            st.subheader("Curriculum preview", anchor=False)
                             for i, unit in enumerate(data.get('units', [])):
                                 unit_title = unit.get('title', f'Unit {i+1}')
                                 with st.expander(f"📚 {unit_title}", expanded=(i == 0)):
@@ -254,16 +253,16 @@ with parent_tab3:
 
 # Tab 4: Settings
 with parent_tab4:
-    st.markdown("### ⚙️ Family Settings")
+    st.subheader("Family settings", anchor=False)
 
     settings_col1, settings_col2 = st.columns(2)
 
     with settings_col1:
-        st.markdown("#### 🎨 Appearance")
-        st.info("Use the theme toggle (🌙/☀️) in the navigation bar above to switch between light and dark mode.")
+        st.markdown("**Appearance**")
+        st.caption("Use the Settings menu (top right) to switch between light and dark mode.")
 
     with settings_col2:
-        st.markdown("#### 👥 Manage Children")
+        st.markdown("**Manage children**")
         settings_user_service = UserService()
         new_child_settings = FamilyDashboard.render_add_child_form(
             form_key="add_child_settings_form",

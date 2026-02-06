@@ -213,57 +213,35 @@ def check_authentication() -> bool:
     return False
 
 
-def setup_page(title: str = "InstaSchool", icon: str = "🎓", layout: str = "wide"):
-    """Common page setup with modern design system and theme support"""
+def setup_page(title: str = "InstaSchool", icon: str = ":material/school:", layout: str = "wide"):
+    """Common page setup with logo, navigation, and session state."""
     st.set_page_config(
         page_title=title, page_icon=icon, layout=layout, initial_sidebar_state="auto"
     )
 
-    # Ensure process-wide temp file cleanup is initialized even if a page is
-    # run directly (e.g., `streamlit run pages/2_Create.py`).
+    # Ensure process-wide temp file cleanup
     try:
         from services.session_service import init_tempfile_cleanup
-
         init_tempfile_cleanup(max_age_hours=24)
     except Exception:
         pass
 
-    # Load CSS design system
-    css_path = Path("static/css/design_system.css")
-    if css_path.exists():
-        with open(css_path, "r") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-    # Apply theme from session state
-    from src.ui_components import ThemeManager
-
-    theme = ThemeManager.init_theme()
-    ThemeManager.apply_theme(theme)
+    # Logo (appears in sidebar header automatically)
+    logo_path = Path("static/logo_wide.svg")
+    icon_path = Path("static/logo.svg")
+    if logo_path.exists() and icon_path.exists():
+        st.logo(str(logo_path), icon_image=str(icon_path), size="large")
 
     # Initialize session state
     init_session_state()
 
-    # Navigation bar with theme toggle
-    nav_cols = st.columns([1, 1, 1, 1, 0.5])
-    with nav_cols[0]:
-        if st.button("🏠 Home", use_container_width=True, key="nav_home"):
-            st.switch_page("main.py")
-    with nav_cols[1]:
-        if st.button("🎓 Student", use_container_width=True, key="nav_student"):
-            st.switch_page("pages/1_Student.py")
-    with nav_cols[2]:
-        if st.button("✨ Create", use_container_width=True, key="nav_create"):
-            st.switch_page("pages/2_Create.py")
-    with nav_cols[3]:
-        if st.button("👨‍👩‍👧 Parent", use_container_width=True, key="nav_parent"):
-            st.switch_page("pages/3_Parent.py")
-    with nav_cols[4]:
-        theme_icon = "🌙" if theme == "light" else "☀️"
-        if st.button(theme_icon, key="nav_theme_toggle", help="Toggle theme"):
-            ThemeManager.toggle_theme()
-            st.rerun()
-
-    st.markdown("---")
+    # Sidebar navigation with Material icons
+    with st.sidebar:
+        st.page_link("main.py", label="Home", icon=":material/home:")
+        st.page_link("pages/1_Student.py", label="Student", icon=":material/school:")
+        st.page_link("pages/2_Create.py", label="Create", icon=":material/auto_awesome:")
+        st.page_link("pages/3_Parent.py", label="Family", icon=":material/family_restroom:")
+        st.page_link("pages/4_Library.py", label="Library", icon=":material/library_books:")
 
 
 def get_version_display() -> str:

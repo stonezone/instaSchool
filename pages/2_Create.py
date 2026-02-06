@@ -39,7 +39,7 @@ from src.shared_init import (
     get_provider_service,
 )
 from src.state_manager import StateManager
-from src.ui_components import ModernUI, ThemeManager
+
 from src.agent_framework import OrchestratorAgent
 from services.session_service import InputValidator
 from src.cost_estimator import estimate_curriculum_cost
@@ -54,7 +54,7 @@ except ImportError:
     GenerationLogger = None
 
 # Page config
-setup_page(title="InstaSchool - Create", icon="✨")
+setup_page(title="InstaSchool - Create", icon=":material/auto_awesome:")
 config = load_config()
 StateManager.initialize_state()
 

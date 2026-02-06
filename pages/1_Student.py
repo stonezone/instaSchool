@@ -24,7 +24,7 @@ from src.state_manager import StateManager
 from services.user_service import UserService
 
 # Page config
-setup_page(title="InstaSchool - Student", icon="🎓")
+setup_page(title="InstaSchool - Student", icon=":material/school:")
 
 # Load config
 config = load_config()
@@ -42,7 +42,7 @@ if not StateManager.get_state("user_service"):
     StateManager.set_state("user_service", UserService())
 
 # Student Login UI
-st.sidebar.markdown("### 👤 Student Login")
+st.sidebar.subheader("Student login", anchor=False)
 
 user_service: UserService = StateManager.get_state("user_service")
 current_user = StateManager.get_state("current_user")
@@ -143,11 +143,11 @@ if not current_user:
                     st.rerun()
 
 if not current_user:
-    st.info("👈 Enter your name in the sidebar to start learning. On mobile, tap the ☰ button to open the sidebar.")
+    st.info("Enter your name in the sidebar to start learning. On mobile, tap the menu button to open the sidebar.", icon=":material/person:")
     st.stop()
 
 # Logged in - show user info and logout
-st.sidebar.success(f"✓ Logged in as **{current_user['username']}**")
+st.sidebar.success(f"Logged in as **{current_user['username']}**", icon=":material/check_circle:")
 if current_user.get('has_pin'):
     st.sidebar.caption("🔒 PIN protected")
 if st.sidebar.button("Logout", width="stretch"):

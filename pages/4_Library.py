@@ -16,7 +16,7 @@ load_dotenv()
 
 from src.shared_init import setup_page, load_config, get_provider_service
 from src.state_manager import StateManager
-from src.ui_components import ModernUI
+
 
 # Import Supabase service
 try:
@@ -35,7 +35,7 @@ except ImportError:
     get_exporter = None
 
 # Page setup
-setup_page(title="InstaSchool - Library", icon="📚")
+setup_page(title="InstaSchool - Library", icon=":material/library_books:")
 config = load_config()
 StateManager.initialize_state()
 

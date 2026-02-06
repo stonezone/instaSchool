@@ -1,16 +1,83 @@
-[theme]
-# Modern 2025 theme - clean professional aesthetic
+# InstaSchool Theme - Modern 2025 Professional Design
+# Dual light/dark mode with Inter font
+
+# ── Light Mode ──────────────────────────────────────────────
+[theme.light]
 primaryColor = "#6366f1"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f8fafc"
 textColor = "#0f172a"
-font = "sans serif"
+borderColor = "#e2e8f0"
+linkColor = "#6366f1"
+codeTextColor = "#334155"
+codeBackgroundColor = "#f1f5f9"
+redColor = "#ef4444"
+orangeColor = "#f59e0b"
+yellowColor = "#eab308"
+greenColor = "#22c55e"
+blueColor = "#3b82f6"
+violetColor = "#8b5cf6"
+grayColor = "#64748b"
+dataframeBorderColor = "#e2e8f0"
+dataframeHeaderBackgroundColor = "#f8fafc"
 
+[theme.light.sidebar]
+backgroundColor = "#f8fafc"
+secondaryBackgroundColor = "#f1f5f9"
+textColor = "#0f172a"
+borderColor = "#e2e8f0"
+
+# ── Dark Mode ───────────────────────────────────────────────
+[theme.dark]
+primaryColor = "#818cf8"
+backgroundColor = "#09090b"
+secondaryBackgroundColor = "#18181b"
+textColor = "#fafafa"
+borderColor = "#27272a"
+linkColor = "#818cf8"
+codeTextColor = "#e2e8f0"
+codeBackgroundColor = "#18181b"
+redColor = "#f87171"
+orangeColor = "#fbbf24"
+yellowColor = "#facc15"
+greenColor = "#4ade80"
+blueColor = "#60a5fa"
+violetColor = "#a78bfa"
+grayColor = "#a1a1aa"
+dataframeBorderColor = "#27272a"
+dataframeHeaderBackgroundColor = "#18181b"
+
+[theme.dark.sidebar]
+backgroundColor = "#18181b"
+secondaryBackgroundColor = "#27272a"
+textColor = "#fafafa"
+borderColor = "#27272a"
+
+# ── Shared Theme Settings ───────────────────────────────────
+[theme]
+font = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+headingFont = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseFontSize = 14
+baseFontWeight = 400
+codeFontSize = "13px"
+codeFontWeight = 400
+headingFontSizes = ["32px", "24px", "20px", "16px", "14px", "12px"]
+headingFontWeights = [700, 600, 600, 600, 500, 500]
+linkUnderline = false
+baseRadius = "10px"
+buttonRadius = "10px"
+showWidgetBorder = true
+showSidebarBorder = true
+chartCategoricalColors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"]
+
+# ── Server ──────────────────────────────────────────────────
 [server]
 headless = true
 enableCORS = false
 enableXsrfProtection = true
 fileWatcherType = "poll"
+enableStaticServing = true
 
 [browser]
 gatherUsageStats = false
