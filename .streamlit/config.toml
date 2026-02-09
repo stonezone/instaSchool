@@ -69,6 +69,8 @@ baseRadius = "10px"
 buttonRadius = "10px"
 showWidgetBorder = true
 showSidebarBorder = true
+# IMPORTANT: chartCategoricalColors ONLY supports [theme] section, NOT [theme.light]/[theme.dark]
+# Moving this to light/dark subsections causes warning: "theme.light.chartCategoricalColors is not a valid config option"
 chartCategoricalColors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"]
 
 # ── Server ──────────────────────────────────────────────────

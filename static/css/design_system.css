@@ -2,7 +2,7 @@
    Minimal CSS — theming is handled by .streamlit/config.toml
    Only add CSS here for things Streamlit cannot natively style. */
 
-/* Card classes used by ModernUI.card() in ui_components.py */
+/* Card classes used by FamilyDashboard in ui_components.py */
 .modern-card {
     border: 1px solid var(--border-color, #e2e8f0);
     border-radius: 12px;
